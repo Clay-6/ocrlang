@@ -88,6 +88,8 @@ pub enum Token {
     Next,
     #[token("do")]
     Do,
+    #[token("until")]
+    Until,
     #[token("while")]
     While,
     #[token("endwhile")]
@@ -318,6 +320,11 @@ mod tests {
     #[test]
     fn lex_do() {
         check("do", Token::Do);
+    }
+
+    #[test]
+    fn lex_until() {
+        check("until", Token::Until)
     }
 
     #[test]
