@@ -27,6 +27,8 @@ pub enum Token {
 
     #[token("if")]
     If,
+    #[token("then")]
+    Then,
     #[token("elseif")]
     Elseif,
     #[token("else")]
@@ -119,6 +121,11 @@ mod tests {
     #[test]
     fn lex_if() {
         check("if", Token::If)
+    }
+
+    #[test]
+    fn lex_then() {
+        check("then", Token::Then);
     }
 
     #[test]
