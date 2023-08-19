@@ -14,6 +14,12 @@ pub enum Token {
     Mod,
     #[token("DIV")]
     Div,
+    #[token("AND")]
+    And,
+    #[token("OR")]
+    Or,
+    #[token("NOT")]
+    Not,
 
     #[token("\n")]
     Newline,
@@ -62,6 +68,21 @@ mod tests {
     #[test]
     fn lex_div() {
         check("DIV", Token::Div);
+    }
+
+    #[test]
+    fn lex_and() {
+        check("AND", Token::And);
+    }
+
+    #[test]
+    fn lex_or() {
+        check("OR", Token::Or);
+    }
+
+    #[test]
+    fn lex_not() {
+        check("NOT", Token::Not);
     }
 
     #[test]
