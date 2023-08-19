@@ -14,6 +14,13 @@ pub enum Token {
     Mod,
     #[token("DIV")]
     Div,
+
+    #[token("\n")]
+    Newline,
+    #[regex(r"[ \t\r\f]+")]
+    Whitespace,
+    #[regex("//.*")]
+    Comment,
 }
 
 #[cfg(test)]
@@ -55,5 +62,20 @@ mod tests {
     #[test]
     fn lex_div() {
         check("DIV", Token::Div);
+    }
+
+    #[test]
+    fn lex_comment() {
+        check("// A comment", Token::Comment);
+    }
+
+    #[test]
+    fn lex_whitespace() {
+        check("  \t\r", Token::Whitespace);
+    }
+
+    #[test]
+    fn lex_newline() {
+        check("\n", Token::Newline);
     }
 }
