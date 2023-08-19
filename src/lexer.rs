@@ -93,6 +93,17 @@ pub enum Token {
     #[token("endwhile")]
     Endwhile,
 
+    #[token("function")]
+    Function,
+    #[token("return")]
+    Return,
+    #[token("endfunction")]
+    Endfunction,
+    #[token("procedure")]
+    Procedure,
+    #[token("endprocedure")]
+    Endprocedure,
+
     #[token("\n")]
     Newline,
     #[regex(r"[ \t\r\f]+")]
@@ -317,6 +328,31 @@ mod tests {
     #[test]
     fn lex_endwhile() {
         check("endwhile", Token::Endwhile);
+    }
+
+    #[test]
+    fn lex_function() {
+        check("function", Token::Function);
+    }
+
+    #[test]
+    fn lex_return() {
+        check("return", Token::Return);
+    }
+
+    #[test]
+    fn lex_endfunction() {
+        check("endfunction", Token::Endfunction);
+    }
+
+    #[test]
+    fn lex_procedure() {
+        check("procedure", Token::Procedure);
+    }
+
+    #[test]
+    fn lex_endprocedure() {
+        check("endprocedure", Token::Endprocedure);
     }
 
     #[test]
