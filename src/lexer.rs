@@ -106,6 +106,17 @@ pub enum Token {
     #[token("endprocedure")]
     Endprocedure,
 
+    #[regex(r#"".*""#)]
+    StringLit,
+    #[regex("[0-9]+")]
+    IntLit,
+    #[regex(r"[0-9]+\.[0-9]+")]
+    FloatLit,
+    #[token("true")]
+    True,
+    #[token("false")]
+    False,
+
     #[token("\n")]
     Newline,
     #[regex(r"[ \t\r\f]+")]
@@ -360,6 +371,27 @@ mod tests {
     #[test]
     fn lex_endprocedure() {
         check("endprocedure", Token::Endprocedure);
+    }
+
+    #[test]
+    fn lex_string_literal() {
+        check(r#""A string literal""#, Token::StringLit);
+    }
+
+    #[test]
+    fn lex_int_literal() {
+        check("42", Token::IntLit);
+    }
+
+    #[test]
+    fn lex_float_literal() {
+        check("3.14", Token::FloatLit);
+    }
+
+    #[test]
+    fn lex_bool_literals() {
+        check("true", Token::True);
+        check("false", Token::False);
     }
 
     #[test]
