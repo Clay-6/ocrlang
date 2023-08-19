@@ -37,8 +37,14 @@ pub enum Token {
     #[token("<=")]
     LessEqual,
 
+    #[token("const")]
+    Const,
+    #[token("global")]
+    Global,
     #[token("=")]
     Equal,
+    #[regex("[A-Za-z_][A-Za-z0-9_]*")]
+    Ident,
 
     #[token("if")]
     If,
@@ -134,8 +140,23 @@ mod tests {
     }
 
     #[test]
+    fn lex_const() {
+        check("const", Token::Const);
+    }
+
+    #[test]
+    fn lex_global() {
+        check("global", Token::Global);
+    }
+
+    #[test]
     fn lex_equal() {
         check("=", Token::Equal);
+    }
+
+    #[test]
+    fn lex_ident() {
+        check("an_ident123", Token::Ident);
     }
 
     #[test]
