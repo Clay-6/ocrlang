@@ -55,6 +55,8 @@ pub enum Token {
     Const,
     #[token("global")]
     Global,
+    #[token("array")]
+    Array,
     #[token("=")]
     Equal,
     #[regex("[A-Za-z_][A-Za-z0-9_]*")]
@@ -173,6 +175,11 @@ mod tests {
     #[test]
     fn lex_global() {
         check("global", Token::Global);
+    }
+
+    #[test]
+    fn lex_array() {
+        check("array", Token::Array);
     }
 
     #[test]
