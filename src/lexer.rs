@@ -23,6 +23,15 @@ pub enum Token {
     #[token("NOT")]
     Not,
 
+    #[token("if")]
+    If,
+    #[token("elseif")]
+    Elseif,
+    #[token("else")]
+    Else,
+    #[token("endif")]
+    Endif,
+
     #[token("\n")]
     Newline,
     #[regex(r"[ \t\r\f]+")]
@@ -90,6 +99,26 @@ mod tests {
     #[test]
     fn lex_not() {
         check("NOT", Token::Not);
+    }
+
+    #[test]
+    fn lex_if() {
+        check("if", Token::If)
+    }
+
+    #[test]
+    fn lex_elseif() {
+        check("elseif", Token::Elseif)
+    }
+
+    #[test]
+    fn lex_else() {
+        check("else", Token::Else)
+    }
+
+    #[test]
+    fn lex_endif() {
+        check("endif", Token::Endif)
     }
 
     #[test]
