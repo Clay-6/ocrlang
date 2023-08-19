@@ -78,6 +78,18 @@ pub enum Token {
     Default,
     #[token("endswitch")]
     Endswitch,
+    #[token("for")]
+    For,
+    #[token("to")]
+    To,
+    #[token("next")]
+    Next,
+    #[token("do")]
+    Do,
+    #[token("while")]
+    While,
+    #[token("endwhile")]
+    Endwhile,
 
     #[token("\n")]
     Newline,
@@ -268,6 +280,36 @@ mod tests {
     #[test]
     fn lex_endswitch() {
         check("endswitch", Token::Endswitch);
+    }
+
+    #[test]
+    fn lex_for() {
+        check("for", Token::For);
+    }
+
+    #[test]
+    fn lex_to() {
+        check("to", Token::To);
+    }
+
+    #[test]
+    fn lex_next() {
+        check("next", Token::Next);
+    }
+
+    #[test]
+    fn lex_do() {
+        check("do", Token::Do);
+    }
+
+    #[test]
+    fn lex_while() {
+        check("while", Token::While);
+    }
+
+    #[test]
+    fn lex_endwhile() {
+        check("endwhile", Token::Endwhile);
     }
 
     #[test]
