@@ -12,6 +12,8 @@ pub enum Token {
     Slash,
     #[token("^")]
     Caret,
+    #[token(":")]
+    Colon,
     #[token("MOD")]
     Mod,
     #[token("DIV")]
@@ -31,6 +33,14 @@ pub enum Token {
     Else,
     #[token("endif")]
     Endif,
+    #[token("switch")]
+    Switch,
+    #[token("case")]
+    Case,
+    #[token("default")]
+    Default,
+    #[token("endswitch")]
+    Endswitch,
 
     #[token("\n")]
     Newline,
@@ -77,6 +87,11 @@ mod tests {
     }
 
     #[test]
+    fn lex_colon() {
+        check(":", Token::Colon);
+    }
+
+    #[test]
     fn lex_mod() {
         check("MOD", Token::Mod);
     }
@@ -119,6 +134,26 @@ mod tests {
     #[test]
     fn lex_endif() {
         check("endif", Token::Endif)
+    }
+
+    #[test]
+    fn lex_switch() {
+        check("switch", Token::Switch);
+    }
+
+    #[test]
+    fn lex_case() {
+        check("case", Token::Case);
+    }
+
+    #[test]
+    fn lex_default() {
+        check("default", Token::Default);
+    }
+
+    #[test]
+    fn lex_endswitch() {
+        check("endswitch", Token::Endswitch);
     }
 
     #[test]
