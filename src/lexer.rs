@@ -37,6 +37,15 @@ pub enum Token {
     #[token("<=")]
     LessEqual,
 
+    #[token("(")]
+    LParen,
+    #[token(")")]
+    RParen,
+    #[token("[")]
+    LBracket,
+    #[token("]")]
+    RBracket,
+
     #[token("const")]
     Const,
     #[token("global")]
@@ -187,6 +196,18 @@ mod tests {
     #[test]
     fn lex_bang_equal() {
         check("!=", Token::BangEqual);
+    }
+
+    #[test]
+    fn lex_parens() {
+        check("(", Token::LParen);
+        check(")", Token::RParen);
+    }
+
+    #[test]
+    fn lex_brackets() {
+        check("[", Token::LBracket);
+        check("]", Token::RBracket)
     }
 
     #[test]
