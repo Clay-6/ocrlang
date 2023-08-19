@@ -24,6 +24,21 @@ pub enum Token {
     Or,
     #[token("NOT")]
     Not,
+    #[token("==")]
+    EqualEqual,
+    #[token("!=")]
+    BangEqual,
+    #[token(">")]
+    Greater,
+    #[token(">=")]
+    GreaterEqual,
+    #[token("<")]
+    Less,
+    #[token("<=")]
+    LessEqual,
+
+    #[token("=")]
+    Equal,
 
     #[token("if")]
     If,
@@ -116,6 +131,41 @@ mod tests {
     #[test]
     fn lex_not() {
         check("NOT", Token::Not);
+    }
+
+    #[test]
+    fn lex_equal() {
+        check("=", Token::Equal);
+    }
+
+    #[test]
+    fn lex_equal_equal() {
+        check("==", Token::EqualEqual);
+    }
+
+    #[test]
+    fn lex_less() {
+        check("<", Token::Less);
+    }
+
+    #[test]
+    fn lex_less_equal() {
+        check("<=", Token::LessEqual);
+    }
+
+    #[test]
+    fn lex_greater() {
+        check(">", Token::Greater);
+    }
+
+    #[test]
+    fn lex_greater_equal() {
+        check(">=", Token::GreaterEqual);
+    }
+
+    #[test]
+    fn lex_bang_equal() {
+        check("!=", Token::BangEqual);
     }
 
     #[test]
