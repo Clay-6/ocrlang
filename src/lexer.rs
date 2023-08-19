@@ -10,6 +10,8 @@ pub enum Token {
     Star,
     #[token("/")]
     Slash,
+    #[token("^")]
+    Caret,
     #[token("MOD")]
     Mod,
     #[token("DIV")]
@@ -58,6 +60,11 @@ mod tests {
     #[test]
     fn lex_slash() {
         check("/", Token::Slash);
+    }
+
+    #[test]
+    fn lex_caret() {
+        check("^", Token::Caret)
     }
 
     #[test]
