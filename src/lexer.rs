@@ -46,6 +46,11 @@ pub enum Token {
     #[token("]")]
     RBracket,
 
+    #[token(".")]
+    Dot,
+    #[token(",")]
+    Comma,
+
     #[token("const")]
     Const,
     #[token("global")]
@@ -208,6 +213,16 @@ mod tests {
     fn lex_brackets() {
         check("[", Token::LBracket);
         check("]", Token::RBracket)
+    }
+
+    #[test]
+    fn lex_dot() {
+        check(".", Token::Dot);
+    }
+
+    #[test]
+    fn lex_comma() {
+        check(",", Token::Comma);
     }
 
     #[test]
