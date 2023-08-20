@@ -13,9 +13,9 @@ pub struct Lexer<'i> {
 
 #[derive(Debug, PartialEq)]
 pub struct Token<'i> {
-    kind: TokenKind,
-    text: &'i str,
-    range: Range<usize>,
+    pub kind: TokenKind,
+    pub text: &'i str,
+    pub range: Range<usize>,
 }
 
 impl<'i> Lexer<'i> {
