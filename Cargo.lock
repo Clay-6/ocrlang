@@ -47,7 +47,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ocrlang"
+name = "ocrlang-lexer"
 version = "0.1.0"
 dependencies = [
  "logos",
