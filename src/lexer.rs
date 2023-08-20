@@ -106,8 +106,7 @@ pub enum Token {
     #[token("endprocedure")]
     Endprocedure,
 
-    #[regex(r#"".*""#)]
-    StringLit,
+    // TODO: string literals
     #[regex("[0-9]+")]
     IntLit,
     #[regex(r"[0-9]+\.[0-9]+")]
@@ -371,11 +370,6 @@ mod tests {
     #[test]
     fn lex_endprocedure() {
         check("endprocedure", Token::Endprocedure);
-    }
-
-    #[test]
-    fn lex_string_literal() {
-        check(r#""A string literal""#, Token::StringLit);
     }
 
     #[test]
