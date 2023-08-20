@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 lexer = { path = "../lexer" }
+rowan = "0.15.11"
+num-traits = "0.2.16"
+num-derive = "0.4.0"
