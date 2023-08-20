@@ -1,7 +1,7 @@
 use logos::Logos;
 
 #[derive(Debug, PartialEq, Logos)]
-pub enum Token {
+pub enum TokenKind {
     #[token("+")]
     Plus,
     #[token("-")]
@@ -128,8 +128,8 @@ pub enum Token {
 mod tests {
     use super::*;
 
-    fn check(src: &str, expected: Token) {
-        let mut lex = Token::lexer(src);
+    fn check(src: &str, expected: TokenKind) {
+        let mut lex = TokenKind::lexer(src);
 
         assert_eq!(lex.next().unwrap().unwrap(), expected);
         assert_eq!(lex.slice(), src);
@@ -137,269 +137,269 @@ mod tests {
 
     #[test]
     fn lex_plus() {
-        check("+", Token::Plus);
+        check("+", TokenKind::Plus);
     }
 
     #[test]
     fn lex_minus() {
-        check("-", Token::Minus);
+        check("-", TokenKind::Minus);
     }
 
     #[test]
     fn lex_star() {
-        check("*", Token::Star);
+        check("*", TokenKind::Star);
     }
 
     #[test]
     fn lex_slash() {
-        check("/", Token::Slash);
+        check("/", TokenKind::Slash);
     }
 
     #[test]
     fn lex_caret() {
-        check("^", Token::Caret)
+        check("^", TokenKind::Caret)
     }
 
     #[test]
     fn lex_colon() {
-        check(":", Token::Colon);
+        check(":", TokenKind::Colon);
     }
 
     #[test]
     fn lex_mod() {
-        check("MOD", Token::Mod);
+        check("MOD", TokenKind::Mod);
     }
 
     #[test]
     fn lex_div() {
-        check("DIV", Token::Div);
+        check("DIV", TokenKind::Div);
     }
 
     #[test]
     fn lex_and() {
-        check("AND", Token::And);
+        check("AND", TokenKind::And);
     }
 
     #[test]
     fn lex_or() {
-        check("OR", Token::Or);
+        check("OR", TokenKind::Or);
     }
 
     #[test]
     fn lex_not() {
-        check("NOT", Token::Not);
+        check("NOT", TokenKind::Not);
     }
 
     #[test]
     fn lex_const() {
-        check("const", Token::Const);
+        check("const", TokenKind::Const);
     }
 
     #[test]
     fn lex_global() {
-        check("global", Token::Global);
+        check("global", TokenKind::Global);
     }
 
     #[test]
     fn lex_array() {
-        check("array", Token::Array);
+        check("array", TokenKind::Array);
     }
 
     #[test]
     fn lex_equal() {
-        check("=", Token::Equal);
+        check("=", TokenKind::Equal);
     }
 
     #[test]
     fn lex_ident() {
-        check("an_ident123", Token::Ident);
+        check("an_ident123", TokenKind::Ident);
     }
 
     #[test]
     fn lex_equal_equal() {
-        check("==", Token::EqualEqual);
+        check("==", TokenKind::EqualEqual);
     }
 
     #[test]
     fn lex_less() {
-        check("<", Token::Less);
+        check("<", TokenKind::Less);
     }
 
     #[test]
     fn lex_less_equal() {
-        check("<=", Token::LessEqual);
+        check("<=", TokenKind::LessEqual);
     }
 
     #[test]
     fn lex_greater() {
-        check(">", Token::Greater);
+        check(">", TokenKind::Greater);
     }
 
     #[test]
     fn lex_greater_equal() {
-        check(">=", Token::GreaterEqual);
+        check(">=", TokenKind::GreaterEqual);
     }
 
     #[test]
     fn lex_bang_equal() {
-        check("!=", Token::BangEqual);
+        check("!=", TokenKind::BangEqual);
     }
 
     #[test]
     fn lex_parens() {
-        check("(", Token::LParen);
-        check(")", Token::RParen);
+        check("(", TokenKind::LParen);
+        check(")", TokenKind::RParen);
     }
 
     #[test]
     fn lex_brackets() {
-        check("[", Token::LBracket);
-        check("]", Token::RBracket)
+        check("[", TokenKind::LBracket);
+        check("]", TokenKind::RBracket)
     }
 
     #[test]
     fn lex_dot() {
-        check(".", Token::Dot);
+        check(".", TokenKind::Dot);
     }
 
     #[test]
     fn lex_comma() {
-        check(",", Token::Comma);
+        check(",", TokenKind::Comma);
     }
 
     #[test]
     fn lex_if() {
-        check("if", Token::If)
+        check("if", TokenKind::If)
     }
 
     #[test]
     fn lex_then() {
-        check("then", Token::Then);
+        check("then", TokenKind::Then);
     }
 
     #[test]
     fn lex_elseif() {
-        check("elseif", Token::Elseif)
+        check("elseif", TokenKind::Elseif)
     }
 
     #[test]
     fn lex_else() {
-        check("else", Token::Else)
+        check("else", TokenKind::Else)
     }
 
     #[test]
     fn lex_endif() {
-        check("endif", Token::Endif)
+        check("endif", TokenKind::Endif)
     }
 
     #[test]
     fn lex_switch() {
-        check("switch", Token::Switch);
+        check("switch", TokenKind::Switch);
     }
 
     #[test]
     fn lex_case() {
-        check("case", Token::Case);
+        check("case", TokenKind::Case);
     }
 
     #[test]
     fn lex_default() {
-        check("default", Token::Default);
+        check("default", TokenKind::Default);
     }
 
     #[test]
     fn lex_endswitch() {
-        check("endswitch", Token::Endswitch);
+        check("endswitch", TokenKind::Endswitch);
     }
 
     #[test]
     fn lex_for() {
-        check("for", Token::For);
+        check("for", TokenKind::For);
     }
 
     #[test]
     fn lex_to() {
-        check("to", Token::To);
+        check("to", TokenKind::To);
     }
 
     #[test]
     fn lex_next() {
-        check("next", Token::Next);
+        check("next", TokenKind::Next);
     }
 
     #[test]
     fn lex_do() {
-        check("do", Token::Do);
+        check("do", TokenKind::Do);
     }
 
     #[test]
     fn lex_until() {
-        check("until", Token::Until)
+        check("until", TokenKind::Until)
     }
 
     #[test]
     fn lex_while() {
-        check("while", Token::While);
+        check("while", TokenKind::While);
     }
 
     #[test]
     fn lex_endwhile() {
-        check("endwhile", Token::Endwhile);
+        check("endwhile", TokenKind::Endwhile);
     }
 
     #[test]
     fn lex_function() {
-        check("function", Token::Function);
+        check("function", TokenKind::Function);
     }
 
     #[test]
     fn lex_return() {
-        check("return", Token::Return);
+        check("return", TokenKind::Return);
     }
 
     #[test]
     fn lex_endfunction() {
-        check("endfunction", Token::Endfunction);
+        check("endfunction", TokenKind::Endfunction);
     }
 
     #[test]
     fn lex_procedure() {
-        check("procedure", Token::Procedure);
+        check("procedure", TokenKind::Procedure);
     }
 
     #[test]
     fn lex_endprocedure() {
-        check("endprocedure", Token::Endprocedure);
+        check("endprocedure", TokenKind::Endprocedure);
     }
 
     #[test]
     fn lex_int_literal() {
-        check("42", Token::IntLit);
+        check("42", TokenKind::IntLit);
     }
 
     #[test]
     fn lex_float_literal() {
-        check("3.14", Token::FloatLit);
+        check("3.14", TokenKind::FloatLit);
     }
 
     #[test]
     fn lex_bool_literals() {
-        check("true", Token::True);
-        check("false", Token::False);
+        check("true", TokenKind::True);
+        check("false", TokenKind::False);
     }
 
     #[test]
     fn lex_comment() {
-        check("// A comment", Token::Comment);
+        check("// A comment", TokenKind::Comment);
     }
 
     #[test]
     fn lex_whitespace() {
-        check("  \t\r", Token::Whitespace);
+        check("  \t\r", TokenKind::Whitespace);
     }
 
     #[test]
     fn lex_newline() {
-        check("\n", Token::Newline);
+        check("\n", TokenKind::Newline);
     }
 }
