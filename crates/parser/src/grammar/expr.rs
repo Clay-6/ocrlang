@@ -25,9 +25,8 @@ impl InfixOp {
     fn bp(&self) -> (u8, u8) {
         match self {
             Self::Add | Self::Sub => (1, 2),
-            Self::Mul | Self::Div => (3, 4),
-            Self::Mod | Self::Quot => (5, 6),
-            Self::Pow => (9, 8),
+            Self::Mul | Self::Div | Self::Mod | Self::Quot => (3, 4),
+            Self::Pow => (7, 6),
         }
     }
 }
@@ -35,7 +34,7 @@ impl InfixOp {
 impl PrefixOp {
     fn bp(&self) -> ((), u8) {
         match self {
-            PrefixOp::Neg => ((), 7),
+            PrefixOp::Neg => ((), 5),
         }
     }
 }
