@@ -2,6 +2,7 @@ use std::string::ParseError;
 
 use syntax::SyntaxKind;
 
+#[derive(Debug, PartialEq)]
 pub(crate) enum Event {
     StartNode {
         kind: SyntaxKind,

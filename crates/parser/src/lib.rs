@@ -1,10 +1,11 @@
 mod event;
+mod grammar;
 mod parser;
 mod sink;
 mod source;
 
 use lexer::Lexer;
-use parser::{parse_error::ParseError, Parser};
+use parser::{ParseError, Parser};
 use rowan::GreenNode;
 use sink::Sink;
 use source::Source;

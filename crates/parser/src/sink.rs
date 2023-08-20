@@ -1,7 +1,7 @@
 use lexer::Token;
 use rowan::GreenNodeBuilder;
 
-use crate::{event::Event, parser::parse_error::ParseError, Parse};
+use crate::{event::Event, parser::ParseError, Parse};
 
 pub(crate) struct Sink<'t, 'input> {
     builder: GreenNodeBuilder<'static>,
