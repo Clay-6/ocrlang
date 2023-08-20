@@ -2,7 +2,7 @@ use core::fmt;
 
 use logos::Logos;
 
-#[derive(Debug, PartialEq, Logos)]
+#[derive(Debug, Clone, Copy, PartialEq, Logos)]
 pub enum TokenKind {
     #[token("+")]
     Plus,
@@ -124,6 +124,12 @@ pub enum TokenKind {
     Whitespace,
     #[regex("//.*")]
     Comment,
+}
+
+impl TokenKind {
+    pub fn is_trivia(self) -> bool {
+        matches!(self, TokenKind::Whitespace | TokenKind::Comment)
+    }
 }
 
 impl fmt::Display for TokenKind {
