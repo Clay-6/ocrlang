@@ -1,3 +1,5 @@
+use core::fmt;
+
 use logos::Logos;
 
 #[derive(Debug, PartialEq, Logos)]
@@ -122,6 +124,69 @@ pub enum TokenKind {
     Whitespace,
     #[regex("//.*")]
     Comment,
+}
+
+impl fmt::Display for TokenKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            TokenKind::Plus => "`+`",
+            TokenKind::Minus => "`-`",
+            TokenKind::Star => "`*`",
+            TokenKind::Slash => "`/`",
+            TokenKind::Caret => "`^`",
+            TokenKind::Colon => "`:`",
+            TokenKind::Mod => "`MOD`",
+            TokenKind::Div => "`DIV`",
+            TokenKind::And => "`AND`",
+            TokenKind::Or => "`OR`",
+            TokenKind::Not => "`NOT`",
+            TokenKind::EqualEqual => "`==`",
+            TokenKind::BangEqual => "`!=`",
+            TokenKind::Greater => "`>`",
+            TokenKind::GreaterEqual => "`>=`",
+            TokenKind::Less => "`<`",
+            TokenKind::LessEqual => "`<=`",
+            TokenKind::LParen => "`(`",
+            TokenKind::RParen => "`)`",
+            TokenKind::LBracket => "`[`",
+            TokenKind::RBracket => "`]`",
+            TokenKind::Dot => "`.`",
+            TokenKind::Comma => "`,`",
+            TokenKind::Const => "`const`",
+            TokenKind::Global => "`global`",
+            TokenKind::Array => "`array`",
+            TokenKind::Equal => "`=`",
+            TokenKind::Ident => "identifier",
+            TokenKind::If => "`if`",
+            TokenKind::Then => "`then`",
+            TokenKind::Elseif => "`elseif`",
+            TokenKind::Else => "`else`",
+            TokenKind::Endif => "`endif`",
+            TokenKind::Switch => "`switch`",
+            TokenKind::Case => "`case`",
+            TokenKind::Default => "`default`",
+            TokenKind::Endswitch => "`endswitch`",
+            TokenKind::For => "`for`",
+            TokenKind::To => "`to`",
+            TokenKind::Next => "`next`",
+            TokenKind::Do => "`do`",
+            TokenKind::Until => "`until`",
+            TokenKind::While => "`while`",
+            TokenKind::Endwhile => "`endwhile`",
+            TokenKind::Function => "`function`",
+            TokenKind::Return => "`return`",
+            TokenKind::Endfunction => "`endfunction`",
+            TokenKind::Procedure => "`procedure`",
+            TokenKind::Endprocedure => "`endprocedure`",
+            TokenKind::IntLit => "int-literal",
+            TokenKind::FloatLit => "float-literal",
+            TokenKind::True => "`true`",
+            TokenKind::False => "`false`",
+            TokenKind::Newline => "newline",
+            TokenKind::Whitespace => "whitespace",
+            TokenKind::Comment => "comment",
+        })
+    }
 }
 
 #[cfg(test)]
