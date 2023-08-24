@@ -6,10 +6,46 @@ pub(crate) fn expr(p: &mut Parser) -> Option<CompletedMarker> {
     expr_bp(p, 0)
 }
 
-fn expr_bp(p: &mut Parser, bp: u8) -> Option<CompletedMarker> {
-    let lhs = lhs(p)?;
+fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
+    let mut lhs = lhs(p)?;
 
-    todo!();
+    loop {
+        let op = if p.at(TokenKind::Plus) {
+            InfixOp::Add
+        } else if p.at(TokenKind::Minus) {
+            InfixOp::Sub
+        } else if p.at(TokenKind::Star) {
+            InfixOp::Mul
+        } else if p.at(TokenKind::Slash) {
+            InfixOp::Div
+        } else if p.at(TokenKind::Caret) {
+            InfixOp::Pow
+        } else if p.at(TokenKind::Mod) {
+            InfixOp::Mod
+        } else if p.at(TokenKind::Div) {
+            InfixOp::Quot
+        } else {
+            break;
+        };
+
+        let (l_bp, r_bp) = op.bp();
+
+        if l_bp < min_bp {
+            break;
+        }
+
+        p.bump(); // Operator's token
+
+        let m = lhs.precede(p);
+        let parsed_rhs = expr_bp(p, r_bp).is_some();
+        lhs = m.complete(p, SyntaxKind::InfixExpr);
+
+        if !parsed_rhs {
+            break;
+        }
+    }
+
+    Some(lhs)
 }
 
 fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
