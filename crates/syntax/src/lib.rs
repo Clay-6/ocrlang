@@ -71,6 +71,10 @@ pub enum SyntaxKind {
     InfixExpr,
 }
 
+pub type SyntaxNode = rowan::SyntaxNode<OcrLang>;
+pub type SyntaxElement = rowan::SyntaxElement<OcrLang>;
+pub type SyntaxToken = rowan::SyntaxToken<OcrLang>;
+
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct OcrLang;
 
