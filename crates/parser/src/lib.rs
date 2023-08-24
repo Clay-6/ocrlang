@@ -9,6 +9,7 @@ use parser::{ParseError, Parser};
 use rowan::GreenNode;
 use sink::Sink;
 use source::Source;
+use syntax::SyntaxNode;
 
 pub fn parse(input: &str) -> Parse {
     let tokens = Lexer::new(input).collect::<Vec<_>>();
@@ -23,4 +24,25 @@ pub fn parse(input: &str) -> Parse {
 pub struct Parse {
     green_node: GreenNode,
     errors: Vec<ParseError>,
+}
+
+impl Parse {
+    pub fn debug_tree(&self) -> String {
+        let mut s = String::new();
+
+        let tree = format!("{:#?}", self.syntax());
+
+        // Cut off trailing newline from formatting
+        s.push_str(&tree[0..tree.len() - 1]);
+
+        for error in &self.errors {
+            s.push_str(&format!("\n{}", error));
+        }
+
+        s
+    }
+
+    pub fn syntax(&self) -> SyntaxNode {
+        SyntaxNode::new_root(self.green_node.clone())
+    }
 }
