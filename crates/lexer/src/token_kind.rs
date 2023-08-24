@@ -109,10 +109,8 @@ pub enum TokenKind {
     Endprocedure,
 
     // TODO: string literals
-    #[regex("[0-9]+")]
-    IntLit,
-    #[regex(r"[0-9]+\.[0-9]+")]
-    FloatLit,
+    #[regex(r"[0-9]+(\.[0-9]+)?")]
+    Number,
     #[token("true")]
     True,
     #[token("false")]
@@ -184,8 +182,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Endfunction => "`endfunction`",
             TokenKind::Procedure => "`procedure`",
             TokenKind::Endprocedure => "`endprocedure`",
-            TokenKind::IntLit => "int-literal",
-            TokenKind::FloatLit => "float-literal",
+            TokenKind::Number => "number",
             TokenKind::True => "`true`",
             TokenKind::False => "`false`",
             TokenKind::Newline => "newline",
@@ -444,13 +441,13 @@ mod tests {
     }
 
     #[test]
-    fn lex_int_literal() {
-        check("42", TokenKind::IntLit);
+    fn lex_whole_number() {
+        check("42", TokenKind::Number);
     }
 
     #[test]
-    fn lex_float_literal() {
-        check("3.14", TokenKind::FloatLit);
+    fn lex_decimal_number() {
+        check("3.14", TokenKind::Number);
     }
 
     #[test]
