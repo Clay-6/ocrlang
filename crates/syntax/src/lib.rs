@@ -62,6 +62,12 @@ pub enum SyntaxKind {
     Comment,
 
     Root,
+    Error,
+    BinaryOp,
+    Literal,
+    ParenExpr,
+    PrefixExpr,
+    NameRef,
 }
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]

@@ -3,6 +3,7 @@ use std::ops::Range;
 
 use lexer::TokenKind;
 
+#[derive(Debug, PartialEq)]
 pub(crate) struct ParseError {
     pub(super) expected: Vec<TokenKind>,
     pub(super) found: Option<TokenKind>,

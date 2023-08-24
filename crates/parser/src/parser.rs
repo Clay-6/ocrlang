@@ -1,13 +1,18 @@
 pub(crate) mod marker;
 mod parse_error;
 
-use lexer::TokenKind;
+use std::mem;
+
+use lexer::{Token, TokenKind};
+use syntax::SyntaxKind;
 
 use crate::{event::Event, grammar, source::Source};
 
 pub(crate) use parse_error::ParseError;
 
 use self::marker::Marker;
+
+const RECOVERY_SET: [TokenKind; 3] = [TokenKind::Const, TokenKind::Global, TokenKind::Array];
 
 pub(crate) struct Parser<'t, 'input> {
     source: Source<'t, 'input>,
@@ -36,6 +41,12 @@ impl<'t, 'input> Parser<'t, 'input> {
         Marker::new(pos)
     }
 
+    pub(crate) fn bump(&mut self) {
+        self.expected_kinds.clear();
+        self.source.next_token().unwrap();
+        self.events.push(Event::AddToken);
+    }
+
     pub(crate) fn at(&mut self, kind: TokenKind) -> bool {
         self.expected_kinds.push(kind);
 
@@ -44,6 +55,40 @@ impl<'t, 'input> Parser<'t, 'input> {
 
     pub(crate) fn at_end(&mut self) -> bool {
         self.peek().is_none()
+    }
+
+    pub(crate) fn error(&mut self) {
+        let curr_tok = self.source.peek_token();
+
+        let (found, range) = if let Some(Token { kind, range, .. }) = curr_tok {
+            (Some(*kind), range.clone())
+        } else {
+            (None, self.source.last_token_range().unwrap())
+        };
+
+        self.events.push(Event::Error(ParseError {
+            expected: mem::take(&mut self.expected_kinds),
+            found,
+            range,
+        }));
+
+        if !self.at_set(&RECOVERY_SET) && !self.at_end() {
+            let m = self.start();
+            self.bump();
+            m.complete(self, SyntaxKind::Error);
+        }
+    }
+
+    pub(crate) fn expect(&mut self, kind: TokenKind) {
+        if self.at(kind) {
+            self.bump();
+        } else {
+            self.error();
+        }
+    }
+
+    fn at_set(&mut self, set: &[TokenKind]) -> bool {
+        self.peek().map_or(false, |kind| set.contains(&kind))
     }
 
     fn peek(&mut self) -> Option<TokenKind> {

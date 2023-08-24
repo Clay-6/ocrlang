@@ -1,4 +1,4 @@
-use std::string::ParseError;
+use crate::parser::ParseError;
 
 use syntax::SyntaxKind;
 
