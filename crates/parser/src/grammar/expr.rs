@@ -165,7 +165,7 @@ impl InfixOp {
             | Self::LessEqual => (7, 8),
             Self::Add | Self::Sub => (9, 10),
             Self::Mul | Self::Div | Self::Mod | Self::Quot => (11, 12),
-            Self::Pow => (15, 16),
+            Self::Pow => (16, 15),
             Self::Dot => (17, 18),
         }
     }
@@ -216,6 +216,25 @@ mod tests {
                       Star@3..4 "*"
                       Literal@4..5
                         Number@4..5 "3""#]],
+        );
+    }
+
+    #[test]
+    fn parse_nested_pow_expr() {
+        check(
+            "2^3^4",
+            expect![[r#"
+            Root@0..5
+              BinaryExpr@0..5
+                Literal@0..1
+                  Number@0..1 "2"
+                Caret@1..2 "^"
+                BinaryExpr@2..5
+                  Literal@2..3
+                    Number@2..3 "3"
+                  Caret@3..4 "^"
+                  Literal@4..5
+                    Number@4..5 "4""#]],
         );
     }
 
