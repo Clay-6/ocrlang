@@ -24,6 +24,10 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
             InfixOp::Mod
         } else if p.at(TokenKind::Div) {
             InfixOp::Quot
+        } else if p.at(TokenKind::And) {
+            InfixOp::And
+        } else if p.at(TokenKind::Or) {
+            InfixOp::Or
         } else {
             break;
         };
@@ -49,11 +53,11 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
 }
 
 fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
-    let cm = if p.at(TokenKind::Number) {
+    let cm = if p.at(TokenKind::Number) || p.at(TokenKind::True) || p.at(TokenKind::False) {
         literal(p)
     } else if p.at(TokenKind::LParen) {
         paren_expr(p)
-    } else if p.at(TokenKind::Minus) {
+    } else if p.at(TokenKind::Minus) || p.at(TokenKind::Not) {
         prefix_expr(p)
     } else if p.at(TokenKind::Ident) {
         name_ref(p)
@@ -66,8 +70,6 @@ fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
 }
 
 fn literal(p: &mut Parser) -> CompletedMarker {
-    assert!(p.at(TokenKind::Number));
-
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::Literal)
@@ -85,11 +87,16 @@ fn paren_expr(p: &mut Parser) -> CompletedMarker {
 }
 
 fn prefix_expr(p: &mut Parser) -> CompletedMarker {
-    assert!(p.at(TokenKind::Minus));
-
     let m = p.start();
 
-    let op = PrefixOp::Neg;
+    let op = if p.at(TokenKind::Minus) {
+        PrefixOp::Neg
+    } else if p.at(TokenKind::Not) {
+        PrefixOp::Not
+    } else {
+        unreachable!()
+    };
+
     let ((), bp) = op.bp();
 
     p.bump();
@@ -115,18 +122,23 @@ enum InfixOp {
     Mod,
     Quot,
     Pow,
+    And,
+    Or,
 }
 
 enum PrefixOp {
     Neg,
+    Not,
 }
 
 impl InfixOp {
     fn bp(&self) -> (u8, u8) {
         match self {
-            Self::Add | Self::Sub => (1, 2),
-            Self::Mul | Self::Div | Self::Mod | Self::Quot => (3, 4),
-            Self::Pow => (7, 6),
+            Self::Or => (1, 2),
+            Self::And => (3, 4),
+            Self::Add | Self::Sub => (5, 6),
+            Self::Mul | Self::Div | Self::Mod | Self::Quot => (7, 8),
+            Self::Pow => (9, 10),
         }
     }
 }
@@ -134,7 +146,8 @@ impl InfixOp {
 impl PrefixOp {
     fn bp(&self) -> ((), u8) {
         match self {
-            PrefixOp::Neg => ((), 5),
+            PrefixOp::Not => ((), 3),
+            PrefixOp::Neg => ((), 6),
         }
     }
 }
@@ -179,6 +192,29 @@ mod tests {
     }
 
     #[test]
+    fn parse_mixed_binary_logic_expr() {
+        check(
+            "true AND true OR false",
+            expect![[r#"
+            Root@0..22
+              BinaryExpr@0..22
+                BinaryExpr@0..14
+                  Literal@0..5
+                    True@0..4 "true"
+                    Whitespace@4..5 " "
+                  And@5..8 "AND"
+                  Whitespace@8..9 " "
+                  Literal@9..14
+                    True@9..13 "true"
+                    Whitespace@13..14 " "
+                Or@14..16 "OR"
+                Whitespace@16..17 " "
+                Literal@17..22
+                  False@17..22 "false""#]],
+        );
+    }
+
+    #[test]
     fn parse_unary_expr() {
         check(
             "-15",
@@ -189,6 +225,17 @@ mod tests {
                 Literal@1..3
                   Number@1..3 "15""#]],
         );
+    }
+
+    #[test]
+    fn parse_logic_unary_expr() {
+        check("NOT false", expect![[r#"
+            Root@0..9
+              UnaryExpr@0..9
+                Not@0..3 "NOT"
+                Whitespace@3..4 " "
+                Literal@4..9
+                  False@4..9 "false""#]]);
     }
 
     #[test]
@@ -228,7 +275,9 @@ mod tests {
 
     #[test]
     fn parse_nested_paren_expr() {
-        check("(1+(3-1))", expect![[r#"
+        check(
+            "(1+(3-1))",
+            expect![[r#"
             Root@0..9
               ParenExpr@0..9
                 LParen@0..1 "("
@@ -245,6 +294,7 @@ mod tests {
                       Literal@6..7
                         Number@6..7 "1"
                     RParen@7..8 ")"
-                RParen@8..9 ")""#]]);
+                RParen@8..9 ")""#]],
+        );
     }
 }
