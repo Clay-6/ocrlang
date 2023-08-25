@@ -166,7 +166,7 @@ impl InfixOp {
             Self::Add | Self::Sub => (9, 10),
             Self::Mul | Self::Div | Self::Mod | Self::Quot => (11, 12),
             Self::Pow => (15, 16),
-            Self::Dot => (18, 17),
+            Self::Dot => (17, 18),
         }
     }
 }
@@ -381,5 +381,24 @@ mod tests {
                 NameRef@7..12
                   Ident@7..12 "upper""#]],
         )
+    }
+
+    #[test]
+    fn parse_nested_dot_exprs() {
+        check(
+            "string.upper.lower",
+            expect![[r#"
+            Root@0..18
+              BinaryExpr@0..18
+                BinaryExpr@0..12
+                  NameRef@0..6
+                    Ident@0..6 "string"
+                  Dot@6..7 "."
+                  NameRef@7..12
+                    Ident@7..12 "upper"
+                Dot@12..13 "."
+                NameRef@13..18
+                  Ident@13..18 "lower""#]],
+        );
     }
 }
