@@ -40,6 +40,8 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
             InfixOp::Less
         } else if p.at(TokenKind::LessEqual) {
             InfixOp::LessEqual
+        } else if p.at(TokenKind::Dot) {
+            InfixOp::Dot
         } else {
             break;
         };
@@ -142,6 +144,7 @@ enum InfixOp {
     GreaterEqual,
     Less,
     LessEqual,
+    Dot,
 }
 
 enum PrefixOp {
@@ -163,6 +166,7 @@ impl InfixOp {
             Self::Add | Self::Sub => (9, 10),
             Self::Mul | Self::Div | Self::Mod | Self::Quot => (11, 12),
             Self::Pow => (15, 16),
+            Self::Dot => (18, 17),
         }
     }
 }
@@ -362,5 +366,20 @@ mod tests {
                     RParen@7..8 ")"
                 RParen@8..9 ")""#]],
         );
+    }
+
+    #[test]
+    fn parse_dot_expr() {
+        check(
+            "string.upper",
+            expect![[r#"
+            Root@0..12
+              BinaryExpr@0..12
+                NameRef@0..6
+                  Ident@0..6 "string"
+                Dot@6..7 "."
+                NameRef@7..12
+                  Ident@7..12 "upper""#]],
+        )
     }
 }
