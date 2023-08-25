@@ -46,3 +46,10 @@ impl Parse {
         SyntaxNode::new_root(self.green_node.clone())
     }
 }
+
+#[cfg(test)]
+fn check(input: &str, expected_tree: expect_test::Expect) {
+    let tree = parse(input).debug_tree();
+
+    expected_tree.assert_eq(&tree);
+}

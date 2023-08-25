@@ -66,9 +66,9 @@ pub enum SyntaxKind {
     BinaryOp,
     Literal,
     ParenExpr,
-    PrefixExpr,
+    UnaryExpr,
     NameRef,
-    InfixExpr,
+    BinaryExpr,
 }
 
 pub type SyntaxNode = rowan::SyntaxNode<OcrLang>;

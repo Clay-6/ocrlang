@@ -38,7 +38,7 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
 
         let m = lhs.precede(p);
         let parsed_rhs = expr_bp(p, r_bp).is_some();
-        lhs = m.complete(p, SyntaxKind::InfixExpr);
+        lhs = m.complete(p, SyntaxKind::BinaryExpr);
 
         if !parsed_rhs {
             break;
@@ -96,7 +96,7 @@ fn prefix_expr(p: &mut Parser) -> CompletedMarker {
 
     expr_bp(p, bp);
 
-    m.complete(p, SyntaxKind::PrefixExpr)
+    m.complete(p, SyntaxKind::UnaryExpr)
 }
 
 fn name_ref(p: &mut Parser) -> CompletedMarker {
@@ -136,5 +136,115 @@ impl PrefixOp {
         match self {
             PrefixOp::Neg => ((), 5),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::check;
+    use expect_test::expect;
+
+    #[test]
+    fn parse_bin_expr() {
+        check(
+            "1+2",
+            expect![[r#"
+                Root@0..3
+                  BinaryExpr@0..3
+                    Literal@0..1
+                      Number@0..1 "1"
+                    Plus@1..2 "+"
+                    Literal@2..3
+                      Number@2..3 "2""#]],
+        );
+    }
+
+    #[test]
+    fn parse_bin_expr_with_nesting() {
+        check(
+            "1+2*3",
+            expect![[r#"
+                Root@0..5
+                  BinaryExpr@0..5
+                    Literal@0..1
+                      Number@0..1 "1"
+                    Plus@1..2 "+"
+                    BinaryExpr@2..5
+                      Literal@2..3
+                        Number@2..3 "2"
+                      Star@3..4 "*"
+                      Literal@4..5
+                        Number@4..5 "3""#]],
+        );
+    }
+
+    #[test]
+    fn parse_unary_expr() {
+        check(
+            "-15",
+            expect![[r#"
+            Root@0..3
+              UnaryExpr@0..3
+                Minus@0..1 "-"
+                Literal@1..3
+                  Number@1..3 "15""#]],
+        );
+    }
+
+    #[test]
+    fn parse_bin_and_unary_expr() {
+        check(
+            "-1+2",
+            expect![[r#"
+            Root@0..4
+              BinaryExpr@0..4
+                UnaryExpr@0..2
+                  Minus@0..1 "-"
+                  Literal@1..2
+                    Number@1..2 "1"
+                Plus@2..3 "+"
+                Literal@3..4
+                  Number@3..4 "2""#]],
+        );
+    }
+
+    #[test]
+    fn parse_paren_expr() {
+        check(
+            "(1+2)",
+            expect![[r#"
+            Root@0..5
+              ParenExpr@0..5
+                LParen@0..1 "("
+                BinaryExpr@1..4
+                  Literal@1..2
+                    Number@1..2 "1"
+                  Plus@2..3 "+"
+                  Literal@3..4
+                    Number@3..4 "2"
+                RParen@4..5 ")""#]],
+        );
+    }
+
+    #[test]
+    fn parse_nested_paren_expr() {
+        check("(1+(3-1))", expect![[r#"
+            Root@0..9
+              ParenExpr@0..9
+                LParen@0..1 "("
+                BinaryExpr@1..8
+                  Literal@1..2
+                    Number@1..2 "1"
+                  Plus@2..3 "+"
+                  ParenExpr@3..8
+                    LParen@3..4 "("
+                    BinaryExpr@4..7
+                      Literal@4..5
+                        Number@4..5 "3"
+                      Minus@5..6 "-"
+                      Literal@6..7
+                        Number@6..7 "1"
+                    RParen@7..8 ")"
+                RParen@8..9 ")""#]]);
     }
 }
