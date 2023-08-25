@@ -28,6 +28,18 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
             InfixOp::And
         } else if p.at(TokenKind::Or) {
             InfixOp::Or
+        } else if p.at(TokenKind::EqualEqual) {
+            InfixOp::Equal
+        } else if p.at(TokenKind::BangEqual) {
+            InfixOp::NotEqual
+        } else if p.at(TokenKind::Greater) {
+            InfixOp::Greater
+        } else if p.at(TokenKind::GreaterEqual) {
+            InfixOp::GreaterEqual
+        } else if p.at(TokenKind::Less) {
+            InfixOp::Less
+        } else if p.at(TokenKind::LessEqual) {
+            InfixOp::LessEqual
         } else {
             break;
         };
@@ -124,6 +136,12 @@ enum InfixOp {
     Pow,
     And,
     Or,
+    Equal,
+    NotEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
 }
 
 enum PrefixOp {
@@ -136,9 +154,15 @@ impl InfixOp {
         match self {
             Self::Or => (1, 2),
             Self::And => (3, 4),
-            Self::Add | Self::Sub => (5, 6),
-            Self::Mul | Self::Div | Self::Mod | Self::Quot => (7, 8),
-            Self::Pow => (9, 10),
+            Self::Equal
+            | Self::NotEqual
+            | Self::Greater
+            | Self::GreaterEqual
+            | Self::Less
+            | Self::LessEqual => (7, 8),
+            Self::Add | Self::Sub => (9, 10),
+            Self::Mul | Self::Div | Self::Mod | Self::Quot => (11, 12),
+            Self::Pow => (15, 16),
         }
     }
 }
@@ -146,8 +170,8 @@ impl InfixOp {
 impl PrefixOp {
     fn bp(&self) -> ((), u8) {
         match self {
-            PrefixOp::Not => ((), 3),
-            PrefixOp::Neg => ((), 6),
+            PrefixOp::Not => ((), 5),
+            PrefixOp::Neg => ((), 13),
         }
     }
 }
@@ -192,7 +216,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_mixed_binary_logic_expr() {
+    fn parse_mixed_logic_binary_expr() {
         check(
             "true AND true OR false",
             expect![[r#"
@@ -215,6 +239,45 @@ mod tests {
     }
 
     #[test]
+    fn parse_mixed_comparison_expr() {
+        check(
+            "1<2!=3>4==5>=6!=7<=8",
+            expect![[r#"
+                Root@0..20
+                  BinaryExpr@0..20
+                    BinaryExpr@0..17
+                      BinaryExpr@0..14
+                        BinaryExpr@0..11
+                          BinaryExpr@0..8
+                            BinaryExpr@0..6
+                              BinaryExpr@0..3
+                                Literal@0..1
+                                  Number@0..1 "1"
+                                Less@1..2 "<"
+                                Literal@2..3
+                                  Number@2..3 "2"
+                              BangEqual@3..5 "!="
+                              Literal@5..6
+                                Number@5..6 "3"
+                            Greater@6..7 ">"
+                            Literal@7..8
+                              Number@7..8 "4"
+                          EqualEqual@8..10 "=="
+                          Literal@10..11
+                            Number@10..11 "5"
+                        GreaterEqual@11..13 ">="
+                        Literal@13..14
+                          Number@13..14 "6"
+                      BangEqual@14..16 "!="
+                      Literal@16..17
+                        Number@16..17 "7"
+                    LessEqual@17..19 "<="
+                    Literal@19..20
+                      Number@19..20 "8""#]],
+        );
+    }
+
+    #[test]
     fn parse_unary_expr() {
         check(
             "-15",
@@ -229,13 +292,16 @@ mod tests {
 
     #[test]
     fn parse_logic_unary_expr() {
-        check("NOT false", expect![[r#"
+        check(
+            "NOT false",
+            expect![[r#"
             Root@0..9
               UnaryExpr@0..9
                 Not@0..3 "NOT"
                 Whitespace@3..4 " "
                 Literal@4..9
-                  False@4..9 "false""#]]);
+                  False@4..9 "false""#]],
+        );
     }
 
     #[test]
