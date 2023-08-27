@@ -76,8 +76,15 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
     Some(lhs)
 }
 
+const LITERALS: [TokenKind; 4] = [
+    TokenKind::Number,
+    TokenKind::String,
+    TokenKind::True,
+    TokenKind::False,
+];
+
 fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
-    let cm = if p.at(TokenKind::Number) || p.at(TokenKind::True) || p.at(TokenKind::False) {
+    let cm = if p.at_set(&LITERALS) {
         literal(p)
     } else if p.at(TokenKind::LParen) {
         paren_expr(p)
@@ -94,6 +101,8 @@ fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
 }
 
 fn literal(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at_set(&LITERALS));
+
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::Literal)
@@ -210,6 +219,21 @@ mod tests {
                     Literal@2..3
                       Number@2..3 "2""#]],
         );
+    }
+
+    #[test]
+    fn parse_string_concat_expr() {
+        check(
+            r#""Hello "+"World!""#,
+            expect![[r#"
+            Root@0..17
+              BinaryExpr@0..17
+                Literal@0..8
+                  String@0..8 "\"Hello \""
+                Plus@8..9 "+"
+                Literal@9..17
+                  String@9..17 "\"World!\"""#]],
+        )
     }
 
     #[test]
