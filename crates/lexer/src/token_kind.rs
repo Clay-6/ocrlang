@@ -108,7 +108,8 @@ pub enum TokenKind {
     #[token("endprocedure")]
     Endprocedure,
 
-    // TODO: string literals
+    #[regex(r#""[^"\\]*(\\.[^"\\]*)*""#)]
+    String,
     #[regex(r"[0-9]+(\.[0-9]+)?")]
     Number,
     #[token("true")]
@@ -182,6 +183,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Endfunction => "`endfunction`",
             TokenKind::Procedure => "`procedure`",
             TokenKind::Endprocedure => "`endprocedure`",
+            TokenKind::String => "string",
             TokenKind::Number => "number",
             TokenKind::True => "`true`",
             TokenKind::False => "`false`",
@@ -454,6 +456,16 @@ mod tests {
     fn lex_bool_literals() {
         check("true", TokenKind::True);
         check("false", TokenKind::False);
+    }
+
+    #[test]
+    fn lex_string_literal() {
+        check(r#""A string""#, TokenKind::String)
+    }
+
+    #[test]
+    fn lex_unescaped_string_literal() {
+        check(r#""An \"escaped\" string""#, TokenKind::String)
     }
 
     #[test]
