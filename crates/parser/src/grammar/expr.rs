@@ -57,8 +57,12 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
         p.bump(); // Operator's token
 
         let m = lhs.precede(p);
-        let parsed_rhs = expr_bp(p, r_bp).is_some();
+        let mut parsed_rhs = expr_bp(p, r_bp).is_some();
         if matches!(op, InfixOp::Subscript) {
+            if p.at(TokenKind::Comma) {
+                p.bump(); // Comma token
+                parsed_rhs = expr_bp(p, r_bp).is_some();
+            }
             p.expect(TokenKind::RBracket)
         }
 
@@ -463,6 +467,25 @@ mod tests {
                 Literal@7..8
                   Number@7..8 "0"
                 RBracket@8..9 "]""#]],
+        )
+    }
+
+    #[test]
+    fn parse_comma_subscript_expr() {
+        check(
+            "table[0,0]",
+            expect![[r#"
+            Root@0..10
+              BinaryExpr@0..10
+                NameRef@0..5
+                  Ident@0..5 "table"
+                LBracket@5..6 "["
+                Literal@6..7
+                  Number@6..7 "0"
+                Comma@7..8 ","
+                Literal@8..9
+                  Number@8..9 "0"
+                RBracket@9..10 "]""#]],
         )
     }
 }
