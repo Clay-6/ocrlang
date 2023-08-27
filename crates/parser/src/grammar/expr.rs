@@ -444,4 +444,25 @@ mod tests {
                 RBracket@5..6 "]""#]],
         )
     }
+
+    #[test]
+    fn parse_repeated_subscript_expr() {
+        check(
+            "arr[0][0]",
+            expect![[r#"
+            Root@0..9
+              BinaryExpr@0..9
+                BinaryExpr@0..6
+                  NameRef@0..3
+                    Ident@0..3 "arr"
+                  LBracket@3..4 "["
+                  Literal@4..5
+                    Number@4..5 "0"
+                  RBracket@5..6 "]"
+                LBracket@6..7 "["
+                Literal@7..8
+                  Number@7..8 "0"
+                RBracket@8..9 "]""#]],
+        )
+    }
 }
