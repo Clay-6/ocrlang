@@ -42,6 +42,8 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
             InfixOp::LessEqual
         } else if p.at(TokenKind::Dot) {
             InfixOp::Dot
+        } else if p.at(TokenKind::LBracket) {
+            InfixOp::Subscript
         } else {
             break;
         };
@@ -56,6 +58,10 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
 
         let m = lhs.precede(p);
         let parsed_rhs = expr_bp(p, r_bp).is_some();
+        if matches!(op, InfixOp::Subscript) {
+            p.expect(TokenKind::RBracket)
+        }
+
         lhs = m.complete(p, SyntaxKind::BinaryExpr);
 
         if !parsed_rhs {
@@ -145,6 +151,7 @@ enum InfixOp {
     Less,
     LessEqual,
     Dot,
+    Subscript,
 }
 
 enum PrefixOp {
@@ -155,6 +162,7 @@ enum PrefixOp {
 impl InfixOp {
     fn bp(&self) -> (u8, u8) {
         match self {
+            Self::Subscript => (0, 0),
             Self::Or => (1, 2),
             Self::And => (3, 4),
             Self::Equal
@@ -419,5 +427,21 @@ mod tests {
                 NameRef@13..18
                   Ident@13..18 "lower""#]],
         );
+    }
+
+    #[test]
+    fn parse_subscript_expr() {
+        check(
+            "arr[0]",
+            expect![[r#"
+            Root@0..6
+              BinaryExpr@0..6
+                NameRef@0..3
+                  Ident@0..3 "arr"
+                LBracket@3..4 "["
+                Literal@4..5
+                  Number@4..5 "0"
+                RBracket@5..6 "]""#]],
+        )
     }
 }
