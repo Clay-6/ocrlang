@@ -109,6 +109,7 @@ pub enum TokenKind {
     Endprocedure,
 
     #[regex(r#""[^"\\]*(\\.[^"\\]*)*""#)]
+    #[regex(r"'[^'\\]*(\\.[^'\\]*)*'")]
     String,
     #[regex(r"[0-9]+(\.[0-9]+)?")]
     Number,
@@ -460,12 +461,17 @@ mod tests {
 
     #[test]
     fn lex_string_literal() {
-        check(r#""A string""#, TokenKind::String)
+        check(r#""A string""#, TokenKind::String);
     }
 
     #[test]
     fn lex_unescaped_string_literal() {
-        check(r#""An \"escaped\" string""#, TokenKind::String)
+        check(r#""An \"escaped\" string""#, TokenKind::String);
+    }
+
+    #[test]
+    fn lex_single_quote_string_literal() {
+        check("'A single quote string'", TokenKind::String);
     }
 
     #[test]
