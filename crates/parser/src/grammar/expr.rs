@@ -1,5 +1,3 @@
-use lexer::TokenKind;
-
 use super::*;
 
 pub(crate) fn expr(p: &mut Parser) -> Option<CompletedMarker> {
