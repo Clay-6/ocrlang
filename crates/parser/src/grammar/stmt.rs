@@ -178,4 +178,105 @@ endfunction",
                     Endfunction@23..34 "endfunction""#]],
         )
     }
+
+    #[test]
+    fn parse_proc_many_stmts() {
+        check(
+            "procedure p()\n1 + 1\n2 + 2\nendprocedure",
+            expect![[r#"
+            Root@0..38
+              SubProgramDef@0..38
+                Procedure@0..9 "procedure"
+                Whitespace@9..10 " "
+                Ident@10..11 "p"
+                LParen@11..12 "("
+                RParen@12..13 ")"
+                Newline@13..14 "\n"
+                BinaryExpr@14..20
+                  Literal@14..16
+                    Number@14..15 "1"
+                    Whitespace@15..16 " "
+                  Plus@16..17 "+"
+                  Whitespace@17..18 " "
+                  Literal@18..20
+                    Number@18..19 "1"
+                    Newline@19..20 "\n"
+                BinaryExpr@20..26
+                  Literal@20..22
+                    Number@20..21 "2"
+                    Whitespace@21..22 " "
+                  Plus@22..23 "+"
+                  Whitespace@23..24 " "
+                  Literal@24..26
+                    Number@24..25 "2"
+                    Newline@25..26 "\n"
+                Endprocedure@26..38 "endprocedure""#]],
+        )
+    }
+
+    #[test]
+    fn parse_func_one_param() {
+        check(
+            "function id(x)\nreturn x\nendfunction",
+            expect![[r#"
+            Root@0..35
+              SubProgramDef@0..35
+                Function@0..8 "function"
+                Whitespace@8..9 " "
+                Ident@9..11 "id"
+                LParen@11..12 "("
+                Ident@12..13 "x"
+                RParen@13..14 ")"
+                Newline@14..15 "\n"
+                RetStmt@15..24
+                  Return@15..21 "return"
+                  Whitespace@21..22 " "
+                  NameRef@22..24
+                    Ident@22..23 "x"
+                    Newline@23..24 "\n"
+                Endfunction@24..35 "endfunction""#]],
+        );
+    }
+
+    #[test]
+    fn parse_func_many_params() {
+        check(
+            "function add(x, y, z)\nreturn x + y + z\nendfunction",
+            expect![[r#"
+                Root@0..50
+                  SubProgramDef@0..50
+                    Function@0..8 "function"
+                    Whitespace@8..9 " "
+                    Ident@9..12 "add"
+                    LParen@12..13 "("
+                    Ident@13..14 "x"
+                    Comma@14..15 ","
+                    Whitespace@15..16 " "
+                    Ident@16..17 "y"
+                    Comma@17..18 ","
+                    Whitespace@18..19 " "
+                    Ident@19..20 "z"
+                    RParen@20..21 ")"
+                    Newline@21..22 "\n"
+                    RetStmt@22..39
+                      Return@22..28 "return"
+                      Whitespace@28..29 " "
+                      BinaryExpr@29..39
+                        BinaryExpr@29..35
+                          NameRef@29..31
+                            Ident@29..30 "x"
+                            Whitespace@30..31 " "
+                          Plus@31..32 "+"
+                          Whitespace@32..33 " "
+                          NameRef@33..35
+                            Ident@33..34 "y"
+                            Whitespace@34..35 " "
+                        Plus@35..36 "+"
+                        Whitespace@36..37 " "
+                        NameRef@37..39
+                          Ident@37..38 "z"
+                          Newline@38..39 "\n"
+                    Endfunction@39..50 "endfunction""#]],
+        );
+    }
 }

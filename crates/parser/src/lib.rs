@@ -4,11 +4,14 @@ mod parser;
 mod sink;
 mod source;
 
+use crate::{
+    parser::{ParseError, Parser},
+    sink::Sink,
+    source::Source,
+};
+
 use lexer::Lexer;
-use parser::{ParseError, Parser};
 use rowan::GreenNode;
-use sink::Sink;
-use source::Source;
 use syntax::SyntaxNode;
 
 pub fn parse(input: &str) -> Parse {
