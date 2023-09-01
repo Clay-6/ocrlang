@@ -128,7 +128,10 @@ pub enum TokenKind {
 
 impl TokenKind {
     pub fn is_trivia(self) -> bool {
-        matches!(self, TokenKind::Whitespace | TokenKind::Comment)
+        matches!(
+            self,
+            TokenKind::Newline | TokenKind::Whitespace | TokenKind::Comment
+        )
     }
 }
 
