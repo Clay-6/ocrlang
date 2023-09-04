@@ -1,7 +1,7 @@
 use super::*;
 
-const VAR_DEF_START: [TokenKind; 3] = [
-    // TokenKind::Ident,
+const VAR_DEF_START: [TokenKind; 4] = [
+    TokenKind::Ident,
     TokenKind::Array,
     TokenKind::Const,
     TokenKind::Global,
@@ -30,9 +30,17 @@ fn ret(p: &mut Parser) -> CompletedMarker {
     m.complete(p, SyntaxKind::RetStmt)
 }
 
-// TODO: Allow implicit declarations
 fn var_def(p: &mut Parser) -> CompletedMarker {
     assert!(p.at_set(&VAR_DEF_START));
+
+    if p.at(TokenKind::Ident)
+    // If I need any more special cases than this I might commit a crime
+        && (p.peek_next() == Some(TokenKind::Dot) || p.peek_next() == Some(TokenKind::LBracket))
+    {
+        // No attrs for you, young one
+        return expr::expr(p).expect("This'll never be none, the ident we're at is a valid lhs");
+    }
+
     let m = p.start();
 
     p.bump(); // First token
@@ -93,19 +101,19 @@ mod tests {
     use crate::check;
     use expect_test::expect;
 
-    // #[test]
-    // fn parse_var_def() {
-    //     check(
-    //         "x=15",
-    //         expect![[r#"
-    //         Root@0..4
-    //           VarDef@0..4
-    //             Ident@0..1 "x"
-    //             Equal@1..2 "="
-    //             Literal@2..4
-    //               Number@2..4 "15""#]],
-    //     )
-    // }
+    #[test]
+    fn parse_var_def() {
+        check(
+            "x=15",
+            expect![[r#"
+            Root@0..4
+              VarDef@0..4
+                Ident@0..1 "x"
+                Equal@1..2 "="
+                Literal@2..4
+                  Number@2..4 "15""#]],
+        )
+    }
 
     #[test]
     fn parse_const_def() {

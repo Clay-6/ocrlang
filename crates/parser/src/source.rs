@@ -31,6 +31,11 @@ impl<'t, 'input> Source<'t, 'input> {
         self.peek_kind_raw()
     }
 
+    pub(crate) fn peek_next_kind(&mut self) -> Option<TokenKind> {
+        self.skip_trivia();
+        self.peek_next_kind_raw()
+    }
+
     pub(crate) fn last_token_range(&self) -> Option<Range<usize>> {
         self.tokens.last().map(|Token { range, .. }| range.clone())
     }
@@ -51,5 +56,13 @@ impl<'t, 'input> Source<'t, 'input> {
 
     fn peek_token_raw(&self) -> Option<&Token> {
         self.tokens.get(self.cursor)
+    }
+
+    fn peek_next_token_raw(&self) -> Option<&Token> {
+        self.tokens.get(self.cursor + 1)
+    }
+
+    fn peek_next_kind_raw(&self) -> Option<TokenKind> {
+        self.peek_next_token_raw().map(|Token { kind, .. }| *kind)
     }
 }

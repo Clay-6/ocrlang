@@ -91,6 +91,10 @@ impl<'t, 'input> Parser<'t, 'input> {
         self.peek().map_or(false, |kind| set.contains(&kind))
     }
 
+    pub(crate) fn peek_next(&mut self) -> Option<TokenKind> {
+        self.source.peek_next_kind()
+    }
+
     fn peek(&mut self) -> Option<TokenKind> {
         self.source.peek_kind()
     }
