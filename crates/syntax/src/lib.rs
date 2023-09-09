@@ -76,6 +76,7 @@ pub enum SyntaxKind {
     VarDef,
     SubProgramDef,
     RetStmt,
+    IfStmt,
 }
 
 pub type SyntaxNode = rowan::SyntaxNode<OcrLang>;

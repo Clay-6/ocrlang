@@ -16,9 +16,47 @@ pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
         Some(subprog_def(p))
     } else if p.at(TokenKind::Return) {
         Some(ret(p))
+    } else if p.at(TokenKind::If) {
+        Some(if_else(p))
     } else {
         expr::expr(p)
     }
+}
+
+fn if_else(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::If));
+    let m = p.start();
+    p.bump(); // `if` token
+    expr::expr(p); // Condition
+
+    p.expect(TokenKind::Then);
+
+    while !(p.at(TokenKind::Elseif) || p.at(TokenKind::Else) || p.at(TokenKind::Endif)) {
+        stmt(p); // The body
+    }
+
+    // Parse the elseif & else clauses
+    while !p.at(TokenKind::Endif) {
+        if p.at(TokenKind::Elseif) {
+            p.bump();
+            expr::expr(p); // Condition again
+            p.expect(TokenKind::Then);
+            while !(p.at(TokenKind::Elseif) || p.at(TokenKind::Else) || p.at(TokenKind::Endif)) {
+                stmt(p); // The body
+            }
+        }
+
+        if p.at(TokenKind::Else) {
+            p.bump();
+            while !p.at(TokenKind::Endif) {
+                stmt(p); // The body again, again
+            }
+        }
+    }
+
+    p.expect(TokenKind::Endif);
+
+    m.complete(p, SyntaxKind::IfStmt)
 }
 
 fn ret(p: &mut Parser) -> CompletedMarker {
@@ -290,5 +328,77 @@ endfunction",
                           Newline@38..39 "\n"
                     Endfunction@39..50 "endfunction""#]],
         );
+    }
+
+    #[test]
+    fn parse_if_elif_else() {
+        check(
+            r#"if answer == "Yes" then
+    print("Correct")
+elseif answer == "No" then
+    print("Wrong")
+else
+    print("Error")
+endif"#,
+            expect![[r#"
+                Root@0..120
+                  IfStmt@0..120
+                    If@0..2 "if"
+                    Whitespace@2..3 " "
+                    BinaryExpr@3..19
+                      NameRef@3..10
+                        Ident@3..9 "answer"
+                        Whitespace@9..10 " "
+                      EqualEqual@10..12 "=="
+                      Whitespace@12..13 " "
+                      Literal@13..19
+                        String@13..18 "\"Yes\""
+                        Whitespace@18..19 " "
+                    Then@19..23 "then"
+                    Newline@23..24 "\n"
+                    Whitespace@24..28 "    "
+                    SubprogCall@28..45
+                      NameRef@28..33
+                        Ident@28..33 "print"
+                      LParen@33..34 "("
+                      Literal@34..43
+                        String@34..43 "\"Correct\""
+                      RParen@43..44 ")"
+                      Newline@44..45 "\n"
+                    Elseif@45..51 "elseif"
+                    Whitespace@51..52 " "
+                    BinaryExpr@52..67
+                      NameRef@52..59
+                        Ident@52..58 "answer"
+                        Whitespace@58..59 " "
+                      EqualEqual@59..61 "=="
+                      Whitespace@61..62 " "
+                      Literal@62..67
+                        String@62..66 "\"No\""
+                        Whitespace@66..67 " "
+                    Then@67..71 "then"
+                    Newline@71..72 "\n"
+                    Whitespace@72..76 "    "
+                    SubprogCall@76..91
+                      NameRef@76..81
+                        Ident@76..81 "print"
+                      LParen@81..82 "("
+                      Literal@82..89
+                        String@82..89 "\"Wrong\""
+                      RParen@89..90 ")"
+                      Newline@90..91 "\n"
+                    Else@91..95 "else"
+                    Newline@95..96 "\n"
+                    Whitespace@96..100 "    "
+                    SubprogCall@100..115
+                      NameRef@100..105
+                        Ident@100..105 "print"
+                      LParen@105..106 "("
+                      Literal@106..113
+                        String@106..113 "\"Error\""
+                      RParen@113..114 ")"
+                      Newline@114..115 "\n"
+                    Endif@115..120 "endif""#]],
+        )
     }
 }
