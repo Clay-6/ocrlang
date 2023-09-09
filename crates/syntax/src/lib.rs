@@ -64,12 +64,15 @@ pub enum SyntaxKind {
 
     Root,
     Error,
+
     BinaryOp,
     Literal,
     ParenExpr,
     UnaryExpr,
     NameRef,
     BinaryExpr,
+    FunCall,
+
     VarDef,
     SubProgramDef,
     RetStmt,

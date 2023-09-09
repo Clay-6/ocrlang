@@ -34,8 +34,12 @@ fn var_def(p: &mut Parser) -> CompletedMarker {
     assert!(p.at_set(&VAR_DEF_START));
 
     if p.at(TokenKind::Ident)
-    // If I need any more special cases than this I might commit a crime
-        && (p.peek_next() == Some(TokenKind::Dot) || p.peek_next() == Some(TokenKind::LBracket))
+    // All the things that could mean we're not actually in a variable def
+        && (
+            p.peek_next() == Some(TokenKind::Dot) 
+            || p.peek_next() == Some(TokenKind::LBracket) 
+            || p.peek_next() == Some(TokenKind::LParen)
+        )
     {
         // No attrs for you, young one
         return expr::expr(p).expect("This'll never be none, the ident we're at is a valid lhs");
