@@ -71,7 +71,7 @@ pub enum SyntaxKind {
     UnaryExpr,
     NameRef,
     BinaryExpr,
-    FunCall,
+    SubprogCall,
 
     VarDef,
     SubProgramDef,

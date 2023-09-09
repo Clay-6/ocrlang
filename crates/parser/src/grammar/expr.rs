@@ -53,7 +53,7 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
                     }
                 }
                 p.expect(TokenKind::RParen);
-                lhs = m.complete(p, SyntaxKind::FunCall)
+                lhs = m.complete(p, SyntaxKind::SubprogCall)
             }
             break;
         };
@@ -524,12 +524,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_empty_function_call() {
+    fn parse_empty_subprog_call() {
         check(
             "f()",
             expect![[r#"
                 Root@0..3
-                  FunCall@0..3
+                  SubprogCall@0..3
                     NameRef@0..1
                       Ident@0..1 "f"
                     LParen@1..2 "("
@@ -538,40 +538,40 @@ mod tests {
     }
 
     #[test]
-    fn parse_one_arg_function_call() {
+    fn parse_one_arg_subprog_call() {
         check(
             "f(x)",
             expect![[r#"
-            Root@0..4
-              FunCall@0..4
-                NameRef@0..1
-                  Ident@0..1 "f"
-                LParen@1..2 "("
-                NameRef@2..3
-                  Ident@2..3 "x"
-                RParen@3..4 ")""#]],
+                Root@0..4
+                  SubprogCall@0..4
+                    NameRef@0..1
+                      Ident@0..1 "f"
+                    LParen@1..2 "("
+                    NameRef@2..3
+                      Ident@2..3 "x"
+                    RParen@3..4 ")""#]],
         )
     }
 
     #[test]
-    fn parse_multi_arg_function_call() {
+    fn parse_multi_arg_subprog_call() {
         check(
             "f(x,y,z)",
             expect![[r#"
-            Root@0..8
-              FunCall@0..8
-                NameRef@0..1
-                  Ident@0..1 "f"
-                LParen@1..2 "("
-                NameRef@2..3
-                  Ident@2..3 "x"
-                Comma@3..4 ","
-                NameRef@4..5
-                  Ident@4..5 "y"
-                Comma@5..6 ","
-                NameRef@6..7
-                  Ident@6..7 "z"
-                RParen@7..8 ")""#]],
+                Root@0..8
+                  SubprogCall@0..8
+                    NameRef@0..1
+                      Ident@0..1 "f"
+                    LParen@1..2 "("
+                    NameRef@2..3
+                      Ident@2..3 "x"
+                    Comma@3..4 ","
+                    NameRef@4..5
+                      Ident@4..5 "y"
+                    Comma@5..6 ","
+                    NameRef@6..7
+                      Ident@6..7 "z"
+                    RParen@7..8 ")""#]],
         )
     }
 }
