@@ -86,6 +86,8 @@ pub enum TokenKind {
     For,
     #[token("to")]
     To,
+    #[token("step")]
+    Step,
     #[token("next")]
     Next,
     #[token("do")]
@@ -177,6 +179,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Endswitch => "`endswitch`",
             TokenKind::For => "`for`",
             TokenKind::To => "`to`",
+            TokenKind::Step => "`step`",
             TokenKind::Next => "`next`",
             TokenKind::Do => "`do`",
             TokenKind::Until => "`until`",
@@ -394,6 +397,11 @@ mod tests {
     #[test]
     fn lex_to() {
         check("to", TokenKind::To);
+    }
+
+    #[test]
+    fn lex_step() {
+        check("step", TokenKind::Step);
     }
 
     #[test]

@@ -44,6 +44,7 @@ pub enum SyntaxKind {
     Endswitch,
     For,
     To,
+    Step,
     Next,
     Do,
     Until,
@@ -77,6 +78,7 @@ pub enum SyntaxKind {
     SubProgramDef,
     RetStmt,
     IfStmt,
+    ForLoop,
 }
 
 pub type SyntaxNode = rowan::SyntaxNode<OcrLang>;
@@ -140,6 +142,7 @@ impl From<TokenKind> for SyntaxKind {
             TokenKind::Endswitch => Self::Endswitch,
             TokenKind::For => Self::For,
             TokenKind::To => Self::To,
+            TokenKind::Step => Self::Step,
             TokenKind::Next => Self::Next,
             TokenKind::Do => Self::Do,
             TokenKind::Until => Self::Until,

@@ -18,9 +18,37 @@ pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
         Some(ret(p))
     } else if p.at(TokenKind::If) {
         Some(if_else(p))
+    } else if p.at(TokenKind::For) {
+        Some(for_loop(p))
     } else {
         expr::expr(p)
     }
+}
+
+fn for_loop(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::For));
+    let m = p.start();
+    p.bump(); // `for`
+    
+    p.expect(TokenKind::Ident);
+    p.expect(TokenKind::Equal);
+    expr::expr(p); // Start val
+    p.expect(TokenKind::To);
+    expr::expr(p); // End val
+
+    if p.at(TokenKind::Step) {
+        p.bump();
+        expr::expr(p);
+    }
+
+    while !p.at(TokenKind::Next) {
+        stmt(p);
+    }
+
+    p.expect(TokenKind::Next);
+    p.expect(TokenKind::Ident);
+
+    m.complete(p, SyntaxKind::ForLoop)
 }
 
 fn if_else(p: &mut Parser) -> CompletedMarker {
@@ -400,5 +428,82 @@ endif"#,
                       Newline@114..115 "\n"
                     Endif@115..120 "endif""#]],
         )
+    }
+
+    #[test]
+    fn parse_for() {
+        check(
+            r#"for i=0 to 9
+    print("Loop")
+next i"#,
+expect![[r#"
+    Root@0..37
+      ForLoop@0..37
+        For@0..3 "for"
+        Whitespace@3..4 " "
+        Ident@4..5 "i"
+        Equal@5..6 "="
+        Literal@6..8
+          Number@6..7 "0"
+          Whitespace@7..8 " "
+        To@8..10 "to"
+        Whitespace@10..11 " "
+        Literal@11..17
+          Number@11..12 "9"
+          Newline@12..13 "\n"
+          Whitespace@13..17 "    "
+        SubprogCall@17..31
+          NameRef@17..22
+            Ident@17..22 "print"
+          LParen@22..23 "("
+          Literal@23..29
+            String@23..29 "\"Loop\""
+          RParen@29..30 ")"
+          Newline@30..31 "\n"
+        Next@31..35 "next"
+        Whitespace@35..36 " "
+        Ident@36..37 "i""#]]
+        );
+    }
+
+    #[test]
+    fn parse_for_with_step() {
+        check(
+            r#"for i=2 to 10 step 2
+    print(i)
+next i"#,
+expect![[r#"
+    Root@0..40
+      ForLoop@0..40
+        For@0..3 "for"
+        Whitespace@3..4 " "
+        Ident@4..5 "i"
+        Equal@5..6 "="
+        Literal@6..8
+          Number@6..7 "2"
+          Whitespace@7..8 " "
+        To@8..10 "to"
+        Whitespace@10..11 " "
+        Literal@11..14
+          Number@11..13 "10"
+          Whitespace@13..14 " "
+        Step@14..18 "step"
+        Whitespace@18..19 " "
+        Literal@19..25
+          Number@19..20 "2"
+          Newline@20..21 "\n"
+          Whitespace@21..25 "    "
+        SubprogCall@25..34
+          NameRef@25..30
+            Ident@25..30 "print"
+          LParen@30..31 "("
+          NameRef@31..32
+            Ident@31..32 "i"
+          RParen@32..33 ")"
+          Newline@33..34 "\n"
+        Next@34..38 "next"
+        Whitespace@38..39 " "
+        Ident@39..40 "i""#]]
+        );
     }
 }
