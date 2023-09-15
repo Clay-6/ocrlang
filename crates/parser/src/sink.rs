@@ -87,7 +87,7 @@ impl<'t, 'input> Sink<'t, 'input> {
                 break;
             }
 
-            self.token()
+            self.token();
         }
     }
 }

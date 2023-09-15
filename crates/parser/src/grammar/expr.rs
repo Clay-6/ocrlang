@@ -53,7 +53,7 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
                     }
                 }
                 p.expect(TokenKind::RParen);
-                lhs = m.complete(p, SyntaxKind::SubprogCall)
+                lhs = m.complete(p, SyntaxKind::SubprogCall);
             }
             break;
         };
@@ -73,7 +73,7 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
                 p.bump(); // Comma token
                 parsed_rhs = expr_bp(p, r_bp).is_some();
             }
-            p.expect(TokenKind::RBracket)
+            p.expect(TokenKind::RBracket);
         }
 
         lhs = m.complete(p, SyntaxKind::BinaryExpr);

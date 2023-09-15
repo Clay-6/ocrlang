@@ -14,6 +14,7 @@ use lexer::Lexer;
 use rowan::GreenNode;
 use syntax::SyntaxNode;
 
+#[must_use]
 pub fn parse(input: &str) -> Parse {
     let tokens = Lexer::new(input).collect::<Vec<_>>();
     let source = Source::new(&tokens);
@@ -30,6 +31,7 @@ pub struct Parse {
 }
 
 impl Parse {
+    #[must_use]
     pub fn debug_tree(&self) -> String {
         let mut s = String::new();
 
@@ -39,12 +41,13 @@ impl Parse {
         s.push_str(&tree[0..tree.len() - 1]);
 
         for error in &self.errors {
-            s.push_str(&format!("\n{}", error));
+            s.push_str(&format!("\n{error}"));
         }
 
         s
     }
 
+    #[must_use]
     pub fn syntax(&self) -> SyntaxNode {
         SyntaxNode::new_root(self.green_node.clone())
     }

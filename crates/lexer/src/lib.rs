@@ -19,6 +19,7 @@ pub struct Token<'i> {
 }
 
 impl<'i> Lexer<'i> {
+    #[must_use]
     pub fn new(src: &'i str) -> Self {
         Self {
             inner: TokenKind::lexer(src),

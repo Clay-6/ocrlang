@@ -58,8 +58,6 @@ impl CompletedMarker {
 
 impl Drop for Marker {
     fn drop(&mut self) {
-        if !self.completed {
-            panic!("Marker must be completed")
-        }
+        assert!(self.completed, "Marker must be completed");
     }
 }

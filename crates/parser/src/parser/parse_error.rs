@@ -24,16 +24,16 @@ impl fmt::Display for ParseError {
 
         for (i, expected) in self.expected.iter().enumerate() {
             if is_first(i) {
-                write!(f, "{}", expected)?;
+                write!(f, "{expected}")?;
             } else if is_last(i) {
-                write!(f, ", or {}", expected)?;
+                write!(f, ", or {expected}")?;
             } else {
-                write!(f, ", {}", expected)?;
+                write!(f, ", {expected}")?;
             }
         }
 
         if let Some(found) = self.found {
-            write!(f, ", but found {}", found)?;
+            write!(f, ", but found {found}")?;
         }
 
         Ok(())

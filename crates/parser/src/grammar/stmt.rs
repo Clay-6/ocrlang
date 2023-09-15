@@ -97,7 +97,7 @@ fn for_loop(p: &mut Parser) -> CompletedMarker {
     assert!(p.at(TokenKind::For));
     let m = p.start();
     p.bump(); // `for`
-    
+
     p.expect(TokenKind::Ident);
     p.expect(TokenKind::Equal);
     expr::expr(p); // Start val
@@ -170,8 +170,8 @@ fn var_def(p: &mut Parser) -> CompletedMarker {
     if p.at(TokenKind::Ident)
     // All the things that could mean we're not actually in a variable def
         && (
-            p.peek_next() == Some(TokenKind::Dot) 
-            || p.peek_next() == Some(TokenKind::LBracket) 
+            p.peek_next() == Some(TokenKind::Dot)
+            || p.peek_next() == Some(TokenKind::LBracket)
             || p.peek_next() == Some(TokenKind::LParen)
         )
     {
@@ -232,7 +232,7 @@ fn subprog_def(p: &mut Parser) -> CompletedMarker {
     while p.at(TokenKind::Ident) {
         p.bump(); // param name
         if p.at(TokenKind::Comma) {
-            p.bump()
+            p.bump();
         }
     }
 
@@ -281,7 +281,7 @@ mod tests {
                 Ident@6..13 "colours"
                 LBracket@13..14 "["
                 Number@14..15 "3"
-                RBracket@15..16 "]""#]]
+                RBracket@15..16 "]""#]],
         )
     }
 
@@ -299,7 +299,7 @@ mod tests {
                 Number@12..13 "2"
                 Comma@13..14 ","
                 Number@14..15 "2"
-                RBracket@15..16 "]""#]]
+                RBracket@15..16 "]""#]],
         )
     }
 
@@ -554,7 +554,7 @@ endif"#,
             r#"for i=0 to 9
     print("Loop")
 next i"#,
-expect![[r#"
+            expect![[r#"
     Root@0..37
       ForLoop@0..37
         For@0..3 "for"
@@ -580,7 +580,7 @@ expect![[r#"
           Newline@30..31 "\n"
         Next@31..35 "next"
         Whitespace@35..36 " "
-        Ident@36..37 "i""#]]
+        Ident@36..37 "i""#]],
         );
     }
 
@@ -590,7 +590,7 @@ expect![[r#"
             r#"for i=2 to 10 step 2
     print(i)
 next i"#,
-expect![[r#"
+            expect![[r#"
     Root@0..40
       ForLoop@0..40
         For@0..3 "for"
@@ -621,7 +621,7 @@ expect![[r#"
           Newline@33..34 "\n"
         Next@34..38 "next"
         Whitespace@38..39 " "
-        Ident@39..40 "i""#]]
+        Ident@39..40 "i""#]],
         );
     }
 
@@ -631,7 +631,7 @@ expect![[r#"
             r#"while answer != "Correct"
     answer = input("New answer")
 endwhile"#,
-expect![[r#"
+            expect![[r#"
     Root@0..67
       WhileLoop@0..67
         While@0..5 "while"
@@ -659,7 +659,7 @@ expect![[r#"
               String@45..57 "\"New answer\""
             RParen@57..58 ")"
             Newline@58..59 "\n"
-        Endwhile@59..67 "endwhile""#]]
+        Endwhile@59..67 "endwhile""#]],
         );
     }
 
@@ -669,7 +669,7 @@ expect![[r#"
             r#"do
     answer = input("New answer")
 until answer == "Correct""#,
-expect![[r#"
+            expect![[r#"
     Root@0..61
       DoUntil@0..61
         Do@0..2 "do"
@@ -697,7 +697,7 @@ expect![[r#"
           EqualEqual@49..51 "=="
           Whitespace@51..52 " "
           Literal@52..61
-            String@52..61 "\"Correct\"""#]]
+            String@52..61 "\"Correct\"""#]],
         );
     }
 
@@ -712,7 +712,7 @@ expect![[r#"
     default:
         print("Weekday")
 endswitch"#,
-expect![[r#"
+            expect![[r#"
     Root@0..141
       SwitchStmt@0..141
         Switch@0..6 "switch"
@@ -766,7 +766,7 @@ expect![[r#"
             String@121..130 "\"Weekday\""
           RParen@130..131 ")"
           Newline@131..132 "\n"
-        Endswitch@132..141 "endswitch""#]]
+        Endswitch@132..141 "endswitch""#]],
         )
     }
 }
