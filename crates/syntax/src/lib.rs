@@ -79,6 +79,7 @@ pub enum SyntaxKind {
     RetStmt,
     IfStmt,
     ForLoop,
+    WhileLoop,
 }
 
 pub type SyntaxNode = rowan::SyntaxNode<OcrLang>;

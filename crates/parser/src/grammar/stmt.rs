@@ -20,9 +20,28 @@ pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
         Some(if_else(p))
     } else if p.at(TokenKind::For) {
         Some(for_loop(p))
-    } else {
+    } else if p.at(TokenKind::While) {
+        Some(while_loop(p))
+    } 
+    else {
         expr::expr(p)
     }
+}
+
+fn while_loop(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::While));
+    let m = p.start();
+    p.bump(); // `while`
+
+    expr::expr(p); // Condition
+
+    while !p.at(TokenKind::Endwhile) && !p.at_end() {
+        stmt(p);
+    }
+
+    p.expect(TokenKind::Endwhile);
+
+    m.complete(p, SyntaxKind::WhileLoop)
 }
 
 fn for_loop(p: &mut Parser) -> CompletedMarker {
@@ -41,7 +60,7 @@ fn for_loop(p: &mut Parser) -> CompletedMarker {
         expr::expr(p);
     }
 
-    while !p.at(TokenKind::Next) {
+    while !p.at(TokenKind::Next) && !p.at_end() {
         stmt(p);
     }
 
@@ -505,5 +524,43 @@ expect![[r#"
         Whitespace@38..39 " "
         Ident@39..40 "i""#]]
         );
+    }
+
+    #[test]
+    fn parse_while_loop() {
+        check(
+            r#"while answer != "Correct"
+    answer = input("New answer")
+endwhile"#,
+expect![[r#"
+    Root@0..67
+      WhileLoop@0..67
+        While@0..5 "while"
+        Whitespace@5..6 " "
+        BinaryExpr@6..30
+          NameRef@6..13
+            Ident@6..12 "answer"
+            Whitespace@12..13 " "
+          BangEqual@13..15 "!="
+          Whitespace@15..16 " "
+          Literal@16..30
+            String@16..25 "\"Correct\""
+            Newline@25..26 "\n"
+            Whitespace@26..30 "    "
+        VarDef@30..59
+          Ident@30..36 "answer"
+          Whitespace@36..37 " "
+          Equal@37..38 "="
+          Whitespace@38..39 " "
+          SubprogCall@39..59
+            NameRef@39..44
+              Ident@39..44 "input"
+            LParen@44..45 "("
+            Literal@45..57
+              String@45..57 "\"New answer\""
+            RParen@57..58 ")"
+            Newline@58..59 "\n"
+        Endwhile@59..67 "endwhile""#]]
+        )
     }
 }
