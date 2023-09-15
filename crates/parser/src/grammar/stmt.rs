@@ -188,6 +188,22 @@ fn var_def(p: &mut Parser) -> CompletedMarker {
         p.bump();
     }
 
+    if p.at(TokenKind::LBracket) {
+        p.bump();
+        // Lets do a goddamn array
+        p.expect(TokenKind::Number);
+        if p.at(TokenKind::Comma) {
+            p.bump();
+            p.expect(TokenKind::Number);
+        }
+        p.expect(TokenKind::RBracket);
+
+        if !p.at(TokenKind::Equal) {
+            // Not assigned to yet, we can end here
+            return m.complete(p, SyntaxKind::VarDef);
+        }
+    }
+
     p.expect(TokenKind::Equal);
 
     expr::expr(p);
@@ -250,6 +266,40 @@ mod tests {
                 Equal@1..2 "="
                 Literal@2..4
                   Number@2..4 "15""#]],
+        )
+    }
+
+    #[test]
+    fn parse_array_def() {
+        check(
+            "array colours[3]",
+            expect![[r#"
+            Root@0..16
+              VarDef@0..16
+                Array@0..5 "array"
+                Whitespace@5..6 " "
+                Ident@6..13 "colours"
+                LBracket@13..14 "["
+                Number@14..15 "3"
+                RBracket@15..16 "]""#]]
+        )
+    }
+
+    #[test]
+    fn parse_2d_array_def() {
+        check(
+            "array table[2,2]",
+            expect![[r#"
+            Root@0..16
+              VarDef@0..16
+                Array@0..5 "array"
+                Whitespace@5..6 " "
+                Ident@6..11 "table"
+                LBracket@11..12 "["
+                Number@12..13 "2"
+                Comma@13..14 ","
+                Number@14..15 "2"
+                RBracket@15..16 "]""#]]
         )
     }
 
