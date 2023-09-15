@@ -22,10 +22,27 @@ pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
         Some(for_loop(p))
     } else if p.at(TokenKind::While) {
         Some(while_loop(p))
-    } 
+    } else if p.at(TokenKind::Do) {
+        Some(do_until(p))
+    }
     else {
         expr::expr(p)
     }
+}
+
+fn do_until(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::Do));
+    let m = p.start();
+    p.bump();
+
+    while !p.at(TokenKind::Until) && !p.at_end() {
+        stmt(p);
+    }
+
+    p.expect(TokenKind::Until);
+
+    expr::expr(p);
+    m.complete(p, SyntaxKind::DoUntil)
 }
 
 fn while_loop(p: &mut Parser) -> CompletedMarker {
@@ -561,6 +578,44 @@ expect![[r#"
             RParen@57..58 ")"
             Newline@58..59 "\n"
         Endwhile@59..67 "endwhile""#]]
-        )
+        );
+    }
+
+    #[test]
+    fn parse_do_until() {
+        check(
+            r#"do
+    answer = input("New answer")
+until answer == "Correct""#,
+expect![[r#"
+    Root@0..61
+      DoUntil@0..61
+        Do@0..2 "do"
+        Newline@2..3 "\n"
+        Whitespace@3..7 "    "
+        VarDef@7..36
+          Ident@7..13 "answer"
+          Whitespace@13..14 " "
+          Equal@14..15 "="
+          Whitespace@15..16 " "
+          SubprogCall@16..36
+            NameRef@16..21
+              Ident@16..21 "input"
+            LParen@21..22 "("
+            Literal@22..34
+              String@22..34 "\"New answer\""
+            RParen@34..35 ")"
+            Newline@35..36 "\n"
+        Until@36..41 "until"
+        Whitespace@41..42 " "
+        BinaryExpr@42..61
+          NameRef@42..49
+            Ident@42..48 "answer"
+            Whitespace@48..49 " "
+          EqualEqual@49..51 "=="
+          Whitespace@51..52 " "
+          Literal@52..61
+            String@52..61 "\"Correct\"""#]]
+        );
     }
 }

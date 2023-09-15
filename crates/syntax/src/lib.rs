@@ -80,6 +80,7 @@ pub enum SyntaxKind {
     IfStmt,
     ForLoop,
     WhileLoop,
+    DoUntil,
 }
 
 pub type SyntaxNode = rowan::SyntaxNode<OcrLang>;
