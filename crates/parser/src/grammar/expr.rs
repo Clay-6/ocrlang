@@ -102,12 +102,29 @@ fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
         prefix_expr(p)
     } else if p.at(TokenKind::Ident) {
         name_ref(p)
+    } else if p.at(TokenKind::LBracket) {
+        array_literal(p)
     } else {
         p.error();
         return None;
     };
 
     Some(cm)
+}
+
+fn array_literal(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::LBracket));
+    let m = p.start();
+    p.bump();
+
+    while !p.at(TokenKind::RBracket) && !p.at_end() {
+        expr::expr(p);
+        if p.at(TokenKind::Comma) {
+            p.bump();
+        }
+    }
+    p.expect(TokenKind::RBracket);
+    m.complete(p, SyntaxKind::ArrayLiteral)
 }
 
 fn literal(p: &mut Parser) -> CompletedMarker {
@@ -520,6 +537,26 @@ mod tests {
                 Literal@8..9
                   Number@8..9 "0"
                 RBracket@9..10 "]""#]],
+        )
+    }
+
+    #[test]
+    fn parse_array_expr() {
+        check(
+            "[1,2,3]",
+            expect![[r#"
+            Root@0..7
+              ArrayLiteral@0..7
+                LBracket@0..1 "["
+                Literal@1..2
+                  Number@1..2 "1"
+                Comma@2..3 ","
+                Literal@3..4
+                  Number@3..4 "2"
+                Comma@4..5 ","
+                Literal@5..6
+                  Number@5..6 "3"
+                RBracket@6..7 "]""#]],
         )
     }
 
