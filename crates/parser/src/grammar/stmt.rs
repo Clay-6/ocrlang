@@ -8,6 +8,7 @@ const VAR_DEF_START: [TokenKind; 4] = [
 ];
 const SUBPROG_START: [TokenKind; 2] = [TokenKind::Function, TokenKind::Procedure];
 const SUBPROG_END: [TokenKind; 2] = [TokenKind::Endfunction, TokenKind::Endprocedure];
+const CASE_ENDINGS: [TokenKind; 3] = [TokenKind::Case, TokenKind::Default, TokenKind::Endswitch];
 
 pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
     if p.at_set(&VAR_DEF_START) {
@@ -24,10 +25,41 @@ pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
         Some(while_loop(p))
     } else if p.at(TokenKind::Do) {
         Some(do_until(p))
-    }
-    else {
+    } else if p.at(TokenKind::Switch) {
+        Some(switch_stmt(p))
+    } else {
         expr::expr(p)
     }
+}
+
+fn switch_stmt(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::Switch));
+    let m = p.start();
+    p.bump();
+
+    expr::expr(p);
+    p.expect(TokenKind::Colon);
+
+    while !p.at(TokenKind::Endswitch) && !p.at_end() {
+        if p.at(TokenKind::Case) {
+            p.bump();
+            expr::expr(p);
+            p.expect(TokenKind::Colon);
+            while !p.at_set(&CASE_ENDINGS) {
+                stmt(p);
+            }
+        }
+        if p.at(TokenKind::Default) {
+            p.bump();
+            p.expect(TokenKind::Colon);
+            while !p.at_set(&CASE_ENDINGS) {
+                stmt(p);
+            }
+        }
+    }
+
+    p.expect(TokenKind::Endswitch);
+    m.complete(p, SyntaxKind::SwitchStmt)
 }
 
 fn do_until(p: &mut Parser) -> CompletedMarker {
@@ -617,5 +649,74 @@ expect![[r#"
           Literal@52..61
             String@52..61 "\"Correct\"""#]]
         );
+    }
+
+    #[test]
+    fn parse_switch_stmt() {
+        check(
+            r#"switch day:
+    case "Sat":
+        print("Saturday")
+    case "Sun":
+        print("Sunday")
+    default:
+        print("Weekday")
+endswitch"#,
+expect![[r#"
+    Root@0..141
+      SwitchStmt@0..141
+        Switch@0..6 "switch"
+        Whitespace@6..7 " "
+        NameRef@7..10
+          Ident@7..10 "day"
+        Colon@10..11 ":"
+        Newline@11..12 "\n"
+        Whitespace@12..16 "    "
+        Case@16..20 "case"
+        Whitespace@20..21 " "
+        Literal@21..26
+          String@21..26 "\"Sat\""
+        Colon@26..27 ":"
+        Newline@27..28 "\n"
+        Whitespace@28..36 "        "
+        SubprogCall@36..58
+          NameRef@36..41
+            Ident@36..41 "print"
+          LParen@41..42 "("
+          Literal@42..52
+            String@42..52 "\"Saturday\""
+          RParen@52..53 ")"
+          Newline@53..54 "\n"
+          Whitespace@54..58 "    "
+        Case@58..62 "case"
+        Whitespace@62..63 " "
+        Literal@63..68
+          String@63..68 "\"Sun\""
+        Colon@68..69 ":"
+        Newline@69..70 "\n"
+        Whitespace@70..78 "        "
+        SubprogCall@78..98
+          NameRef@78..83
+            Ident@78..83 "print"
+          LParen@83..84 "("
+          Literal@84..92
+            String@84..92 "\"Sunday\""
+          RParen@92..93 ")"
+          Newline@93..94 "\n"
+          Whitespace@94..98 "    "
+        Default@98..105 "default"
+        Colon@105..106 ":"
+        Newline@106..107 "\n"
+        Whitespace@107..115 "        "
+        SubprogCall@115..132
+          NameRef@115..120
+            Ident@115..120 "print"
+          LParen@120..121 "("
+          Literal@121..130
+            String@121..130 "\"Weekday\""
+          RParen@130..131 ")"
+          Newline@131..132 "\n"
+        Endswitch@132..141 "endswitch""#]]
+        )
     }
 }

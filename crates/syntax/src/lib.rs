@@ -81,6 +81,7 @@ pub enum SyntaxKind {
     ForLoop,
     WhileLoop,
     DoUntil,
+    SwitchStmt,
 }
 
 pub type SyntaxNode = rowan::SyntaxNode<OcrLang>;
