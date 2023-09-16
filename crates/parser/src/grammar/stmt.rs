@@ -324,9 +324,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_array_def() {
+    fn parse_array_decl() {
         check(
-            "array colours[3]",
+            "array colours[5]",
             expect![[r#"
             Root@0..16
               VarDef@0..16
@@ -334,27 +334,67 @@ mod tests {
                 Whitespace@5..6 " "
                 Ident@6..13 "colours"
                 LBracket@13..14 "["
-                Number@14..15 "3"
+                Number@14..15 "5"
                 RBracket@15..16 "]""#]],
         );
     }
 
     #[test]
-    fn parse_2d_array_def() {
+    fn parse_2d_array_decl() {
         check(
-            "array table[2,2]",
+            "array gameboard[8,8]",
             expect![[r#"
-            Root@0..16
-              VarDef@0..16
+            Root@0..20
+              VarDef@0..20
                 Array@0..5 "array"
                 Whitespace@5..6 " "
-                Ident@6..11 "table"
-                LBracket@11..12 "["
-                Number@12..13 "2"
-                Comma@13..14 ","
-                Number@14..15 "2"
-                RBracket@15..16 "]""#]],
+                Ident@6..15 "gameboard"
+                LBracket@15..16 "["
+                Number@16..17 "8"
+                Comma@17..18 ","
+                Number@18..19 "8"
+                RBracket@19..20 "]""#]],
         );
+    }
+
+    #[test]
+    fn parse_array_assignment() {
+        check(
+            r#"names[3] = "Noni""#,
+            expect![[r#"
+            Root@0..17
+              VarDef@0..17
+                Ident@0..5 "names"
+                LBracket@5..6 "["
+                Number@6..7 "3"
+                RBracket@7..8 "]"
+                Whitespace@8..9 " "
+                Equal@9..10 "="
+                Whitespace@10..11 " "
+                Literal@11..17
+                  String@11..17 "\"Noni\""#]],
+        );
+    }
+
+    #[test]
+    fn parse_2d_array_assign() {
+        check(
+            r#"gameboard[1,0] = "Pawn""#,
+            expect![[r#"
+            Root@0..23
+              VarDef@0..23
+                Ident@0..9 "gameboard"
+                LBracket@9..10 "["
+                Number@10..11 "1"
+                Comma@11..12 ","
+                Number@12..13 "0"
+                RBracket@13..14 "]"
+                Whitespace@14..15 " "
+                Equal@15..16 "="
+                Whitespace@16..17 " "
+                Literal@17..23
+                  String@17..23 "\"Pawn\""#]],
+        )
     }
 
     #[test]
