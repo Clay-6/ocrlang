@@ -258,15 +258,69 @@ mod tests {
     #[test]
     fn parse_var_def() {
         check(
-            "x=15",
+            "x = 3",
             expect![[r#"
-            Root@0..4
-              VarDef@0..4
+            Root@0..5
+              VarDef@0..5
                 Ident@0..1 "x"
-                Equal@1..2 "="
-                Literal@2..4
-                  Number@2..4 "15""#]],
-        )
+                Whitespace@1..2 " "
+                Equal@2..3 "="
+                Whitespace@3..4 " "
+                Literal@4..5
+                  Number@4..5 "3""#]],
+        );
+    }
+
+    #[test]
+    fn parse_var_def_string() {
+        check(
+            r#"name = "Louise""#,
+            expect![[r#"
+            Root@0..15
+              VarDef@0..15
+                Ident@0..4 "name"
+                Whitespace@4..5 " "
+                Equal@5..6 "="
+                Whitespace@6..7 " "
+                Literal@7..15
+                  String@7..15 "\"Louise\"""#]],
+        );
+    }
+
+    #[test]
+    fn parse_const_def() {
+        check(
+            "const vat = 0.2",
+            expect![[r#"
+            Root@0..15
+              VarDef@0..15
+                Const@0..5 "const"
+                Whitespace@5..6 " "
+                Ident@6..9 "vat"
+                Whitespace@9..10 " "
+                Equal@10..11 "="
+                Whitespace@11..12 " "
+                Literal@12..15
+                  Number@12..15 "0.2""#]],
+        );
+    }
+
+    #[test]
+    fn parse_global_def() {
+        check(
+            r#"global userID = "Cust001""#,
+            expect![[r#"
+            Root@0..25
+              VarDef@0..25
+                Global@0..6 "global"
+                Whitespace@6..7 " "
+                Ident@7..13 "userID"
+                Whitespace@13..14 " "
+                Equal@14..15 "="
+                Whitespace@15..16 " "
+                Literal@16..25
+                  String@16..25 "\"Cust001\"""#]],
+        );
     }
 
     #[test]
@@ -282,7 +336,7 @@ mod tests {
                 LBracket@13..14 "["
                 Number@14..15 "3"
                 RBracket@15..16 "]""#]],
-        )
+        );
     }
 
     #[test]
@@ -300,23 +354,7 @@ mod tests {
                 Comma@13..14 ","
                 Number@14..15 "2"
                 RBracket@15..16 "]""#]],
-        )
-    }
-
-    #[test]
-    fn parse_const_def() {
-        check(
-            "const PI=3.14",
-            expect![[r#"
-            Root@0..13
-              VarDef@0..13
-                Const@0..5 "const"
-                Whitespace@5..6 " "
-                Ident@6..8 "PI"
-                Equal@8..9 "="
-                Literal@9..13
-                  Number@9..13 "3.14""#]],
-        )
+        );
     }
 
     #[test]
@@ -333,7 +371,7 @@ mod tests {
                 RParen@12..13 ")"
                 Whitespace@13..14 " "
                 Endprocedure@14..26 "endprocedure""#]],
-        )
+        );
     }
 
     #[test]
@@ -347,7 +385,7 @@ mod tests {
                 Whitespace@6..7 " "
                 Literal@7..9
                   Number@7..9 "69""#]],
-        )
+        );
     }
 
     #[test]
@@ -372,7 +410,7 @@ endfunction",
                         Number@20..22 "42"
                         Newline@22..23 "\n"
                     Endfunction@23..34 "endfunction""#]],
-        )
+        );
     }
 
     #[test]
@@ -407,7 +445,7 @@ endfunction",
                     Number@24..25 "2"
                     Newline@25..26 "\n"
                 Endprocedure@26..38 "endprocedure""#]],
-        )
+        );
     }
 
     #[test]
@@ -545,7 +583,7 @@ endif"#,
                       RParen@113..114 ")"
                       Newline@114..115 "\n"
                     Endif@115..120 "endif""#]],
-        )
+        );
     }
 
     #[test]
@@ -767,6 +805,6 @@ endswitch"#,
           RParen@130..131 ")"
           Newline@131..132 "\n"
         Endswitch@132..141 "endswitch""#]],
-        )
+        );
     }
 }
