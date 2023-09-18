@@ -117,9 +117,9 @@ impl Literal {
             SyntaxKind::Number => {
                 let txt = tok.text();
                 if txt.contains('.') {
-                    Some(Val::Float(txt.parse().unwrap()))
+                    Some(Val::Float(txt.parse().ok()?))
                 } else {
-                    Some(Val::Int(txt.parse().unwrap()))
+                    Some(Val::Int(txt.parse().ok()?))
                 }
             }
             _ => None,
