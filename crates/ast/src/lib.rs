@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
 
 #[derive(Debug, PartialEq)]
@@ -7,13 +5,24 @@ pub enum Expr {
     Binary(BinaryExpr),
     Unary(UnaryExpr),
     Literal(Literal),
+    ArrayLiteral(ArrayLiteral),
     Paren(ParenExpr),
-    VarRef(VariableRef),
+    NameRef(NameRef),
 }
 
 impl Expr {
     pub fn cast(node: SyntaxNode) -> Option<Self> {
-        todo!()
+        let result = match node.kind() {
+            SyntaxKind::BinaryExpr => Self::Binary(BinaryExpr(node)),
+            SyntaxKind::UnaryExpr => Self::Unary(UnaryExpr(node)),
+            SyntaxKind::ParenExpr => Self::Paren(ParenExpr(node)),
+            SyntaxKind::NameRef => Self::NameRef(NameRef(node)),
+            SyntaxKind::Literal => Self::Literal(Literal(node)),
+            SyntaxKind::ArrayLiteral => Self::ArrayLiteral(ArrayLiteral(node)),
+            _ => return None,
+        };
+
+        Some(result)
     }
 }
 
@@ -35,10 +44,13 @@ pub enum Val {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct ArrayLiteral(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
 pub struct ParenExpr(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
-pub struct VariableRef(SyntaxNode);
+pub struct NameRef(SyntaxNode);
 
 impl BinaryExpr {
     pub fn lhs(&self) -> Option<Expr> {
@@ -115,13 +127,25 @@ impl Literal {
     }
 }
 
+impl ArrayLiteral {
+    pub fn items(&self) -> Option<Vec<Expr>> {
+        Some(
+            self.0
+                .children_with_tokens()
+                .filter_map(SyntaxElement::into_node)
+                .filter_map(Expr::cast)
+                .collect(),
+        )
+    }
+}
+
 impl ParenExpr {
     pub fn expr(&self) -> Option<Expr> {
         self.0.children().find_map(Expr::cast)
     }
 }
 
-impl VariableRef {
+impl NameRef {
     pub fn name(&self) -> Option<SyntaxToken> {
         self.0.first_token()
     }
