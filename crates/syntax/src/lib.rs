@@ -73,6 +73,7 @@ pub enum SyntaxKind {
     NameRef,
     BinaryExpr,
     SubprogCall,
+    IdentSubscript,
 
     VarDef,
     SubProgramDef,
