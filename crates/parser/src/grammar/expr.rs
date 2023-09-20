@@ -74,6 +74,9 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
                 parsed_rhs = expr_bp(p, r_bp).is_some();
             }
             p.expect(TokenKind::RBracket);
+            if p.at(TokenKind::Equal) {
+                return Some(stmt::assignment_fallback(p, m));
+            }
         }
 
         lhs = m.complete(p, SyntaxKind::BinaryExpr);

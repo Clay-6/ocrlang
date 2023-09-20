@@ -211,6 +211,15 @@ fn var_def(p: &mut Parser) -> CompletedMarker {
     m.complete(p, SyntaxKind::VarDef)
 }
 
+pub(crate) fn assignment_fallback(
+    p: &mut Parser<'_, '_>,
+    m: crate::parser::marker::Marker,
+) -> CompletedMarker {
+    p.expect(TokenKind::Equal);
+    expr::expr(p);
+    m.complete(p, SyntaxKind::VarDef)
+}
+
 fn subprog_def(p: &mut Parser) -> CompletedMarker {
     enum FuncKind {
         Func,
@@ -362,17 +371,19 @@ mod tests {
         check(
             r#"names[3] = "Noni""#,
             expect![[r#"
-            Root@0..17
-              VarDef@0..17
-                Ident@0..5 "names"
-                LBracket@5..6 "["
-                Number@6..7 "3"
-                RBracket@7..8 "]"
-                Whitespace@8..9 " "
-                Equal@9..10 "="
-                Whitespace@10..11 " "
-                Literal@11..17
-                  String@11..17 "\"Noni\""#]],
+                Root@0..17
+                  VarDef@0..17
+                    NameRef@0..5
+                      Ident@0..5 "names"
+                    LBracket@5..6 "["
+                    Literal@6..7
+                      Number@6..7 "3"
+                    RBracket@7..8 "]"
+                    Whitespace@8..9 " "
+                    Equal@9..10 "="
+                    Whitespace@10..11 " "
+                    Literal@11..17
+                      String@11..17 "\"Noni\"""#]],
         );
     }
 
@@ -381,19 +392,22 @@ mod tests {
         check(
             r#"gameboard[1,0] = "Pawn""#,
             expect![[r#"
-            Root@0..23
-              VarDef@0..23
-                Ident@0..9 "gameboard"
-                LBracket@9..10 "["
-                Number@10..11 "1"
-                Comma@11..12 ","
-                Number@12..13 "0"
-                RBracket@13..14 "]"
-                Whitespace@14..15 " "
-                Equal@15..16 "="
-                Whitespace@16..17 " "
-                Literal@17..23
-                  String@17..23 "\"Pawn\""#]],
+                Root@0..23
+                  VarDef@0..23
+                    NameRef@0..9
+                      Ident@0..9 "gameboard"
+                    LBracket@9..10 "["
+                    Literal@10..11
+                      Number@10..11 "1"
+                    Comma@11..12 ","
+                    Literal@12..13
+                      Number@12..13 "0"
+                    RBracket@13..14 "]"
+                    Whitespace@14..15 " "
+                    Equal@15..16 "="
+                    Whitespace@16..17 " "
+                    Literal@17..23
+                      String@17..23 "\"Pawn\"""#]],
         )
     }
 
