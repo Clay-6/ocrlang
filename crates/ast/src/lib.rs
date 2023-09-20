@@ -1,5 +1,12 @@
 use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
 
+pub struct Root(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
+pub enum Stmt {
+    Expr(Expr),
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Expr {
     Binary(BinaryExpr),
@@ -8,6 +15,29 @@ pub enum Expr {
     ArrayLiteral(ArrayLiteral),
     Paren(ParenExpr),
     NameRef(NameRef),
+}
+
+impl Root {
+    pub fn cast(node: SyntaxNode) -> Option<Self> {
+        if node.kind() == SyntaxKind::Root {
+            Some(Self(node))
+        } else {
+            None
+        }
+    }
+
+    pub fn stmts(&self) -> impl Iterator<Item = Stmt> {
+        self.0.children().filter_map(Stmt::cast)
+    }
+}
+
+impl Stmt {
+    pub fn cast(node: SyntaxNode) -> Option<Self> {
+        Some(match node.kind() {
+            SyntaxKind::VarDef => todo!(),
+            _ => Self::Expr(Expr::cast(node)?),
+        })
+    }
 }
 
 impl Expr {
