@@ -6,6 +6,7 @@ pub struct Root(SyntaxNode);
 pub enum Stmt {
     VarDef(VarDef),
     SubprogDef(SubprogDef),
+    ForLoop(ForLoop),
     Expr(Expr),
 }
 
@@ -63,6 +64,9 @@ pub struct VarDef(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct SubprogDef(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
+pub struct ForLoop(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct BinaryExpr(SyntaxNode);
@@ -128,6 +132,21 @@ impl SubprogDef {
 
     pub fn body(&self) -> impl Iterator<Item = Stmt> {
         self.0.children().filter_map(Stmt::cast)
+    }
+}
+
+impl ForLoop {
+    pub fn body(&self) -> impl Iterator<Item = Stmt> {
+        self.0.children().filter_map(Stmt::cast)
+    }
+
+    pub fn bounds(&self) -> Option<(Expr, Expr)> {
+        let mut iter = self.0.children().filter_map(Expr::cast);
+        Some((iter.next()?, iter.next()?))
+    }
+
+    pub fn step(&self) -> Option<Expr> {
+        self.0.children().filter_map(Expr::cast).nth(2)
     }
 }
 
