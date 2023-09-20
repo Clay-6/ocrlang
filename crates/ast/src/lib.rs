@@ -7,6 +7,8 @@ pub enum Stmt {
     VarDef(VarDef),
     SubprogDef(SubprogDef),
     ForLoop(ForLoop),
+    WhileLoop(WhileLoop),
+    DoUntil(DoUntil),
     Expr(Expr),
 }
 
@@ -67,6 +69,12 @@ pub struct SubprogDef(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct ForLoop(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
+pub struct WhileLoop(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
+pub struct DoUntil(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct BinaryExpr(SyntaxNode);
@@ -147,6 +155,26 @@ impl ForLoop {
 
     pub fn step(&self) -> Option<Expr> {
         self.0.children().filter_map(Expr::cast).nth(2)
+    }
+}
+
+impl WhileLoop {
+    pub fn condition(&self) -> Option<Expr> {
+        self.0.children().find_map(Expr::cast)
+    }
+
+    pub fn body(&self) -> impl Iterator<Item = Stmt> {
+        self.0.children().filter_map(Stmt::cast)
+    }
+}
+
+impl DoUntil {
+    pub fn condition(&self) -> Option<Expr> {
+        self.0.children().filter_map(Expr::cast).last()
+    }
+
+    pub fn body(&self) -> impl Iterator<Item = Stmt> {
+        self.0.children().filter_map(Stmt::cast)
     }
 }
 
