@@ -4,6 +4,7 @@ pub struct Root(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub enum Stmt {
+    VarDef(VarDef),
     Expr(Expr),
 }
 
@@ -57,6 +58,9 @@ impl Expr {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct VarDef(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
 pub struct BinaryExpr(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
@@ -81,6 +85,19 @@ pub struct ParenExpr(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct NameRef(SyntaxNode);
+
+impl VarDef {
+    pub fn name(&self) -> Option<SyntaxToken> {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .find(|token| matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::IdentSubscript))
+    }
+
+    pub fn value(&self) -> Option<Expr> {
+        self.0.children().find_map(Expr::cast)
+    }
+}
 
 impl BinaryExpr {
     pub fn lhs(&self) -> Option<Expr> {
