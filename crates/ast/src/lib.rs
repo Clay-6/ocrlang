@@ -5,6 +5,7 @@ pub struct Root(SyntaxNode);
 #[derive(Debug, PartialEq)]
 pub enum Stmt {
     VarDef(VarDef),
+    SubprogDef(SubprogDef),
     Expr(Expr),
 }
 
@@ -61,6 +62,9 @@ impl Expr {
 pub struct VarDef(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
+pub struct SubprogDef(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
 pub struct BinaryExpr(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
@@ -96,6 +100,34 @@ impl VarDef {
 
     pub fn value(&self) -> Option<Expr> {
         self.0.children().find_map(Expr::cast)
+    }
+}
+
+impl SubprogDef {
+    pub fn kind(&self) -> Option<SyntaxToken> {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .find(|tok| matches!(tok.kind(), SyntaxKind::Function | SyntaxKind::Procedure))
+    }
+
+    pub fn name(&self) -> Option<SyntaxToken> {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .find(|tok| tok.kind() == SyntaxKind::Ident)
+    }
+
+    pub fn params(&self) -> impl Iterator<Item = SyntaxToken> {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .filter(|tok| tok.kind() == SyntaxKind::Ident)
+            .skip(1)
+    }
+
+    pub fn body(&self) -> impl Iterator<Item = Stmt> {
+        self.0.children().filter_map(Stmt::cast)
     }
 }
 
