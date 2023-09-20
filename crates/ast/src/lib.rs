@@ -39,7 +39,11 @@ impl Root {
 impl Stmt {
     pub fn cast(node: SyntaxNode) -> Option<Self> {
         Some(match node.kind() {
-            SyntaxKind::VarDef => todo!(),
+            SyntaxKind::VarDef => Self::VarDef(VarDef(node)),
+            SyntaxKind::Function | SyntaxKind::Procedure => Self::SubprogDef(SubprogDef(node)),
+            SyntaxKind::For => Self::ForLoop(ForLoop(node)),
+            SyntaxKind::While => Self::WhileLoop(WhileLoop(node)),
+            SyntaxKind::Do => Self::DoUntil(DoUntil(node)),
             _ => Self::Expr(Expr::cast(node)?),
         })
     }
