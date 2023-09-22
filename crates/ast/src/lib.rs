@@ -7,6 +7,7 @@ pub enum Stmt {
     VarDef(VarDef),
     SubprogDef(SubprogDef),
     RetStmt(RetStmt),
+    IfElse(IfElse),
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
     DoUntil(DoUntil),
@@ -43,6 +44,7 @@ impl Stmt {
             SyntaxKind::VarDef => Self::VarDef(VarDef(node)),
             SyntaxKind::Function | SyntaxKind::Procedure => Self::SubprogDef(SubprogDef(node)),
             SyntaxKind::RetStmt => Self::RetStmt(RetStmt(node)),
+            SyntaxKind::IfStmt => Self::IfElse(IfElse(node)),
             SyntaxKind::For => Self::ForLoop(ForLoop(node)),
             SyntaxKind::While => Self::WhileLoop(WhileLoop(node)),
             SyntaxKind::Do => Self::DoUntil(DoUntil(node)),
@@ -75,6 +77,9 @@ pub struct SubprogDef(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct RetStmt(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
+pub struct IfElse(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct ForLoop(SyntaxNode);
@@ -155,6 +160,72 @@ impl SubprogDef {
 impl RetStmt {
     pub fn value(&self) -> Option<Expr> {
         self.0.children().find_map(Expr::cast)
+    }
+}
+
+impl IfElse {
+    pub fn condition(&self) -> Option<Expr> {
+        self.0.children().find_map(Expr::cast)
+    }
+
+    pub fn body(&self) -> impl Iterator<Item = Stmt> {
+        self.0
+            .children()
+            .take_while(|t| {
+                !matches!(
+                    t.kind(),
+                    SyntaxKind::Elseif | SyntaxKind::Else | SyntaxKind::Endif
+                )
+            })
+            .filter_map(Stmt::cast)
+    }
+
+    pub fn elseif_conditions(&self) -> impl Iterator<Item = Expr> {
+        let idxs = self
+            .0
+            .children()
+            .enumerate()
+            .filter(|(_, t)| matches!(t.kind(), SyntaxKind::Elseif))
+            .map(|(i, _)| i);
+        let mut v = vec![];
+        for i in idxs {
+            if let Some(e) = self.0.children().skip(i).find_map(Expr::cast) {
+                v.push(e);
+            }
+        }
+        v.into_iter()
+    }
+
+    pub fn elseif_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
+        let idxs = self
+            .0
+            .children()
+            .enumerate()
+            .filter(|(_, t)| matches!(t.kind(), SyntaxKind::Elseif))
+            .map(|(i, _)| i);
+        let mut v = vec![];
+        for i in idxs {
+            v.push(
+                self.0
+                    .children()
+                    .skip(i)
+                    .take_while(|t| {
+                        !matches!(
+                            t.kind(),
+                            SyntaxKind::Elseif | SyntaxKind::Else | SyntaxKind::Endif
+                        )
+                    })
+                    .filter_map(Stmt::cast),
+            )
+        }
+        v.into_iter()
+    }
+
+    pub fn else_body(&self) -> impl Iterator<Item = Stmt> {
+        self.0
+            .children()
+            .skip_while(|t| t.kind() != SyntaxKind::Else)
+            .filter_map(Stmt::cast)
     }
 }
 
