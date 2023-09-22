@@ -43,13 +43,13 @@ impl Stmt {
     pub fn cast(node: SyntaxNode) -> Option<Self> {
         Some(match node.kind() {
             SyntaxKind::VarDef => Self::VarDef(VarDef(node)),
-            SyntaxKind::Function | SyntaxKind::Procedure => Self::SubprogDef(SubprogDef(node)),
+            SyntaxKind::SubProgramDef => Self::SubprogDef(SubprogDef(node)),
             SyntaxKind::RetStmt => Self::RetStmt(RetStmt(node)),
             SyntaxKind::IfStmt => Self::IfElse(IfElse(node)),
             SyntaxKind::SwitchStmt => Self::SwitchCase(SwitchCase(node)),
-            SyntaxKind::For => Self::ForLoop(ForLoop(node)),
-            SyntaxKind::While => Self::WhileLoop(WhileLoop(node)),
-            SyntaxKind::Do => Self::DoUntil(DoUntil(node)),
+            SyntaxKind::ForLoop => Self::ForLoop(ForLoop(node)),
+            SyntaxKind::WhileLoop => Self::WhileLoop(WhileLoop(node)),
+            SyntaxKind::DoUntil => Self::DoUntil(DoUntil(node)),
             _ => Self::Expr(Expr::cast(node)?),
         })
     }
