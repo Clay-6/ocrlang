@@ -8,6 +8,7 @@ pub enum Stmt {
     SubprogDef(SubprogDef),
     RetStmt(RetStmt),
     IfElse(IfElse),
+    SwitchCase(SwitchCase),
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
     DoUntil(DoUntil),
@@ -45,6 +46,7 @@ impl Stmt {
             SyntaxKind::Function | SyntaxKind::Procedure => Self::SubprogDef(SubprogDef(node)),
             SyntaxKind::RetStmt => Self::RetStmt(RetStmt(node)),
             SyntaxKind::IfStmt => Self::IfElse(IfElse(node)),
+            SyntaxKind::SwitchStmt => Self::SwitchCase(SwitchCase(node)),
             SyntaxKind::For => Self::ForLoop(ForLoop(node)),
             SyntaxKind::While => Self::WhileLoop(WhileLoop(node)),
             SyntaxKind::Do => Self::DoUntil(DoUntil(node)),
@@ -80,6 +82,9 @@ pub struct RetStmt(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct IfElse(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
+pub struct SwitchCase(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct ForLoop(SyntaxNode);
@@ -225,6 +230,60 @@ impl IfElse {
         self.0
             .children()
             .skip_while(|t| t.kind() != SyntaxKind::Else)
+            .filter_map(Stmt::cast)
+    }
+}
+
+impl SwitchCase {
+    pub fn scrutinee(&self) -> Option<Expr> {
+        self.0.children().find_map(Expr::cast)
+    }
+
+    pub fn cases(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
+        let idxs = self
+            .0
+            .children()
+            .enumerate()
+            .filter(|(_, t)| t.kind() == SyntaxKind::Colon)
+            .map(|(i, _)| i);
+        let mut v = vec![];
+        for i in idxs {
+            v.push(
+                self.0
+                    .children()
+                    .skip(i)
+                    .take_while(|t| !matches!(t.kind(), SyntaxKind::Case | SyntaxKind::Default))
+                    .filter_map(Stmt::cast),
+            )
+        }
+        v.into_iter()
+    }
+
+    pub fn case_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
+        let idxs = self
+            .0
+            .children()
+            .enumerate()
+            .filter(|(_, t)| t.kind() == SyntaxKind::Colon)
+            .map(|(i, _)| i);
+        let mut v = vec![];
+        for i in idxs {
+            v.push(
+                self.0
+                    .children()
+                    .skip(i)
+                    .take_while(|t| !matches!(t.kind(), SyntaxKind::Case | SyntaxKind::Default))
+                    .filter_map(Stmt::cast),
+            )
+        }
+        v.into_iter()
+    }
+
+    pub fn default_body(&self) -> impl Iterator<Item = Stmt> {
+        self.0
+            .children()
+            .skip_while(|t| t.kind() != SyntaxKind::Default)
+            .take_while(|t| !matches!(t.kind(), SyntaxKind::Case))
             .filter_map(Stmt::cast)
     }
 }
