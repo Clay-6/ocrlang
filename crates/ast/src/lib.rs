@@ -6,6 +6,7 @@ pub struct Root(SyntaxNode);
 pub enum Stmt {
     VarDef(VarDef),
     SubprogDef(SubprogDef),
+    RetStmt(RetStmt),
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
     DoUntil(DoUntil),
@@ -41,6 +42,7 @@ impl Stmt {
         Some(match node.kind() {
             SyntaxKind::VarDef => Self::VarDef(VarDef(node)),
             SyntaxKind::Function | SyntaxKind::Procedure => Self::SubprogDef(SubprogDef(node)),
+            SyntaxKind::RetStmt => Self::RetStmt(RetStmt(node)),
             SyntaxKind::For => Self::ForLoop(ForLoop(node)),
             SyntaxKind::While => Self::WhileLoop(WhileLoop(node)),
             SyntaxKind::Do => Self::DoUntil(DoUntil(node)),
@@ -70,6 +72,9 @@ pub struct VarDef(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct SubprogDef(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
+pub struct RetStmt(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct ForLoop(SyntaxNode);
@@ -144,6 +149,12 @@ impl SubprogDef {
 
     pub fn body(&self) -> impl Iterator<Item = Stmt> {
         self.0.children().filter_map(Stmt::cast)
+    }
+}
+
+impl RetStmt {
+    pub fn value(&self) -> Option<Expr> {
+        self.0.children().find_map(Expr::cast)
     }
 }
 
