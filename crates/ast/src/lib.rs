@@ -23,6 +23,7 @@ pub enum Expr {
     ArrayLiteral(ArrayLiteral),
     Paren(ParenExpr),
     NameRef(NameRef),
+    Call(SubprogCall),
 }
 
 impl Root {
@@ -64,6 +65,7 @@ impl Expr {
             SyntaxKind::NameRef => Self::NameRef(NameRef(node)),
             SyntaxKind::Literal => Self::Literal(Literal(node)),
             SyntaxKind::ArrayLiteral => Self::ArrayLiteral(ArrayLiteral(node)),
+
             _ => return None,
         };
 
@@ -120,6 +122,9 @@ pub struct ParenExpr(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct NameRef(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
+pub struct SubprogCall(SyntaxNode);
 
 impl VarDef {
     pub fn name(&self) -> Option<SyntaxToken> {
@@ -419,5 +424,19 @@ impl ParenExpr {
 impl NameRef {
     pub fn name(&self) -> Option<SyntaxToken> {
         self.0.first_token()
+    }
+}
+
+impl SubprogCall {
+    pub fn callee(&self) -> Option<SyntaxToken> {
+        self.0.first_token()
+    }
+
+    pub fn args(&self) -> impl Iterator<Item = Expr> {
+        self.0
+            .children()
+            .skip_while(|t| t.kind() != SyntaxKind::RParen)
+            .filter(|t| !matches!(t.kind(), SyntaxKind::Comma | SyntaxKind::RParen))
+            .filter_map(Expr::cast)
     }
 }
