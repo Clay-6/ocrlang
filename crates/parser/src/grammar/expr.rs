@@ -239,6 +239,17 @@ mod tests {
     use expect_test::expect;
 
     #[test]
+    fn parse_name_ref_expr() {
+        check(
+            "x",
+            expect![[r#"
+        Root@0..1
+          NameRef@0..1
+            Ident@0..1 "x""#]],
+        )
+    }
+
+    #[test]
     fn parse_bin_expr() {
         check(
             "1+2",
