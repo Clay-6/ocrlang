@@ -1,13 +1,109 @@
 use la_arena::Arena;
 use syntax::SyntaxKind;
 
-use crate::{BinaryOp, Expr, UnaryOp, Value};
+use crate::{BinaryOp, Expr, Stmt, UnaryOp, Value};
 
 pub struct Database {
     exprs: Arena<Expr>,
 }
 
 impl Database {
+    pub(crate) fn lower_stmt(&mut self, ast: ast::Stmt) -> Option<Stmt> {
+        let result = match ast {
+            ast::Stmt::VarDef(ast) => Stmt::VarDef {
+                name: ast.name()?.text().into(),
+                value: self.lower_expr(ast.value()),
+            },
+            ast::Stmt::SubprogDef(ast) => Stmt::SubprogramDef {
+                name: ast.name()?.text().into(),
+                body: ast.body().filter_map(|ast| self.lower_stmt(ast)).collect(),
+            },
+            ast::Stmt::RetStmt(ast) => {
+                let val = self.lower_expr(ast.value());
+                Stmt::ReturnStmt {
+                    value: self.exprs.alloc(val),
+                }
+            }
+            ast::Stmt::IfElse(ast) => {
+                let condition = self.lower_expr(ast.condition());
+                let body = ast
+                    .body()
+                    .filter_map(|ast| self.lower_stmt(ast))
+                    .collect::<Vec<_>>();
+                let else_body = ast
+                    .else_body()
+                    .filter_map(|ast| self.lower_stmt(ast))
+                    .collect::<Vec<_>>();
+
+                Stmt::IfElse {
+                    condition: self.exprs.alloc(condition),
+                    body,
+                    else_body,
+                }
+            }
+            ast::Stmt::SwitchCase(ast) => {
+                let scrutinee = self.lower_expr(ast.scrutinee());
+                let cases = ast
+                    .cases()
+                    .map(|ast| self.lower_expr(Some(ast)))
+                    .collect::<Vec<_>>();
+                let case_bodies = ast
+                    .case_bodies()
+                    .map(|case| {
+                        case.filter_map(|ast| self.lower_stmt(ast))
+                            .collect::<Vec<_>>()
+                    })
+                    .collect();
+                let default_body = ast
+                    .default_body()
+                    .filter_map(|ast| self.lower_stmt(ast))
+                    .collect::<Vec<_>>();
+                Stmt::SwitchCase {
+                    scrutinee: self.exprs.alloc(scrutinee),
+                    cases: self.exprs.alloc_many(cases),
+                    case_bodies,
+                    default_body,
+                }
+            }
+            ast::Stmt::ForLoop(ast) => {
+                let (start, end) = ast
+                    .bounds()
+                    .map(|(s, e)| (self.lower_expr(Some(s)), self.lower_expr(Some(e))))
+                    .unwrap_or((Expr::Missing, Expr::Missing));
+                let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
+                let step = ast
+                    .step()
+                    .map(|ast| self.lower_expr(Some(ast)))
+                    .unwrap_or(Expr::Missing);
+                Stmt::ForLoop {
+                    start: self.exprs.alloc(start),
+                    end: self.exprs.alloc(end),
+                    step: self.exprs.alloc(step),
+                    body,
+                }
+            }
+            ast::Stmt::WhileLoop(ast) => {
+                let condition = self.lower_expr(ast.condition());
+                let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
+                Stmt::WhileLoop {
+                    condition: self.exprs.alloc(condition),
+                    body,
+                }
+            }
+            ast::Stmt::DoUntil(ast) => {
+                let condition = self.lower_expr(ast.condition());
+                let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
+                Stmt::DoUntilLoop {
+                    condition: self.exprs.alloc(condition),
+                    body,
+                }
+            }
+            ast::Stmt::Expr(ast) => Stmt::Expr(self.lower_expr(Some(ast))),
+        };
+
+        Some(result)
+    }
+
     pub(crate) fn lower_expr(&mut self, ast: Option<ast::Expr>) -> Expr {
         if let Some(ast) = ast {
             match ast {

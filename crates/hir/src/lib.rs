@@ -7,6 +7,46 @@ use smol_str::SmolStr;
 
 type ExprIdx = Idx<Expr>;
 
+pub enum Stmt {
+    VarDef {
+        name: SmolStr,
+        value: Expr,
+    },
+    SubprogramDef {
+        name: SmolStr,
+        body: Vec<Stmt>,
+    },
+    ReturnStmt {
+        value: ExprIdx,
+    },
+    IfElse {
+        condition: ExprIdx,
+        body: Vec<Stmt>,
+        else_body: Vec<Stmt>,
+    },
+    SwitchCase {
+        scrutinee: ExprIdx,
+        cases: IdxRange<Expr>,
+        case_bodies: Vec<Vec<Stmt>>,
+        default_body: Vec<Stmt>,
+    },
+    ForLoop {
+        start: ExprIdx,
+        end: ExprIdx,
+        step: ExprIdx,
+        body: Vec<Stmt>,
+    },
+    WhileLoop {
+        condition: ExprIdx,
+        body: Vec<Stmt>,
+    },
+    DoUntilLoop {
+        condition: ExprIdx,
+        body: Vec<Stmt>,
+    },
+    Expr(Expr),
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Expr {
     Missing,
