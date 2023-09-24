@@ -131,7 +131,7 @@ fn array_literal(p: &mut Parser) -> CompletedMarker {
     m.complete(p, SyntaxKind::ArrayLiteral)
 }
 
-fn literal(p: &mut Parser) -> CompletedMarker {
+pub(crate) fn literal(p: &mut Parser) -> CompletedMarker {
     assert!(p.at_set(&LITERALS));
 
     let m = p.start();

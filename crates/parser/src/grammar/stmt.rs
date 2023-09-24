@@ -43,7 +43,7 @@ fn switch_stmt(p: &mut Parser) -> CompletedMarker {
     while !p.at(TokenKind::Endswitch) && !p.at_end() {
         if p.at(TokenKind::Case) {
             p.bump();
-            expr::expr(p);
+            expr::literal(p);
             p.expect(TokenKind::Colon);
             while !p.at_set(&CASE_ENDINGS) {
                 stmt(p);
