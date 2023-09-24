@@ -40,7 +40,7 @@ fn switch_stmt(p: &mut Parser) -> CompletedMarker {
     expr::expr(p);
     p.expect(TokenKind::Colon);
 
-    while !p.at(TokenKind::Endswitch) && !p.at_end() {
+    while !p.at_set(&[TokenKind::Endswitch, TokenKind::Default]) && !p.at_end() {
         if p.at(TokenKind::Case) {
             p.bump();
             expr::literal(p);
@@ -49,12 +49,12 @@ fn switch_stmt(p: &mut Parser) -> CompletedMarker {
                 stmt(p);
             }
         }
-        if p.at(TokenKind::Default) {
-            p.bump();
-            p.expect(TokenKind::Colon);
-            while !p.at_set(&CASE_ENDINGS) {
-                stmt(p);
-            }
+    }
+    if p.at(TokenKind::Default) {
+        p.bump();
+        p.expect(TokenKind::Colon);
+        while !p.at_set(&CASE_ENDINGS) {
+            stmt(p);
         }
     }
 
