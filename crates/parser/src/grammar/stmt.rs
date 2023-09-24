@@ -295,6 +295,22 @@ mod tests {
     }
 
     #[test]
+    fn parse_var_def_name_ref() {
+        check(
+            "x = y",
+            expect![[r#"
+        Root@0..5
+          VarDef@0..5
+            Ident@0..1 "x"
+            Whitespace@1..2 " "
+            Equal@2..3 "="
+            Whitespace@3..4 " "
+            NameRef@4..5
+              Ident@4..5 "y""#]],
+        )
+    }
+
+    #[test]
     fn parse_const_def() {
         check(
             "const vat = 0.2",
