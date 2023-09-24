@@ -17,6 +17,7 @@ impl Database {
             },
             ast::Stmt::SubprogDef(ast) => Stmt::SubprogramDef {
                 name: ast.name()?.text().into(),
+                params: ast.params().map(|ast| ast.text().into()).collect(),
                 body: ast.body().filter_map(|ast| self.lower_stmt(ast)).collect(),
             },
             ast::Stmt::RetStmt(ast) => {

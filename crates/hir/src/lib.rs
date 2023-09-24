@@ -15,6 +15,7 @@ pub enum Stmt {
     },
     SubprogramDef {
         name: SmolStr,
+        params: Vec<SmolStr>,
         body: Vec<Stmt>,
     },
     ReturnStmt {
