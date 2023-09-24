@@ -7,6 +7,7 @@ use smol_str::SmolStr;
 
 type ExprIdx = Idx<Expr>;
 
+#[derive(Debug, PartialEq)]
 pub enum Stmt {
     VarDef {
         name: SmolStr,
@@ -100,4 +101,11 @@ pub enum Value {
     String(SmolStr),
     Bool(bool),
     Array(IdxRange<Expr>),
+}
+
+pub fn lower(ast: ast::Root) -> (Database, Vec<Stmt>) {
+    let mut db = Database::default();
+    let stmts = ast.stmts().filter_map(|stmt| db.lower_stmt(stmt)).collect();
+
+    (db, stmts)
 }

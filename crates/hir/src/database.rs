@@ -3,6 +3,7 @@ use syntax::SyntaxKind;
 
 use crate::{BinaryOp, Expr, Stmt, UnaryOp, Value};
 
+#[derive(Debug, Default, PartialEq)]
 pub struct Database {
     exprs: Arena<Expr>,
 }
@@ -215,5 +216,218 @@ impl Database {
             callee,
             args: self.exprs.alloc_many(args),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(input: &str) -> ast::Root {
+        ast::Root::cast(parser::parse(input).syntax()).unwrap()
+    }
+
+    fn check_stmt(input: &str, expected_hir: Stmt) {
+        let root = parse(input);
+        let ast = root.stmts().next().unwrap();
+        let hir = Database::default().lower_stmt(ast).unwrap();
+
+        assert_eq!(hir, expected_hir);
+    }
+
+    fn check_expr(input: &str, expected_hir: Expr, expected_database: Database) {
+        let root = parse(input);
+        let first_stmt = root.stmts().next().unwrap();
+        let ast = match first_stmt {
+            ast::Stmt::Expr(ast) => ast,
+            _ => unreachable!(),
+        };
+        let mut database = Database::default();
+        let hir = database.lower_expr(Some(ast));
+
+        assert_eq!(hir, expected_hir);
+        assert_eq!(database, expected_database)
+    }
+
+    #[test]
+    fn lower_variable_def() {
+        check_stmt(
+            "let foo = bar",
+            Stmt::VarDef {
+                name: "foo".into(),
+                value: Expr::NameRef { name: "bar".into() },
+            },
+        );
+    }
+
+    #[test]
+    fn lower_variable_def_without_name() {
+        let root = parse("let = 10");
+        let ast = root.stmts().next().unwrap();
+        assert!(Database::default().lower_stmt(ast).is_none());
+    }
+
+    #[test]
+    fn lower_variable_def_without_value() {
+        check_stmt(
+            "let a = ",
+            Stmt::VarDef {
+                name: "a".into(),
+                value: Expr::Missing,
+            },
+        );
+    }
+
+    #[test]
+    fn lower_expr_stmt() {
+        check_stmt(
+            "123",
+            Stmt::Expr(Expr::Literal {
+                value: Value::Int(123),
+            }),
+        );
+    }
+
+    #[test]
+    fn lower_binary_expr() {
+        let mut exprs = Arena::new();
+        let lhs = exprs.alloc(Expr::Literal {
+            value: Value::Int(5),
+        });
+        let rhs = exprs.alloc(Expr::Literal {
+            value: Value::Int(10),
+        });
+
+        check_expr(
+            "1 + 2",
+            Expr::Binary {
+                op: BinaryOp::Add,
+                lhs,
+                rhs,
+            },
+            Database { exprs },
+        );
+    }
+
+    #[test]
+    fn lower_binary_expr_without_rhs() {
+        let mut exprs = Arena::new();
+        let lhs = exprs.alloc(Expr::Literal {
+            value: Value::Float(17.0),
+        });
+        let rhs = exprs.alloc(Expr::Missing);
+
+        check_expr(
+            "17.0 * ",
+            Expr::Binary {
+                op: BinaryOp::Mul,
+                lhs,
+                rhs,
+            },
+            Database { exprs },
+        );
+    }
+
+    #[test]
+    fn lower_num_literal() {
+        check_expr(
+            "99",
+            Expr::Literal {
+                value: Value::Int(99),
+            },
+            Database::default(),
+        );
+        check_expr(
+            "1.5",
+            Expr::Literal {
+                value: Value::Float(1.5),
+            },
+            Database::default(),
+        );
+    }
+
+    #[test]
+    fn lower_string_literal() {
+        check_expr(
+            r#""hello""#,
+            Expr::Literal {
+                value: Value::String("hello".into()),
+            },
+            Database::default(),
+        );
+    }
+
+    #[test]
+    fn lower_char_literal() {
+        check_expr(
+            "'c'",
+            Expr::Literal {
+                value: Value::Char('c'),
+            },
+            Database::default(),
+        );
+    }
+
+    #[test]
+    fn lower_bool_literal() {
+        check_expr(
+            "true",
+            Expr::Literal {
+                value: Value::Bool(true),
+            },
+            Database::default(),
+        );
+        check_expr(
+            "false",
+            Expr::Literal {
+                value: Value::Bool(false),
+            },
+            Database::default(),
+        );
+    }
+
+    #[test]
+    fn lower_paren_expr() {
+        check_expr(
+            "(((((x)))))",
+            Expr::NameRef { name: "x".into() },
+            Database::default(),
+        );
+    }
+
+    #[test]
+    fn lower_unary_expr() {
+        let mut exprs = Arena::new();
+        let five = exprs.alloc(Expr::Literal {
+            value: Value::Int(5),
+        });
+        check_expr(
+            "-5",
+            Expr::Unary {
+                op: UnaryOp::Neg,
+                opand: five,
+            },
+            Database { exprs },
+        )
+    }
+
+    #[test]
+    fn lower_unary_expr_without_expr() {
+        let mut exprs = Arena::new();
+        let opand = exprs.alloc(Expr::Missing);
+
+        check_expr(
+            "NOT ",
+            Expr::Unary {
+                op: UnaryOp::Not,
+                opand,
+            },
+            Database { exprs },
+        );
+    }
+
+    #[test]
+    fn lower_name_ref() {
+        check_expr("x", Expr::NameRef { name: "x".into() }, Database::default());
     }
 }
