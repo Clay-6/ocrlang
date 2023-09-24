@@ -299,7 +299,7 @@ mod tests {
         });
 
         check_expr(
-            "1 + 2",
+            "5 + 10",
             Expr::Binary {
                 op: BinaryOp::Add,
                 lhs,
