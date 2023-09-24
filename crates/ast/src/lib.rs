@@ -244,24 +244,18 @@ impl SwitchCase {
         self.0.children().find_map(Expr::cast)
     }
 
-    pub fn cases(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
+    pub fn cases(&self) -> impl Iterator<Item = Expr> {
         let idxs = self
             .0
             .children()
             .enumerate()
-            .filter(|(_, t)| t.kind() == SyntaxKind::Colon)
+            .filter(|(_, t)| t.kind() == SyntaxKind::Case)
             .map(|(i, _)| i);
         let mut v = vec![];
         for i in idxs {
-            v.push(
-                self.0
-                    .children()
-                    .skip(i)
-                    .take_while(|t| !matches!(t.kind(), SyntaxKind::Case | SyntaxKind::Default))
-                    .filter_map(Stmt::cast),
-            )
+            v.push(self.0.children().nth(i + 1).and_then(Expr::cast))
         }
-        v.into_iter()
+        v.into_iter().flatten()
     }
 
     pub fn case_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
