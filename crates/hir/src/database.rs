@@ -252,7 +252,7 @@ mod tests {
     #[test]
     fn lower_variable_def() {
         check_stmt(
-            "let foo = bar",
+            "foo = bar",
             Stmt::VarDef {
                 name: "foo".into(),
                 value: Expr::NameRef { name: "bar".into() },
@@ -261,16 +261,9 @@ mod tests {
     }
 
     #[test]
-    fn lower_variable_def_without_name() {
-        let root = parse("let = 10");
-        let ast = root.stmts().next().unwrap();
-        assert!(Database::default().lower_stmt(ast).is_none());
-    }
-
-    #[test]
     fn lower_variable_def_without_value() {
         check_stmt(
-            "let a = ",
+            "a = ",
             Stmt::VarDef {
                 name: "a".into(),
                 value: Expr::Missing,
