@@ -121,8 +121,9 @@ pub enum TokenKind {
     False,
 
     #[token("\n")]
+    #[token("\r\n")]
     Newline,
-    #[regex(r"[ \t\r\f]+")]
+    #[regex(r"[ \t\f]+")]
     Whitespace,
     #[regex("//.*")]
     Comment,
@@ -493,11 +494,12 @@ mod tests {
 
     #[test]
     fn lex_whitespace() {
-        check("  \t\r", TokenKind::Whitespace);
+        check("  \t", TokenKind::Whitespace);
     }
 
     #[test]
     fn lex_newline() {
         check("\n", TokenKind::Newline);
+        check("\r\n", TokenKind::Newline);
     }
 }
