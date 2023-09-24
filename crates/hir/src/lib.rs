@@ -57,7 +57,7 @@ pub enum Value {
     Int(i64),
     Float(f64),
     Char(char),
-    String(String),
+    String(SmolStr),
     Bool(bool),
     Array(IdxRange<Expr>),
 }

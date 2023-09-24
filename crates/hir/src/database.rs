@@ -77,7 +77,7 @@ impl Database {
                     value: Value::Char(c),
                 },
                 ast::Val::String(s) => Expr::Literal {
-                    value: Value::String(s),
+                    value: Value::String(s.into()),
                 },
                 ast::Val::Bool(b) => Expr::Literal {
                     value: Value::Bool(b),
