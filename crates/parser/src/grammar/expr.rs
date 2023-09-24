@@ -90,9 +90,10 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
     Some(lhs)
 }
 
-const LITERALS: [TokenKind; 4] = [
+const LITERALS: [TokenKind; 5] = [
     TokenKind::Number,
     TokenKind::String,
+    TokenKind::Char,
     TokenKind::True,
     TokenKind::False,
 ];

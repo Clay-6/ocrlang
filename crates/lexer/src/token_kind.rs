@@ -111,8 +111,9 @@ pub enum TokenKind {
     Endprocedure,
 
     #[regex(r#""[^"\\]*(\\.[^"\\]*)*""#)]
-    #[regex(r"'[^'\\]*(\\.[^'\\]*)*'")]
     String,
+    #[regex(r#"'([^'\\\n]|\\.)'"#)]
+    Char,
     #[regex(r"[0-9]+(\.[0-9]+)?")]
     Number,
     #[token("true")]
@@ -193,6 +194,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Procedure => "`procedure`",
             TokenKind::Endprocedure => "`endprocedure`",
             TokenKind::String => "string",
+            TokenKind::Char => "char",
             TokenKind::Number => "number",
             TokenKind::True => "`true`",
             TokenKind::False => "`false`",
@@ -478,13 +480,18 @@ mod tests {
     }
 
     #[test]
-    fn lex_unescaped_string_literal() {
+    fn lex_escaped_string_literal() {
         check(r#""An \"escaped\" string""#, TokenKind::String);
     }
 
     #[test]
-    fn lex_single_quote_string_literal() {
-        check("'A single quote string'", TokenKind::String);
+    fn lex_char_literal() {
+        check("'c'", TokenKind::Char);
+    }
+
+    #[test]
+    fn lex_escaped_char_literal() {
+        check(r"'\''", TokenKind::Char);
     }
 
     #[test]

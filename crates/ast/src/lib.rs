@@ -342,7 +342,8 @@ impl Literal {
         match tok.kind() {
             SyntaxKind::True => Some(Val::Bool(true)),
             SyntaxKind::False => Some(Val::Bool(false)),
-            SyntaxKind::String => Some(Val::String(tok.text().to_string())),
+            SyntaxKind::String => Some(Val::String(tok.text().into())),
+            SyntaxKind::Char => Some(Val::Char(tok.text().chars().find(|&c| c != '\'').unwrap())),
             SyntaxKind::Number => {
                 let txt = tok.text();
                 if txt.contains('.') {
