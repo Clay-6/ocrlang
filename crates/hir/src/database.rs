@@ -11,100 +11,14 @@ pub struct Database {
 impl Database {
     pub(crate) fn lower_stmt(&mut self, ast: ast::Stmt) -> Option<Stmt> {
         let result = match ast {
-            ast::Stmt::VarDef(ast) => Stmt::VarDef {
-                name: ast.name()?.text().into(),
-                value: self.lower_expr(ast.value()),
-            },
-            ast::Stmt::SubprogDef(ast) => Stmt::SubprogramDef {
-                kind: match ast.kind()?.kind() {
-                    SyntaxKind::Function => SubprogramKind::Function,
-                    SyntaxKind::Procedure => SubprogramKind::Procedure,
-                    _ => unreachable!(),
-                },
-                name: ast.name()?.text().into(),
-                params: ast.params().map(|ast| ast.text().into()).collect(),
-                body: ast.body().filter_map(|ast| self.lower_stmt(ast)).collect(),
-            },
-            ast::Stmt::RetStmt(ast) => {
-                let val = self.lower_expr(ast.value());
-                Stmt::ReturnStmt {
-                    value: self.exprs.alloc(val),
-                }
-            }
-            ast::Stmt::IfElse(ast) => {
-                let condition = self.lower_expr(ast.condition());
-                let body = ast
-                    .body()
-                    .filter_map(|ast| self.lower_stmt(ast))
-                    .collect::<Vec<_>>();
-                let else_body = ast
-                    .else_body()
-                    .filter_map(|ast| self.lower_stmt(ast))
-                    .collect::<Vec<_>>();
-
-                Stmt::IfElse {
-                    condition: self.exprs.alloc(condition),
-                    body,
-                    else_body,
-                }
-            }
-            ast::Stmt::SwitchCase(ast) => {
-                let scrutinee = self.lower_expr(ast.scrutinee());
-                let cases = ast
-                    .cases()
-                    .map(|ast| self.lower_expr(Some(ast)))
-                    .collect::<Vec<_>>();
-                let case_bodies = ast
-                    .case_bodies()
-                    .map(|case| {
-                        case.filter_map(|ast| self.lower_stmt(ast))
-                            .collect::<Vec<_>>()
-                    })
-                    .collect();
-                let default_body = ast
-                    .default_body()
-                    .filter_map(|ast| self.lower_stmt(ast))
-                    .collect::<Vec<_>>();
-                Stmt::SwitchCase {
-                    scrutinee: self.exprs.alloc(scrutinee),
-                    cases: self.exprs.alloc_many(cases),
-                    case_bodies,
-                    default_body,
-                }
-            }
-            ast::Stmt::ForLoop(ast) => {
-                let (start, end) = ast
-                    .bounds()
-                    .map(|(s, e)| (self.lower_expr(Some(s)), self.lower_expr(Some(e))))
-                    .unwrap_or((Expr::Missing, Expr::Missing));
-                let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
-                let step = ast
-                    .step()
-                    .map(|ast| self.lower_expr(Some(ast)))
-                    .unwrap_or(Expr::Missing);
-                Stmt::ForLoop {
-                    start: self.exprs.alloc(start),
-                    end: self.exprs.alloc(end),
-                    step: self.exprs.alloc(step),
-                    body,
-                }
-            }
-            ast::Stmt::WhileLoop(ast) => {
-                let condition = self.lower_expr(ast.condition());
-                let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
-                Stmt::WhileLoop {
-                    condition: self.exprs.alloc(condition),
-                    body,
-                }
-            }
-            ast::Stmt::DoUntil(ast) => {
-                let condition = self.lower_expr(ast.condition());
-                let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
-                Stmt::DoUntilLoop {
-                    condition: self.exprs.alloc(condition),
-                    body,
-                }
-            }
+            ast::Stmt::VarDef(ast) => self.lower_var_def(ast)?,
+            ast::Stmt::SubprogDef(ast) => self.lower_subprogram_def(ast)?,
+            ast::Stmt::RetStmt(ast) => self.lower_return_stmt(ast),
+            ast::Stmt::IfElse(ast) => self.lower_if_else(ast),
+            ast::Stmt::SwitchCase(ast) => self.lower_switch_case(ast),
+            ast::Stmt::ForLoop(ast) => self.lower_for_loop(ast),
+            ast::Stmt::WhileLoop(ast) => self.lower_while_loop(ast),
+            ast::Stmt::DoUntil(ast) => self.lower_do_until(ast),
             ast::Stmt::Expr(ast) => Stmt::Expr(self.lower_expr(Some(ast))),
         };
 
@@ -125,6 +39,112 @@ impl Database {
         } else {
             Expr::Missing
         }
+    }
+
+    fn lower_do_until(&mut self, ast: ast::DoUntil) -> Stmt {
+        let condition = self.lower_expr(ast.condition());
+        let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
+        Stmt::DoUntilLoop {
+            condition: self.exprs.alloc(condition),
+            body,
+        }
+    }
+
+    fn lower_while_loop(&mut self, ast: ast::WhileLoop) -> Stmt {
+        let condition = self.lower_expr(ast.condition());
+        let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
+        Stmt::WhileLoop {
+            condition: self.exprs.alloc(condition),
+            body,
+        }
+    }
+
+    fn lower_for_loop(&mut self, ast: ast::ForLoop) -> Stmt {
+        let (start, end) = ast
+            .bounds()
+            .map(|(s, e)| (self.lower_expr(Some(s)), self.lower_expr(Some(e))))
+            .unwrap_or((Expr::Missing, Expr::Missing));
+        let step = ast
+            .step()
+            .map(|ast| self.lower_expr(Some(ast)))
+            .unwrap_or(Expr::Missing);
+        let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
+        Stmt::ForLoop {
+            start: self.exprs.alloc(start),
+            end: self.exprs.alloc(end),
+            step: self.exprs.alloc(step),
+            body,
+        }
+    }
+
+    fn lower_switch_case(&mut self, ast: ast::SwitchCase) -> Stmt {
+        let scrutinee = self.lower_expr(ast.scrutinee());
+        let cases = ast
+            .cases()
+            .map(|ast| self.lower_expr(Some(ast)))
+            .collect::<Vec<_>>();
+        let case_bodies = ast
+            .case_bodies()
+            .map(|case| {
+                case.filter_map(|ast| self.lower_stmt(ast))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        let default_body = ast
+            .default_body()
+            .filter_map(|ast| self.lower_stmt(ast))
+            .collect::<Vec<_>>();
+        Stmt::SwitchCase {
+            scrutinee: self.exprs.alloc(scrutinee),
+            cases: self.exprs.alloc_many(cases),
+            case_bodies,
+            default_body,
+        }
+    }
+
+    fn lower_if_else(&mut self, ast: ast::IfElse) -> Stmt {
+        let condition = self.lower_expr(ast.condition());
+        let body = ast
+            .body()
+            .filter_map(|ast| self.lower_stmt(ast))
+            .collect::<Vec<_>>();
+        let else_body = ast
+            .else_body()
+            .filter_map(|ast| self.lower_stmt(ast))
+            .collect::<Vec<_>>();
+
+        Stmt::IfElse {
+            condition: self.exprs.alloc(condition),
+            body,
+            else_body,
+        }
+    }
+
+    fn lower_return_stmt(&mut self, ast: ast::RetStmt) -> Stmt {
+        let val = self.lower_expr(ast.value());
+        Stmt::ReturnStmt {
+            value: self.exprs.alloc(val),
+        }
+    }
+
+    fn lower_subprogram_def(&mut self, ast: ast::SubprogDef) -> Option<Stmt> {
+        Some(Stmt::SubprogramDef {
+            kind: match ast.kind()?.kind() {
+                SyntaxKind::Function => SubprogramKind::Function,
+                SyntaxKind::Procedure => SubprogramKind::Procedure,
+                _ => unreachable!(),
+            },
+            name: ast.name()?.text().into(),
+            params: ast.params().map(|ast| ast.text().into()).collect(),
+            body: ast.body().filter_map(|ast| self.lower_stmt(ast)).collect(),
+        })
+    }
+
+    fn lower_var_def(&mut self, ast: ast::VarDef) -> Option<Stmt> {
+        Some(Stmt::VarDef {
+            name: ast.name()?.text().into(),
+            value: self.lower_expr(ast.value()),
+        })
     }
 
     fn lower_binary(&mut self, ast: ast::BinaryExpr) -> Expr {
@@ -227,8 +247,6 @@ impl Database {
 
 #[cfg(test)]
 mod tests {
-    use la_arena::IdxRange;
-
     use super::*;
 
     fn parse(input: &str) -> ast::Root {
@@ -433,6 +451,20 @@ mod tests {
     }
 
     #[test]
+    fn lower_subprog_call() {
+        let mut exprs = Arena::default();
+        let arg = exprs.alloc_many([Expr::NameRef { name: "x".into() }]);
+        check_expr(
+            "print(x)",
+            Expr::Call {
+                callee: "print".into(),
+                args: arg,
+            },
+            Database { exprs },
+        );
+    }
+
+    #[test]
     fn lower_func_def() {
         let mut exprs = Arena::new();
         let value = exprs.alloc(Expr::NameRef { name: "x".into() });
@@ -450,9 +482,9 @@ mod tests {
     #[test]
     fn lower_proc_def() {
         let mut exprs = Arena::new();
-        let arg = exprs.alloc(Expr::Literal {
+        let arg = exprs.alloc_many([Expr::Literal {
             value: Value::String("something".into()),
-        });
+        }]);
         check_stmt(
             r#"procedure thing() print("something") endprocedure"#,
             Stmt::SubprogramDef {
@@ -461,7 +493,32 @@ mod tests {
                 params: vec![],
                 body: vec![Stmt::Expr(Expr::Call {
                     callee: "print".into(),
-                    args: IdxRange::new(arg..arg),
+                    args: arg,
+                })],
+            },
+        )
+    }
+
+    #[test]
+    fn lower_for_loop() {
+        let mut exprs = Arena::new();
+        let start = exprs.alloc(Expr::Literal {
+            value: Value::Int(1),
+        });
+        let end = exprs.alloc(Expr::Literal {
+            value: Value::Int(10),
+        });
+        let step = exprs.alloc(Expr::Missing);
+        let print_arg = exprs.alloc_many([Expr::NameRef { name: "i".into() }]);
+        check_stmt(
+            "for i = 1 to 10 print(i) next i",
+            Stmt::ForLoop {
+                start,
+                end,
+                step,
+                body: vec![Stmt::Expr(Expr::Call {
+                    callee: "print".into(),
+                    args: print_arg,
                 })],
             },
         )

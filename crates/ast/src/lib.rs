@@ -389,8 +389,9 @@ impl SubprogCall {
     pub fn args(&self) -> impl Iterator<Item = Expr> {
         self.0
             .children()
-            .skip_while(|t| t.kind() != SyntaxKind::RParen)
-            .filter(|t| !matches!(t.kind(), SyntaxKind::Comma | SyntaxKind::RParen))
+            .skip_while(|t| t.kind() != SyntaxKind::LParen)
+            .filter(|t| t.kind() != SyntaxKind::Comma)
+            .take_while(|t| t.kind() != SyntaxKind::RParen)
             .filter_map(Expr::cast)
     }
 }
