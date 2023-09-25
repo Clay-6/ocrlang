@@ -248,7 +248,7 @@ impl SwitchCase {
 
 impl ForLoop {
     pub fn body(&self) -> impl Iterator<Item = Stmt> {
-        self.0.children().filter_map(Stmt::cast)
+        self.0.children().skip(2).filter_map(Stmt::cast)
     }
 
     pub fn bounds(&self) -> Option<(Expr, Expr)> {
@@ -257,7 +257,10 @@ impl ForLoop {
     }
 
     pub fn step(&self) -> Option<Expr> {
-        self.0.children().filter_map(Expr::cast).nth(2)
+        self.0
+            .children()
+            .skip_while(|t| t.kind() != SyntaxKind::Step)
+            .find_map(Expr::cast)
     }
 }
 

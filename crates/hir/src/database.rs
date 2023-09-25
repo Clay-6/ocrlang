@@ -60,19 +60,25 @@ impl Database {
     }
 
     fn lower_for_loop(&mut self, ast: ast::ForLoop) -> Stmt {
-        let (start, end) = ast
-            .bounds()
-            .map(|(s, e)| (self.lower_expr(Some(s)), self.lower_expr(Some(e))))
-            .unwrap_or((Expr::Missing, Expr::Missing));
-        let step = ast
-            .step()
-            .map(|ast| self.lower_expr(Some(ast)))
-            .unwrap_or(Expr::Missing);
+        let (start, end) = {
+            let tmp = ast
+                .bounds()
+                .map(|(s, e)| (self.lower_expr(Some(s)), self.lower_expr(Some(e))))
+                .unwrap_or((Expr::Missing, Expr::Missing));
+            (self.exprs.alloc(tmp.0), self.exprs.alloc(tmp.1))
+        };
+        let step = {
+            let tmp = ast
+                .step()
+                .map(|ast| self.lower_expr(Some(ast)))
+                .unwrap_or(Expr::Missing);
+            self.exprs.alloc(tmp)
+        };
         let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
         Stmt::ForLoop {
-            start: self.exprs.alloc(start),
-            end: self.exprs.alloc(end),
-            step: self.exprs.alloc(step),
+            start,
+            end,
+            step,
             body,
         }
     }
@@ -502,16 +508,47 @@ mod tests {
     #[test]
     fn lower_for_loop() {
         let mut exprs = Arena::new();
-        let start = exprs.alloc(Expr::Literal {
-            value: Value::Int(1),
-        });
-        let end = exprs.alloc(Expr::Literal {
-            value: Value::Int(10),
-        });
+        let (start, end) = (
+            exprs.alloc(Expr::Literal {
+                value: Value::Int(1),
+            }),
+            exprs.alloc(Expr::Literal {
+                value: Value::Int(10),
+            }),
+        );
         let step = exprs.alloc(Expr::Missing);
         let print_arg = exprs.alloc_many([Expr::NameRef { name: "i".into() }]);
         check_stmt(
             "for i = 1 to 10 print(i) next i",
+            Stmt::ForLoop {
+                start,
+                end,
+                step,
+                body: vec![Stmt::Expr(Expr::Call {
+                    callee: "print".into(),
+                    args: print_arg,
+                })],
+            },
+        )
+    }
+
+    #[test]
+    fn lower_for_loop_with_step() {
+        let mut exprs = Arena::new();
+        let (start, end) = (
+            exprs.alloc(Expr::Literal {
+                value: Value::Int(1),
+            }),
+            exprs.alloc(Expr::Literal {
+                value: Value::Int(10),
+            }),
+        );
+        let step = exprs.alloc(Expr::Literal {
+            value: Value::Int(2),
+        });
+        let print_arg = exprs.alloc_many([Expr::NameRef { name: "i".into() }]);
+        check_stmt(
+            "for i = 1 to 10 step 2 print(i) next i",
             Stmt::ForLoop {
                 start,
                 end,
