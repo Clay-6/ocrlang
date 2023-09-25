@@ -1,7 +1,7 @@
 use la_arena::Arena;
 use syntax::SyntaxKind;
 
-use crate::{BinaryOp, Expr, Stmt, UnaryOp, Value};
+use crate::{BinaryOp, Expr, Stmt, SubprogramKind, UnaryOp, Value};
 
 #[derive(Debug, Default, PartialEq)]
 pub struct Database {
@@ -16,6 +16,11 @@ impl Database {
                 value: self.lower_expr(ast.value()),
             },
             ast::Stmt::SubprogDef(ast) => Stmt::SubprogramDef {
+                kind: match ast.kind()?.kind() {
+                    SyntaxKind::Function => SubprogramKind::Function,
+                    SyntaxKind::Procedure => SubprogramKind::Procedure,
+                    _ => unreachable!(),
+                },
                 name: ast.name()?.text().into(),
                 params: ast.params().map(|ast| ast.text().into()).collect(),
                 body: ast.body().filter_map(|ast| self.lower_stmt(ast)).collect(),
@@ -222,6 +227,8 @@ impl Database {
 
 #[cfg(test)]
 mod tests {
+    use la_arena::IdxRange;
+
     use super::*;
 
     fn parse(input: &str) -> ast::Root {
@@ -423,5 +430,40 @@ mod tests {
     #[test]
     fn lower_name_ref() {
         check_expr("x", Expr::NameRef { name: "x".into() }, Database::default());
+    }
+
+    #[test]
+    fn lower_func_def() {
+        let mut exprs = Arena::new();
+        let value = exprs.alloc(Expr::NameRef { name: "x".into() });
+        check_stmt(
+            "function id(x) return x endfunction",
+            Stmt::SubprogramDef {
+                kind: SubprogramKind::Function,
+                name: "id".into(),
+                params: vec!["x".into()],
+                body: vec![Stmt::ReturnStmt { value }],
+            },
+        )
+    }
+
+    #[test]
+    fn lower_proc_def() {
+        let mut exprs = Arena::new();
+        let arg = exprs.alloc(Expr::Literal {
+            value: Value::String("something".into()),
+        });
+        check_stmt(
+            r#"procedure thing() print("something") endprocedure"#,
+            Stmt::SubprogramDef {
+                kind: SubprogramKind::Procedure,
+                name: "thing".into(),
+                params: vec![],
+                body: vec![Stmt::Expr(Expr::Call {
+                    callee: "print".into(),
+                    args: IdxRange::new(arg..arg),
+                })],
+            },
+        )
     }
 }

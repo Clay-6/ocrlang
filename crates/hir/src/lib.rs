@@ -14,6 +14,7 @@ pub enum Stmt {
         value: Expr,
     },
     SubprogramDef {
+        kind: SubprogramKind,
         name: SmolStr,
         params: Vec<SmolStr>,
         body: Vec<Stmt>,
@@ -71,6 +72,12 @@ pub enum Expr {
     Literal {
         value: Value,
     },
+}
+
+#[derive(Debug, PartialEq)]
+pub enum SubprogramKind {
+    Function,
+    Procedure,
 }
 
 #[derive(Debug, PartialEq)]

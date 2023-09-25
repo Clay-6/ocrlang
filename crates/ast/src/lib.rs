@@ -65,7 +65,7 @@ impl Expr {
             SyntaxKind::NameRef => Self::NameRef(NameRef(node)),
             SyntaxKind::Literal => Self::Literal(Literal(node)),
             SyntaxKind::ArrayLiteral => Self::ArrayLiteral(ArrayLiteral(node)),
-
+            SyntaxKind::SubprogCall => Self::Call(SubprogCall(node)),
             _ => return None,
         };
 
