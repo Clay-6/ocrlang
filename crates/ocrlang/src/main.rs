@@ -21,6 +21,9 @@ fn main() -> io::Result<()> {
         writeln!(stdout, "AST:")?;
         dbg!(root.stmts().collect::<Vec<_>>());
 
+        writeln!(stdout, "HIR:")?;
+        dbg!(hir::lower(root));
+
         input.clear();
     }
 }

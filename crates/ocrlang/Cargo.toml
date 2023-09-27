@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 parser = { path = "../parser" }
 ast = { path = "../ast" }
+hir = { path = "../hir" }
