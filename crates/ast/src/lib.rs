@@ -46,7 +46,7 @@ impl Stmt {
             SyntaxKind::VarDef => Self::VarDef(VarDef(node)),
             SyntaxKind::SubProgramDef => Self::SubprogDef(SubprogDef(node)),
             SyntaxKind::RetStmt => Self::RetStmt(RetStmt(node)),
-            SyntaxKind::IfStmt | SyntaxKind::Elseif => Self::IfElse(IfElse(node)),
+            SyntaxKind::IfStmt => Self::IfElse(IfElse(node)),
             SyntaxKind::SwitchStmt => Self::SwitchCase(SwitchCase(node)),
             SyntaxKind::ForLoop => Self::ForLoop(ForLoop(node)),
             SyntaxKind::WhileLoop => Self::WhileLoop(WhileLoop(node)),
@@ -181,6 +181,7 @@ impl IfElse {
     pub fn body(&self) -> impl Iterator<Item = Stmt> {
         self.0
             .children()
+            .skip_while(|t| t.kind() != SyntaxKind::Then)
             .take_while(|t| {
                 !matches!(
                     t.kind(),
@@ -190,10 +191,50 @@ impl IfElse {
             .filter_map(Stmt::cast)
     }
 
+    pub fn elseif_conditions(&self) -> impl Iterator<Item = Option<Expr>> {
+        let mut v = vec![];
+        for i in self
+            .0
+            .children()
+            .enumerate()
+            .filter(|(_, t)| t.kind() == SyntaxKind::Elseif)
+            .map(|(i, _)| i)
+        {
+            v.push(self.0.children().skip(i).find_map(Expr::cast))
+        }
+        v.into_iter()
+    }
+
+    pub fn elseif_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
+        let idxs = self
+            .0
+            .children()
+            .enumerate()
+            .filter(|(_, t)| matches!(t.kind(), SyntaxKind::Elseif))
+            .map(|(i, _)| i);
+        let mut v = vec![];
+        for i in idxs {
+            v.push(
+                self.0
+                    .children()
+                    .skip(i)
+                    .skip_while(|t| t.kind() != SyntaxKind::Then)
+                    .take_while(|t| {
+                        !matches!(
+                            t.kind(),
+                            SyntaxKind::Elseif | SyntaxKind::Else | SyntaxKind::Endif
+                        )
+                    })
+                    .filter_map(Stmt::cast),
+            )
+        }
+        v.into_iter()
+    }
+
     pub fn else_body(&self) -> impl Iterator<Item = Stmt> {
         self.0
             .children()
-            .skip_while(|t| !matches!(t.kind(), SyntaxKind::Elseif | SyntaxKind::Else))
+            .skip_while(|t| !matches!(t.kind(), SyntaxKind::Else))
             .filter_map(Stmt::cast)
     }
 }

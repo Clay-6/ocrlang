@@ -6,6 +6,7 @@ use la_arena::{Idx, IdxRange};
 use smol_str::SmolStr;
 
 type ExprIdx = Idx<Expr>;
+type ExprRange = IdxRange<Expr>;
 
 #[derive(Debug, PartialEq)]
 pub enum Stmt {
@@ -25,11 +26,12 @@ pub enum Stmt {
     IfElse {
         condition: ExprIdx,
         body: Vec<Stmt>,
+        elseifs: Vec<(ExprIdx, Vec<Stmt>)>,
         else_body: Vec<Stmt>,
     },
     SwitchCase {
         scrutinee: ExprIdx,
-        cases: IdxRange<Expr>,
+        cases: ExprRange,
         case_bodies: Vec<Vec<Stmt>>,
         default_body: Vec<Stmt>,
     },
