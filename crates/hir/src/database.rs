@@ -182,6 +182,12 @@ impl Database {
             SyntaxKind::Or => BinaryOp::Or,
             SyntaxKind::Caret => BinaryOp::Pow,
             SyntaxKind::Dot => BinaryOp::Dot,
+            SyntaxKind::EqualEqual => BinaryOp::Equals,
+            SyntaxKind::BangEqual => BinaryOp::NotEquals,
+            SyntaxKind::Greater => BinaryOp::GreaterThan,
+            SyntaxKind::GreaterEqual => BinaryOp::GreaterEquals,
+            SyntaxKind::Less => BinaryOp::LessThan,
+            SyntaxKind::LessEqual => BinaryOp::LessEquals,
             _ => unreachable!(),
         };
 

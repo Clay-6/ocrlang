@@ -353,6 +353,12 @@ impl BinaryExpr {
                         | SyntaxKind::And
                         | SyntaxKind::Or
                         | SyntaxKind::Dot
+                        | SyntaxKind::EqualEqual
+                        | SyntaxKind::BangEqual
+                        | SyntaxKind::Greater
+                        | SyntaxKind::GreaterEqual
+                        | SyntaxKind::Less
+                        | SyntaxKind::LessEqual
                 )
             })
     }
