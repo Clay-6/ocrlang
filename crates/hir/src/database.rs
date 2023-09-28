@@ -689,4 +689,40 @@ mod tests {
             },
         )
     }
+
+    #[test]
+    fn lower_switch_stmt() {
+        let mut exprs = Arena::new();
+        let scrutinee = exprs.alloc(Expr::NameRef { name: "c".into() });
+        let cases = exprs.alloc_many([
+            Expr::Literal {
+                value: Value::Char('a'),
+            },
+            Expr::Literal {
+                value: Value::Char('b'),
+            },
+        ]);
+        let case_bodies = vec![
+            vec![Stmt::Expr(Expr::Call {
+                callee: "a".into(),
+                args: exprs.alloc_many([]),
+            })],
+            vec![Stmt::Expr(Expr::Call {
+                callee: "b".into(),
+                args: exprs.alloc_many([]),
+            })],
+        ];
+        check_stmt(
+            "switch c: case 'a': a() case 'b': b() default: d()",
+            Stmt::SwitchCase {
+                scrutinee,
+                cases,
+                case_bodies,
+                default_body: vec![Stmt::Expr(Expr::Call {
+                    callee: "d".into(),
+                    args: exprs.alloc_many([]),
+                })],
+            },
+        )
+    }
 }
