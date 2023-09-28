@@ -131,27 +131,33 @@ fn if_else(p: &mut Parser) -> CompletedMarker {
 
     p.expect(TokenKind::Then);
 
+    let main_body = p.start();
     while !(p.at(TokenKind::Elseif) || p.at(TokenKind::Else) || p.at(TokenKind::Endif)) {
         stmt(p); // The body
     }
+    main_body.complete(p, SyntaxKind::ConditionalBody);
 
     // Parse the elseif & else clauses
-    while !p.at(TokenKind::Endif) {
+    while !p.at_set(&[TokenKind::Endif, TokenKind::Else]) {
         if p.at(TokenKind::Elseif) {
             p.bump();
             expr::expr(p); // Condition again
             p.expect(TokenKind::Then);
+            let inner_body = p.start();
             while !(p.at(TokenKind::Elseif) || p.at(TokenKind::Else) || p.at(TokenKind::Endif)) {
                 stmt(p); // The body
             }
+            inner_body.complete(p, SyntaxKind::ConditionalBody);
         }
+    }
 
-        if p.at(TokenKind::Else) {
-            p.bump();
-            while !p.at(TokenKind::Endif) {
-                stmt(p); // The body again, again
-            }
+    if p.at(TokenKind::Else) {
+        p.bump();
+        let else_body = p.start();
+        while !p.at(TokenKind::Endif) {
+            stmt(p); // The body again, again
         }
+        else_body.complete(p, SyntaxKind::ConditionalBody);
     }
 
     p.expect(TokenKind::Endif);
@@ -614,14 +620,15 @@ endif"#,
                     Then@19..23 "then"
                     Newline@23..24 "\n"
                     Whitespace@24..28 "    "
-                    SubprogCall@28..45
-                      NameRef@28..33
-                        Ident@28..33 "print"
-                      LParen@33..34 "("
-                      Literal@34..43
-                        String@34..43 "\"Correct\""
-                      RParen@43..44 ")"
-                      Newline@44..45 "\n"
+                    ConditionalBody@28..45
+                      SubprogCall@28..45
+                        NameRef@28..33
+                          Ident@28..33 "print"
+                        LParen@33..34 "("
+                        Literal@34..43
+                          String@34..43 "\"Correct\""
+                        RParen@43..44 ")"
+                        Newline@44..45 "\n"
                     Elseif@45..51 "elseif"
                     Whitespace@51..52 " "
                     BinaryExpr@52..67
@@ -636,25 +643,27 @@ endif"#,
                     Then@67..71 "then"
                     Newline@71..72 "\n"
                     Whitespace@72..76 "    "
-                    SubprogCall@76..91
-                      NameRef@76..81
-                        Ident@76..81 "print"
-                      LParen@81..82 "("
-                      Literal@82..89
-                        String@82..89 "\"Wrong\""
-                      RParen@89..90 ")"
-                      Newline@90..91 "\n"
+                    ConditionalBody@76..91
+                      SubprogCall@76..91
+                        NameRef@76..81
+                          Ident@76..81 "print"
+                        LParen@81..82 "("
+                        Literal@82..89
+                          String@82..89 "\"Wrong\""
+                        RParen@89..90 ")"
+                        Newline@90..91 "\n"
                     Else@91..95 "else"
                     Newline@95..96 "\n"
                     Whitespace@96..100 "    "
-                    SubprogCall@100..115
-                      NameRef@100..105
-                        Ident@100..105 "print"
-                      LParen@105..106 "("
-                      Literal@106..113
-                        String@106..113 "\"Error\""
-                      RParen@113..114 ")"
-                      Newline@114..115 "\n"
+                    ConditionalBody@100..115
+                      SubprogCall@100..115
+                        NameRef@100..105
+                          Ident@100..105 "print"
+                        LParen@105..106 "("
+                        Literal@106..113
+                          String@106..113 "\"Error\""
+                        RParen@113..114 ")"
+                        Newline@114..115 "\n"
                     Endif@115..120 "endif""#]],
         );
     }

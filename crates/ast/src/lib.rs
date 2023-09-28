@@ -178,17 +178,11 @@ impl IfElse {
         self.0.children().find_map(Expr::cast)
     }
 
-    pub fn body(&self) -> impl Iterator<Item = Stmt> {
+    pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
-            .skip_while(|t| t.kind() != SyntaxKind::Then)
-            .take_while(|t| {
-                !matches!(
-                    t.kind(),
-                    SyntaxKind::Elseif | SyntaxKind::Else | SyntaxKind::Endif
-                )
-            })
-            .filter_map(Stmt::cast)
+            .find(|t| t.kind() == SyntaxKind::ConditionalBody)
+            .map(|b| b.children().filter_map(Stmt::cast))
     }
 
     pub fn elseif_conditions(&self) -> impl Iterator<Item = Option<Expr>> {
@@ -206,36 +200,39 @@ impl IfElse {
     }
 
     pub fn elseif_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
-        let idxs = self
+        let mut bodies = self
             .0
             .children()
-            .enumerate()
-            .filter(|(_, t)| matches!(t.kind(), SyntaxKind::Elseif))
-            .map(|(i, _)| i);
-        let mut v = vec![];
-        for i in idxs {
-            v.push(
-                self.0
-                    .children()
-                    .skip(i)
-                    .skip_while(|t| t.kind() != SyntaxKind::Then)
-                    .take_while(|t| {
-                        !matches!(
-                            t.kind(),
-                            SyntaxKind::Elseif | SyntaxKind::Else | SyntaxKind::Endif
-                        )
-                    })
-                    .filter_map(Stmt::cast),
-            )
+            .filter(|t| t.kind() == SyntaxKind::ConditionalBody)
+            .skip(1)
+            .collect::<Vec<_>>();
+        if self
+            .0
+            .children_with_tokens()
+            .any(|t| t.kind() == SyntaxKind::Else)
+        {
+            bodies.pop();
         }
-        v.into_iter()
+
+        bodies
+            .into_iter()
+            .map(|b| b.children().filter_map(Stmt::cast))
     }
 
-    pub fn else_body(&self) -> impl Iterator<Item = Stmt> {
-        self.0
-            .children()
-            .skip_while(|t| !matches!(t.kind(), SyntaxKind::Else))
-            .filter_map(Stmt::cast)
+    pub fn else_body(&self) -> Option<impl Iterator<Item = Stmt>> {
+        if self
+            .0
+            .children_with_tokens()
+            .any(|t| t.kind() == SyntaxKind::Else)
+        {
+            self.0
+                .children()
+                .filter(|t| t.kind() == SyntaxKind::Else)
+                .last()
+                .map(|b| b.children().filter_map(Stmt::cast))
+        } else {
+            None
+        }
     }
 }
 

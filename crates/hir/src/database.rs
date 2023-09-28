@@ -119,7 +119,10 @@ impl Database {
 
     fn lower_if_else(&mut self, ast: ast::IfElse) -> Stmt {
         let condition = self.lower_expr(ast.condition());
-        let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
+        let body = ast
+            .body()
+            .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
+            .unwrap_or_default();
         let elseifs = {
             let elseif_conds = ast
                 .elseif_conditions()
@@ -137,8 +140,8 @@ impl Database {
         };
         let else_body = ast
             .else_body()
-            .filter_map(|ast| self.lower_stmt(ast))
-            .collect();
+            .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
+            .unwrap_or_default();
 
         Stmt::IfElse {
             condition: self.exprs.alloc(condition),
