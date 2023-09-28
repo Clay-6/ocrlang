@@ -84,10 +84,12 @@ fn while_loop(p: &mut Parser) -> CompletedMarker {
 
     expr::expr(p); // Condition
 
+    let bm = p.start();
+
     while !p.at(TokenKind::Endwhile) && !p.at_end() {
         stmt(p);
     }
-
+    bm.complete(p, SyntaxKind::LoopBody);
     p.expect(TokenKind::Endwhile);
 
     m.complete(p, SyntaxKind::WhileLoop)
@@ -116,7 +118,7 @@ fn for_loop(p: &mut Parser) -> CompletedMarker {
     p.expect(TokenKind::Next);
     p.expect(TokenKind::Ident);
 
-    bm.complete(p, SyntaxKind::ForBody);
+    bm.complete(p, SyntaxKind::LoopBody);
     m.complete(p, SyntaxKind::ForLoop)
 }
 
@@ -678,7 +680,7 @@ next i"#,
                       Number@11..12 "9"
                       Newline@12..13 "\n"
                       Whitespace@13..17 "    "
-                    ForBody@17..37
+                    LoopBody@17..37
                       SubprogCall@17..31
                         NameRef@17..22
                           Ident@17..22 "print"
@@ -720,7 +722,7 @@ next i"#,
                       Number@19..20 "2"
                       Newline@20..21 "\n"
                       Whitespace@21..25 "    "
-                    ForBody@25..40
+                    LoopBody@25..40
                       SubprogCall@25..34
                         NameRef@25..30
                           Ident@25..30 "print"
@@ -742,34 +744,35 @@ next i"#,
     answer = input("New answer")
 endwhile"#,
             expect![[r#"
-    Root@0..67
-      WhileLoop@0..67
-        While@0..5 "while"
-        Whitespace@5..6 " "
-        BinaryExpr@6..30
-          NameRef@6..13
-            Ident@6..12 "answer"
-            Whitespace@12..13 " "
-          BangEqual@13..15 "!="
-          Whitespace@15..16 " "
-          Literal@16..30
-            String@16..25 "\"Correct\""
-            Newline@25..26 "\n"
-            Whitespace@26..30 "    "
-        VarDef@30..59
-          Ident@30..36 "answer"
-          Whitespace@36..37 " "
-          Equal@37..38 "="
-          Whitespace@38..39 " "
-          SubprogCall@39..59
-            NameRef@39..44
-              Ident@39..44 "input"
-            LParen@44..45 "("
-            Literal@45..57
-              String@45..57 "\"New answer\""
-            RParen@57..58 ")"
-            Newline@58..59 "\n"
-        Endwhile@59..67 "endwhile""#]],
+                Root@0..67
+                  WhileLoop@0..67
+                    While@0..5 "while"
+                    Whitespace@5..6 " "
+                    BinaryExpr@6..30
+                      NameRef@6..13
+                        Ident@6..12 "answer"
+                        Whitespace@12..13 " "
+                      BangEqual@13..15 "!="
+                      Whitespace@15..16 " "
+                      Literal@16..30
+                        String@16..25 "\"Correct\""
+                        Newline@25..26 "\n"
+                        Whitespace@26..30 "    "
+                    LoopBody@30..59
+                      VarDef@30..59
+                        Ident@30..36 "answer"
+                        Whitespace@36..37 " "
+                        Equal@37..38 "="
+                        Whitespace@38..39 " "
+                        SubprogCall@39..59
+                          NameRef@39..44
+                            Ident@39..44 "input"
+                          LParen@44..45 "("
+                          Literal@45..57
+                            String@45..57 "\"New answer\""
+                          RParen@57..58 ")"
+                          Newline@58..59 "\n"
+                    Endwhile@59..67 "endwhile""#]],
         );
     }
 

@@ -51,12 +51,15 @@ impl Database {
     }
 
     fn lower_while_loop(&mut self, ast: ast::WhileLoop) -> Stmt {
-        let condition = self.lower_expr(ast.condition());
-        let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
-        Stmt::WhileLoop {
-            condition: self.exprs.alloc(condition),
-            body,
-        }
+        let condition = {
+            let expr = self.lower_expr(ast.condition());
+            self.exprs.alloc(expr)
+        };
+        let body = ast
+            .body()
+            .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
+            .unwrap_or_default();
+        Stmt::WhileLoop { condition, body }
     }
 
     fn lower_for_loop(&mut self, ast: ast::ForLoop) -> Stmt {
@@ -74,11 +77,10 @@ impl Database {
                 .unwrap_or(Expr::Missing);
             self.exprs.alloc(tmp)
         };
-        let body = if let Some(body) = ast.body() {
-            body.filter_map(|ast| self.lower_stmt(ast)).collect()
-        } else {
-            vec![]
-        };
+        let body = ast
+            .body()
+            .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
+            .unwrap_or_default();
         Stmt::ForLoop {
             start,
             end,
@@ -582,5 +584,33 @@ mod tests {
                 })],
             },
         )
+    }
+
+    #[test]
+    fn lower_while_loop() {
+        let mut exprs = Arena::new();
+        let condition = {
+            let lhs = exprs.alloc(Expr::NameRef {
+                name: "answer".into(),
+            });
+            let rhs = exprs.alloc(Expr::Literal {
+                value: Value::String("Correct".into()),
+            });
+            exprs.alloc(Expr::Binary {
+                op: BinaryOp::NotEquals,
+                lhs,
+                rhs,
+            })
+        };
+        let body = {
+            vec![Stmt::Expr(Expr::Call {
+                callee: "x".into(),
+                args: exprs.alloc_many([]),
+            })]
+        };
+        check_stmt(
+            r#"while answer != "Correct" x() endwhile"#,
+            Stmt::WhileLoop { condition, body },
+        );
     }
 }

@@ -291,7 +291,7 @@ impl ForLoop {
     pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
-            .find(|t| t.kind() == SyntaxKind::ForBody)
+            .find(|t| t.kind() == SyntaxKind::LoopBody)
             .map(|t| t.children().filter_map(Stmt::cast))
     }
 
@@ -313,8 +313,11 @@ impl WhileLoop {
         self.0.children().find_map(Expr::cast)
     }
 
-    pub fn body(&self) -> impl Iterator<Item = Stmt> {
-        self.0.children().filter_map(Stmt::cast)
+    pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
+        self.0
+            .children()
+            .find(|t| t.kind() == SyntaxKind::LoopBody)
+            .map(|t| t.children().filter_map(Stmt::cast))
     }
 }
 
