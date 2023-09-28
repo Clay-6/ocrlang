@@ -326,8 +326,11 @@ impl DoUntil {
         self.0.children().filter_map(Expr::cast).last()
     }
 
-    pub fn body(&self) -> impl Iterator<Item = Stmt> {
-        self.0.children().filter_map(Stmt::cast)
+    pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
+        self.0
+            .children()
+            .find(|t| t.kind() == SyntaxKind::LoopBody)
+            .map(|t| t.children().filter_map(Stmt::cast))
     }
 }
 

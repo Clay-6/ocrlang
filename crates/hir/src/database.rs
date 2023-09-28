@@ -42,8 +42,11 @@ impl Database {
     }
 
     fn lower_do_until(&mut self, ast: ast::DoUntil) -> Stmt {
+        let body = ast
+            .body()
+            .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
+            .unwrap_or_default();
         let condition = self.lower_expr(ast.condition());
-        let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
         Stmt::DoUntilLoop {
             condition: self.exprs.alloc(condition),
             body,
@@ -611,6 +614,22 @@ mod tests {
         check_stmt(
             r#"while answer != "Correct" x() endwhile"#,
             Stmt::WhileLoop { condition, body },
+        );
+    }
+
+    #[test]
+    fn lower_do_until() {
+        let mut exprs = Arena::new();
+        let body = vec![Stmt::Expr(Expr::Call {
+            callee: "thing".into(),
+            args: exprs.alloc_many([]),
+        })];
+        let condition = exprs.alloc(Expr::NameRef {
+            name: "condition".into(),
+        });
+        check_stmt(
+            "do thing() until condition",
+            Stmt::DoUntilLoop { condition, body },
         );
     }
 }
