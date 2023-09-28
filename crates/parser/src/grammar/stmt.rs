@@ -108,7 +108,7 @@ fn for_loop(p: &mut Parser) -> CompletedMarker {
         p.bump();
         expr::expr(p);
     }
-
+    let bm = p.start();
     while !p.at(TokenKind::Next) && !p.at_end() {
         stmt(p);
     }
@@ -116,6 +116,7 @@ fn for_loop(p: &mut Parser) -> CompletedMarker {
     p.expect(TokenKind::Next);
     p.expect(TokenKind::Ident);
 
+    bm.complete(p, SyntaxKind::ForBody);
     m.complete(p, SyntaxKind::ForLoop)
 }
 
@@ -662,32 +663,33 @@ endif"#,
     print("Loop")
 next i"#,
             expect![[r#"
-    Root@0..37
-      ForLoop@0..37
-        For@0..3 "for"
-        Whitespace@3..4 " "
-        Ident@4..5 "i"
-        Equal@5..6 "="
-        Literal@6..8
-          Number@6..7 "0"
-          Whitespace@7..8 " "
-        To@8..10 "to"
-        Whitespace@10..11 " "
-        Literal@11..17
-          Number@11..12 "9"
-          Newline@12..13 "\n"
-          Whitespace@13..17 "    "
-        SubprogCall@17..31
-          NameRef@17..22
-            Ident@17..22 "print"
-          LParen@22..23 "("
-          Literal@23..29
-            String@23..29 "\"Loop\""
-          RParen@29..30 ")"
-          Newline@30..31 "\n"
-        Next@31..35 "next"
-        Whitespace@35..36 " "
-        Ident@36..37 "i""#]],
+                Root@0..37
+                  ForLoop@0..37
+                    For@0..3 "for"
+                    Whitespace@3..4 " "
+                    Ident@4..5 "i"
+                    Equal@5..6 "="
+                    Literal@6..8
+                      Number@6..7 "0"
+                      Whitespace@7..8 " "
+                    To@8..10 "to"
+                    Whitespace@10..11 " "
+                    Literal@11..17
+                      Number@11..12 "9"
+                      Newline@12..13 "\n"
+                      Whitespace@13..17 "    "
+                    ForBody@17..37
+                      SubprogCall@17..31
+                        NameRef@17..22
+                          Ident@17..22 "print"
+                        LParen@22..23 "("
+                        Literal@23..29
+                          String@23..29 "\"Loop\""
+                        RParen@29..30 ")"
+                        Newline@30..31 "\n"
+                      Next@31..35 "next"
+                      Whitespace@35..36 " "
+                      Ident@36..37 "i""#]],
         );
     }
 
@@ -698,37 +700,38 @@ next i"#,
     print(i)
 next i"#,
             expect![[r#"
-    Root@0..40
-      ForLoop@0..40
-        For@0..3 "for"
-        Whitespace@3..4 " "
-        Ident@4..5 "i"
-        Equal@5..6 "="
-        Literal@6..8
-          Number@6..7 "2"
-          Whitespace@7..8 " "
-        To@8..10 "to"
-        Whitespace@10..11 " "
-        Literal@11..14
-          Number@11..13 "10"
-          Whitespace@13..14 " "
-        Step@14..18 "step"
-        Whitespace@18..19 " "
-        Literal@19..25
-          Number@19..20 "2"
-          Newline@20..21 "\n"
-          Whitespace@21..25 "    "
-        SubprogCall@25..34
-          NameRef@25..30
-            Ident@25..30 "print"
-          LParen@30..31 "("
-          NameRef@31..32
-            Ident@31..32 "i"
-          RParen@32..33 ")"
-          Newline@33..34 "\n"
-        Next@34..38 "next"
-        Whitespace@38..39 " "
-        Ident@39..40 "i""#]],
+                Root@0..40
+                  ForLoop@0..40
+                    For@0..3 "for"
+                    Whitespace@3..4 " "
+                    Ident@4..5 "i"
+                    Equal@5..6 "="
+                    Literal@6..8
+                      Number@6..7 "2"
+                      Whitespace@7..8 " "
+                    To@8..10 "to"
+                    Whitespace@10..11 " "
+                    Literal@11..14
+                      Number@11..13 "10"
+                      Whitespace@13..14 " "
+                    Step@14..18 "step"
+                    Whitespace@18..19 " "
+                    Literal@19..25
+                      Number@19..20 "2"
+                      Newline@20..21 "\n"
+                      Whitespace@21..25 "    "
+                    ForBody@25..40
+                      SubprogCall@25..34
+                        NameRef@25..30
+                          Ident@25..30 "print"
+                        LParen@30..31 "("
+                        NameRef@31..32
+                          Ident@31..32 "i"
+                        RParen@32..33 ")"
+                        Newline@33..34 "\n"
+                      Next@34..38 "next"
+                      Whitespace@38..39 " "
+                      Ident@39..40 "i""#]],
         );
     }
 

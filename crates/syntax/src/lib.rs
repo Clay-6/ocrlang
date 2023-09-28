@@ -82,6 +82,7 @@ pub enum SyntaxKind {
     RetStmt,
     IfStmt,
     ForLoop,
+    ForBody,
     WhileLoop,
     DoUntil,
     SwitchStmt,
