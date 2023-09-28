@@ -107,8 +107,8 @@ impl Database {
             .collect();
         let default_body = ast
             .default_body()
-            .filter_map(|ast| self.lower_stmt(ast))
-            .collect::<Vec<_>>();
+            .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect::<Vec<_>>())
+            .unwrap_or_default();
         Stmt::SwitchCase {
             scrutinee: self.exprs.alloc(scrutinee),
             cases: self.exprs.alloc_many(cases),

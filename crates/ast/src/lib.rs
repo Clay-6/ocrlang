@@ -250,37 +250,33 @@ impl SwitchCase {
             .map(|(i, _)| i);
         let mut v = vec![];
         for i in idxs {
-            v.push(self.0.children().nth(i + 1).and_then(Expr::cast))
+            v.push(self.0.children().skip(i).find_map(Expr::cast))
         }
         v.into_iter().flatten()
     }
 
     pub fn case_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
-        let idxs = self
+        let mut bodies = self
             .0
             .children()
-            .enumerate()
-            .filter(|(_, t)| t.kind() == SyntaxKind::Colon)
-            .map(|(i, _)| i);
-        let mut v = vec![];
-        for i in idxs {
-            v.push(
-                self.0
-                    .children()
-                    .skip(i)
-                    .take_while(|t| !matches!(t.kind(), SyntaxKind::Case | SyntaxKind::Default))
-                    .filter_map(Stmt::cast),
-            )
+            .filter(|t| t.kind() == SyntaxKind::ConditionalBody)
+            .collect::<Vec<_>>();
+        if self.0.children().any(|t| t.kind() == SyntaxKind::Default) {
+            bodies.pop();
         }
-        v.into_iter()
+
+        bodies
+            .into_iter()
+            .map(|b| b.children().filter_map(Stmt::cast))
     }
 
-    pub fn default_body(&self) -> impl Iterator<Item = Stmt> {
+    pub fn default_body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
             .skip_while(|t| t.kind() != SyntaxKind::Default)
-            .take_while(|t| !matches!(t.kind(), SyntaxKind::Case))
-            .filter_map(Stmt::cast)
+            .skip_while(|t| t.kind() != SyntaxKind::ConditionalBody)
+            .nth(1)
+            .map(|t| t.children().filter_map(Stmt::cast))
     }
 }
 
