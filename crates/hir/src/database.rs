@@ -635,4 +635,58 @@ mod tests {
             Stmt::DoUntilLoop { condition, body },
         );
     }
+
+    #[test]
+    fn lower_if_elseif_else() {
+        let mut exprs = Arena::new();
+        let condition = {
+            let lhs = exprs.alloc(Expr::Literal {
+                value: Value::Float(2.5),
+            });
+            let rhs = exprs.alloc(Expr::NameRef { name: "n".into() });
+
+            exprs.alloc(Expr::Binary {
+                op: BinaryOp::LessThan,
+                lhs,
+                rhs,
+            })
+        };
+        let elseifs = {
+            let lhs = exprs.alloc(Expr::Literal {
+                value: Value::Float(2.5),
+            });
+            let rhs = exprs.alloc(Expr::Literal {
+                value: Value::Float(2.5),
+            });
+            let conditions = vec![Expr::Binary {
+                op: BinaryOp::GreaterEquals,
+                lhs,
+                rhs,
+            }];
+            let bodies = vec![vec![Stmt::Expr(Expr::Literal {
+                value: Value::Int(2),
+            })]];
+
+            conditions
+                .into_iter()
+                .map(|e| exprs.alloc(e))
+                .zip(bodies)
+                .collect()
+        };
+        let body = vec![Stmt::Expr(Expr::Literal {
+            value: Value::Int(5),
+        })];
+        let else_body = vec![Stmt::Expr(Expr::Literal {
+            value: Value::Int(7),
+        })];
+        check_stmt(
+            "if 2.5 < n then 5 elseif 2.5 >= 2.5 then 2 else 7",
+            Stmt::IfElse {
+                condition,
+                body,
+                elseifs,
+                else_body,
+            },
+        )
+    }
 }
