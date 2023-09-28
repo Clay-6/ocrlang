@@ -288,8 +288,11 @@ impl SwitchCase {
 }
 
 impl ForLoop {
-    pub fn body(&self) -> impl Iterator<Item = Stmt> {
-        self.0.children().skip(2).filter_map(Stmt::cast)
+    pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
+        self.0
+            .children()
+            .find(|t| t.kind() == SyntaxKind::ForBody)
+            .map(|t| t.children().filter_map(Stmt::cast))
     }
 
     pub fn bounds(&self) -> Option<(Expr, Expr)> {

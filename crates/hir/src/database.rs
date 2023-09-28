@@ -74,7 +74,11 @@ impl Database {
                 .unwrap_or(Expr::Missing);
             self.exprs.alloc(tmp)
         };
-        let body = ast.body().filter_map(|ast| self.lower_stmt(ast)).collect();
+        let body = if let Some(body) = ast.body() {
+            body.filter_map(|ast| self.lower_stmt(ast)).collect()
+        } else {
+            vec![]
+        };
         Stmt::ForLoop {
             start,
             end,
