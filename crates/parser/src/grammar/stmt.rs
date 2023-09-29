@@ -40,7 +40,7 @@ fn switch_stmt(p: &mut Parser) -> CompletedMarker {
     expr::expr(p);
     p.expect(TokenKind::Colon);
 
-    while !p.at_set(&[TokenKind::Endswitch, TokenKind::Default]) && !p.at_end() {
+    while !p.at_end() && !p.at_set(&[TokenKind::Endswitch, TokenKind::Default]) {
         if p.at(TokenKind::Case) {
             p.bump();
             expr::literal(p);
@@ -56,7 +56,7 @@ fn switch_stmt(p: &mut Parser) -> CompletedMarker {
         p.bump();
         p.expect(TokenKind::Colon);
         let body = p.start();
-        while !p.at_set(&CASE_ENDINGS) {
+        while !p.at_end() && !p.at_set(&CASE_ENDINGS) {
             stmt(p);
         }
         body.complete(p, SyntaxKind::ConditionalBody);
@@ -72,7 +72,7 @@ fn do_until(p: &mut Parser) -> CompletedMarker {
     p.bump();
 
     let bm = p.start();
-    while !p.at(TokenKind::Until) && !p.at_end() {
+    while !p.at_end() && !p.at(TokenKind::Until) {
         stmt(p);
     }
     bm.complete(p, SyntaxKind::LoopBody);
@@ -91,7 +91,7 @@ fn while_loop(p: &mut Parser) -> CompletedMarker {
 
     let bm = p.start();
 
-    while !p.at(TokenKind::Endwhile) && !p.at_end() {
+    while !p.at_end() && !p.at(TokenKind::Endwhile) {
         stmt(p);
     }
     bm.complete(p, SyntaxKind::LoopBody);
@@ -116,7 +116,7 @@ fn for_loop(p: &mut Parser) -> CompletedMarker {
         expr::expr(p);
     }
     let bm = p.start();
-    while !p.at(TokenKind::Next) && !p.at_end() {
+    while !p.at_end() && !p.at(TokenKind::Next) {
         stmt(p);
     }
 
@@ -136,29 +136,31 @@ fn if_else(p: &mut Parser) -> CompletedMarker {
     p.expect(TokenKind::Then);
 
     let main_body = p.start();
-    while !(p.at(TokenKind::Elseif) || p.at(TokenKind::Else) || p.at(TokenKind::Endif)) {
+    while !p.at_end() && !p.at_set(&[TokenKind::Elseif, TokenKind::Else, TokenKind::Endif]) {
         stmt(p); // The body
     }
     main_body.complete(p, SyntaxKind::ConditionalBody);
 
-    // Parse the elseif & else clauses
-    while !p.at_set(&[TokenKind::Endif, TokenKind::Else]) {
+    // Parse the elseif clauses
+    while !p.at_end() && !p.at_set(&[TokenKind::Endif, TokenKind::Else]) {
         if p.at(TokenKind::Elseif) {
             p.bump();
             expr::expr(p); // Condition again
             p.expect(TokenKind::Then);
             let inner_body = p.start();
-            while !(p.at(TokenKind::Elseif) || p.at(TokenKind::Else) || p.at(TokenKind::Endif)) {
+            while !p.at_end() && !p.at_set(&[TokenKind::Elseif, TokenKind::Else, TokenKind::Endif])
+            {
                 stmt(p); // The body
             }
             inner_body.complete(p, SyntaxKind::ConditionalBody);
         }
     }
 
+    // (Maybe) Parse the else clause
     if p.at(TokenKind::Else) {
         p.bump();
         let else_body = p.start();
-        while !p.at(TokenKind::Endif) {
+        while !p.at_end() && !p.at(TokenKind::Endif) {
             stmt(p); // The body again, again
         }
         else_body.complete(p, SyntaxKind::ConditionalBody);
@@ -258,7 +260,7 @@ fn subprog_def(p: &mut Parser) -> CompletedMarker {
 
     p.expect(TokenKind::RParen);
 
-    while !p.at_set(&SUBPROG_END) {
+    while !p.at_end() && !p.at_set(&SUBPROG_END) {
         stmt(p);
     }
 
