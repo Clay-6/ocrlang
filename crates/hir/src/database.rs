@@ -680,7 +680,7 @@ mod tests {
             value: Value::Int(7),
         })];
         check_stmt(
-            "if 2.5 < n then 5 elseif 2.5 >= 2.5 then 2 else 7",
+            "if 2.5 < n then 5 elseif 2.5 >= 2.5 then 2 else 7 endif",
             Stmt::IfElse {
                 condition,
                 body,
@@ -713,7 +713,7 @@ mod tests {
             })],
         ];
         check_stmt(
-            "switch c: case 'a': a() case 'b': b() default: d()",
+            "switch c: case 'a': a() case 'b': b() default: d() endswitch",
             Stmt::SwitchCase {
                 scrutinee,
                 cases,
