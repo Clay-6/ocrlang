@@ -33,7 +33,13 @@ impl<'t, 'input> Source<'t, 'input> {
 
     pub(crate) fn peek_next_kind(&mut self) -> Option<TokenKind> {
         self.skip_trivia();
-        self.peek_next_kind_raw()
+        let mut next = self.peek_next_kind_raw();
+        let mut i = self.cursor + 1;
+        while next.is_some_and(|n| n.is_trivia()) {
+            i += 1;
+            next = self.tokens.get(i).map(|Token { kind, .. }| *kind)
+        }
+        next
     }
 
     pub(crate) fn last_token_range(&self) -> Option<Range<usize>> {
