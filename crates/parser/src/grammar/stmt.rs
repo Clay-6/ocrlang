@@ -59,7 +59,7 @@ fn switch_stmt(p: &mut Parser) -> CompletedMarker {
         while !p.at_end() && !p.at_set(&CASE_ENDINGS) {
             stmt(p);
         }
-        body.complete(p, SyntaxKind::ConditionalBody);
+        body.complete(p, SyntaxKind::OtherwiseBody);
     }
 
     p.expect(TokenKind::Endswitch);
@@ -139,7 +139,7 @@ fn if_else(p: &mut Parser) -> CompletedMarker {
     while !p.at_end() && !p.at_set(&[TokenKind::Elseif, TokenKind::Else, TokenKind::Endif]) {
         stmt(p); // The body
     }
-    main_body.complete(p, SyntaxKind::ConditionalBody);
+    main_body.complete(p, SyntaxKind::PrimaryBody);
 
     // Parse the elseif clauses
     while !p.at_end() && !p.at_set(&[TokenKind::Endif, TokenKind::Else]) {
@@ -163,7 +163,7 @@ fn if_else(p: &mut Parser) -> CompletedMarker {
         while !p.at_end() && !p.at(TokenKind::Endif) {
             stmt(p); // The body again, again
         }
-        else_body.complete(p, SyntaxKind::ConditionalBody);
+        else_body.complete(p, SyntaxKind::OtherwiseBody);
     }
 
     p.expect(TokenKind::Endif);
@@ -183,9 +183,7 @@ fn ret(p: &mut Parser) -> CompletedMarker {
 fn var_def(p: &mut Parser) -> CompletedMarker {
     assert!(p.at_set(&VAR_DEF_START));
 
-    if p.at(TokenKind::Ident)
-        && !matches!(p.peek_next(), Some(TokenKind::Equal | TokenKind::LBracket))
-    {
+    if p.at(TokenKind::Ident) && !matches!(p.peek_next(), Some(TokenKind::Equal)) {
         // No attrs for you, young one
         return expr::expr(p).expect("This'll never be none, the ident we're at is a valid lhs");
     }
@@ -622,7 +620,7 @@ endif"#,
                     Then@19..23 "then"
                     Newline@23..24 "\n"
                     Whitespace@24..28 "    "
-                    ConditionalBody@28..45
+                    PrimaryBody@28..45
                       SubprogCall@28..45
                         NameRef@28..33
                           Ident@28..33 "print"
@@ -657,7 +655,7 @@ endif"#,
                     Else@91..95 "else"
                     Newline@95..96 "\n"
                     Whitespace@96..100 "    "
-                    ConditionalBody@100..115
+                    OtherwiseBody@100..115
                       SubprogCall@100..115
                         NameRef@100..105
                           Ident@100..105 "print"
@@ -886,7 +884,7 @@ endswitch"#,
                     Colon@105..106 ":"
                     Newline@106..107 "\n"
                     Whitespace@107..115 "        "
-                    ConditionalBody@115..132
+                    OtherwiseBody@115..132
                       SubprogCall@115..132
                         NameRef@115..120
                           Ident@115..120 "print"
