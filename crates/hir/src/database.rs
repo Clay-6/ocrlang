@@ -285,6 +285,7 @@ impl Database {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     fn parse(input: &str) -> ast::Root {
         ast::Root::cast(parser::parse(input).syntax()).unwrap()
@@ -705,11 +706,11 @@ mod tests {
         let case_bodies = vec![
             vec![Stmt::Expr(Expr::Call {
                 callee: "a".into(),
-                args: exprs.alloc_many([]),
+                args: exprs.alloc_many(std::iter::empty()),
             })],
             vec![Stmt::Expr(Expr::Call {
                 callee: "b".into(),
-                args: exprs.alloc_many([]),
+                args: exprs.alloc_many(std::iter::empty()),
             })],
         ];
         check_stmt(

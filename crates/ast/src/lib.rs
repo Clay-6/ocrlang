@@ -181,7 +181,7 @@ impl IfElse {
     pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
-            .find(|t| t.kind() == SyntaxKind::ConditionalBody)
+            .find(|t| t.kind() == SyntaxKind::PrimaryBody)
             .map(|b| b.children().filter_map(Stmt::cast))
     }
 
@@ -200,39 +200,17 @@ impl IfElse {
     }
 
     pub fn elseif_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
-        let mut bodies = self
-            .0
+        self.0
             .children()
             .filter(|t| t.kind() == SyntaxKind::ConditionalBody)
-            .skip(1)
-            .collect::<Vec<_>>();
-        if self
-            .0
-            .children_with_tokens()
-            .any(|t| t.kind() == SyntaxKind::Else)
-        {
-            bodies.pop();
-        }
-
-        bodies
-            .into_iter()
             .map(|b| b.children().filter_map(Stmt::cast))
     }
 
     pub fn else_body(&self) -> Option<impl Iterator<Item = Stmt>> {
-        if self
-            .0
-            .children_with_tokens()
-            .any(|t| t.kind() == SyntaxKind::Else)
-        {
-            self.0
-                .children()
-                .filter(|t| t.kind() == SyntaxKind::Else)
-                .last()
-                .map(|b| b.children().filter_map(Stmt::cast))
-        } else {
-            None
-        }
+        self.0
+            .children()
+            .find(|t| t.kind() == SyntaxKind::OtherwiseBody)
+            .map(|b| b.children().filter_map(Stmt::cast))
     }
 }
 
@@ -256,27 +234,17 @@ impl SwitchCase {
     }
 
     pub fn case_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
-        let mut bodies = self
-            .0
+        self.0
             .children()
-            .filter(|t| t.kind() == SyntaxKind::ConditionalBody)
-            .collect::<Vec<_>>();
-        if self.0.children().any(|t| t.kind() == SyntaxKind::Default) {
-            bodies.pop();
-        }
-
-        bodies
-            .into_iter()
+            .filter(|t| t.kind() == SyntaxKind::PrimaryBody)
             .map(|b| b.children().filter_map(Stmt::cast))
     }
 
     pub fn default_body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
-            .skip_while(|t| t.kind() != SyntaxKind::Default)
-            .skip_while(|t| t.kind() != SyntaxKind::ConditionalBody)
-            .nth(1)
-            .map(|t| t.children().filter_map(Stmt::cast))
+            .find(|t| t.kind() == SyntaxKind::OtherwiseBody)
+            .map(|b| b.children().filter_map(Stmt::cast))
     }
 }
 
