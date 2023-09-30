@@ -236,7 +236,7 @@ impl SwitchCase {
     pub fn case_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
         self.0
             .children()
-            .filter(|t| t.kind() == SyntaxKind::PrimaryBody)
+            .filter(|t| t.kind() == SyntaxKind::ConditionalBody)
             .map(|b| b.children().filter_map(Stmt::cast))
     }
 
