@@ -10,7 +10,7 @@ pub struct Database {
 
 impl Database {
     pub(crate) fn lower_stmt(&mut self, ast: ast::Stmt) -> Option<Stmt> {
-        let result = match ast {
+        Some(match ast {
             ast::Stmt::VarDef(ast) => self.lower_var_def(ast)?,
             ast::Stmt::SubprogDef(ast) => self.lower_subprogram_def(ast)?,
             ast::Stmt::RetStmt(ast) => self.lower_return_stmt(ast),
@@ -20,9 +20,7 @@ impl Database {
             ast::Stmt::WhileLoop(ast) => self.lower_while_loop(ast),
             ast::Stmt::DoUntil(ast) => self.lower_do_until(ast),
             ast::Stmt::Expr(ast) => Stmt::Expr(self.lower_expr(Some(ast))),
-        };
-
-        Some(result)
+        })
     }
 
     pub(crate) fn lower_expr(&mut self, ast: Option<ast::Expr>) -> Expr {
@@ -93,11 +91,17 @@ impl Database {
     }
 
     fn lower_switch_case(&mut self, ast: ast::SwitchCase) -> Stmt {
-        let scrutinee = self.lower_expr(ast.scrutinee());
-        let cases = ast
-            .cases()
-            .map(|ast| self.lower_expr(Some(ast)))
-            .collect::<Vec<_>>();
+        let scrutinee = {
+            let e = self.lower_expr(ast.scrutinee());
+            self.exprs.alloc(e)
+        };
+        let cases = {
+            let es = ast
+                .cases()
+                .map(|ast| self.lower_expr(Some(ast)))
+                .collect::<Vec<_>>();
+            self.exprs.alloc_many(es)
+        };
         let case_bodies = ast
             .case_bodies()
             .map(|case| {
@@ -110,15 +114,18 @@ impl Database {
             .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect::<Vec<_>>())
             .unwrap_or_default();
         Stmt::SwitchCase {
-            scrutinee: self.exprs.alloc(scrutinee),
-            cases: self.exprs.alloc_many(cases),
+            scrutinee,
+            cases,
             case_bodies,
             default_body,
         }
     }
 
     fn lower_if_else(&mut self, ast: ast::IfElse) -> Stmt {
-        let condition = self.lower_expr(ast.condition());
+        let condition = {
+            let e = self.lower_expr(ast.condition());
+            self.exprs.alloc(e)
+        };
         let body = ast
             .body()
             .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
@@ -144,7 +151,7 @@ impl Database {
             .unwrap_or_default();
 
         Stmt::IfElse {
-            condition: self.exprs.alloc(condition),
+            condition,
             body,
             elseifs,
             else_body,
@@ -199,14 +206,16 @@ impl Database {
             _ => unreachable!(),
         };
 
-        let lhs = self.lower_expr(ast.lhs());
-        let rhs = self.lower_expr(ast.rhs());
+        let lhs = {
+            let e = self.lower_expr(ast.lhs());
+            self.exprs.alloc(e)
+        };
+        let rhs = {
+            let e = self.lower_expr(ast.rhs());
+            self.exprs.alloc(e)
+        };
 
-        Expr::Binary {
-            lhs: self.exprs.alloc(lhs),
-            rhs: self.exprs.alloc(rhs),
-            op,
-        }
+        Expr::Binary { lhs, rhs, op }
     }
 
     fn lower_unary(&mut self, ast: ast::UnaryExpr) -> Expr {
