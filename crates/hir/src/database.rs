@@ -453,6 +453,35 @@ mod tests {
     }
 
     #[test]
+    fn lower_array_literal() {
+        let mut exprs = Arena::new();
+        let elems = [
+            Expr::Literal {
+                value: Value::Int(1),
+            },
+            Expr::Literal {
+                value: Value::Int(2),
+            },
+            Expr::Literal {
+                value: Value::Int(3),
+            },
+            Expr::Literal {
+                value: Value::Int(4),
+            },
+            Expr::Literal {
+                value: Value::Int(5),
+            },
+        ];
+        check_expr(
+            "[1, 2, 3, 4, 5]",
+            Expr::Literal {
+                value: Value::Array(exprs.alloc_many(elems)),
+            },
+            Database { exprs },
+        );
+    }
+
+    #[test]
     fn lower_paren_expr() {
         check_expr(
             "(((((x)))))",
