@@ -49,7 +49,7 @@ fn switch_stmt(p: &mut Parser) -> CompletedMarker {
             while !p.at_set(&CASE_ENDINGS) {
                 stmt(p);
             }
-            body.complete(p, SyntaxKind::PrimaryBody);
+            body.complete(p, SyntaxKind::ConditionalBody);
         }
     }
     if p.at(TokenKind::Default) {
