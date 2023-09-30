@@ -98,7 +98,7 @@ impl Database {
         let cases = {
             let es = ast
                 .cases()
-                .map(|ast| self.lower_expr(Some(ast)))
+                .map(|ast| self.lower_expr(ast))
                 .collect::<Vec<_>>();
             self.exprs.alloc_many(es)
         };

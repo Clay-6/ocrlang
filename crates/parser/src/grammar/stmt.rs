@@ -43,7 +43,9 @@ fn switch_stmt(p: &mut Parser) -> CompletedMarker {
     while !p.at_end() && !p.at_set(&[TokenKind::Endswitch, TokenKind::Default]) {
         if p.at(TokenKind::Case) {
             p.bump();
+            let cond = p.start();
             expr::literal(p);
+            cond.complete(p, SyntaxKind::ConditionExpr);
             p.expect(TokenKind::Colon);
             let body = p.start();
             while !p.at_set(&CASE_ENDINGS) {
@@ -145,7 +147,9 @@ fn if_else(p: &mut Parser) -> CompletedMarker {
     while !p.at_end() && !p.at_set(&[TokenKind::Endif, TokenKind::Else]) {
         if p.at(TokenKind::Elseif) {
             p.bump();
+            let cond = p.start();
             expr::expr(p); // Condition again
+            cond.complete(p, SyntaxKind::ConditionExpr);
             p.expect(TokenKind::Then);
             let inner_body = p.start();
             while !p.at_end() && !p.at_set(&[TokenKind::Elseif, TokenKind::Else, TokenKind::Endif])
@@ -631,15 +635,16 @@ endif"#,
                         Newline@44..45 "\n"
                     Elseif@45..51 "elseif"
                     Whitespace@51..52 " "
-                    BinaryExpr@52..67
-                      NameRef@52..59
-                        Ident@52..58 "answer"
-                        Whitespace@58..59 " "
-                      EqualEqual@59..61 "=="
-                      Whitespace@61..62 " "
-                      Literal@62..67
-                        String@62..66 "\"No\""
-                        Whitespace@66..67 " "
+                    ConditionExpr@52..67
+                      BinaryExpr@52..67
+                        NameRef@52..59
+                          Ident@52..58 "answer"
+                          Whitespace@58..59 " "
+                        EqualEqual@59..61 "=="
+                        Whitespace@61..62 " "
+                        Literal@62..67
+                          String@62..66 "\"No\""
+                          Whitespace@66..67 " "
                     Then@67..71 "then"
                     Newline@71..72 "\n"
                     Whitespace@72..76 "    "
@@ -848,8 +853,9 @@ endswitch"#,
                     Whitespace@12..16 "    "
                     Case@16..20 "case"
                     Whitespace@20..21 " "
-                    Literal@21..26
-                      String@21..26 "\"Sat\""
+                    ConditionExpr@21..26
+                      Literal@21..26
+                        String@21..26 "\"Sat\""
                     Colon@26..27 ":"
                     Newline@27..28 "\n"
                     Whitespace@28..36 "        "
@@ -865,8 +871,9 @@ endswitch"#,
                         Whitespace@54..58 "    "
                     Case@58..62 "case"
                     Whitespace@62..63 " "
-                    Literal@63..68
-                      String@63..68 "\"Sun\""
+                    ConditionExpr@63..68
+                      Literal@63..68
+                        String@63..68 "\"Sun\""
                     Colon@68..69 ":"
                     Newline@69..70 "\n"
                     Whitespace@70..78 "        "

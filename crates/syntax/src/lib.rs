@@ -89,6 +89,7 @@ pub enum SyntaxKind {
     PrimaryBody,
     ConditionalBody,
     OtherwiseBody,
+    ConditionExpr,
 }
 
 pub type SyntaxNode = rowan::SyntaxNode<OcrLang>;

@@ -186,17 +186,10 @@ impl IfElse {
     }
 
     pub fn elseif_conditions(&self) -> impl Iterator<Item = Option<Expr>> {
-        let mut v = vec![];
-        for i in self
-            .0
+        self.0
             .children()
-            .enumerate()
-            .filter(|(_, t)| t.kind() == SyntaxKind::Elseif)
-            .map(|(i, _)| i)
-        {
-            v.push(self.0.children().skip(i).find_map(Expr::cast))
-        }
-        v.into_iter()
+            .filter(|t| t.kind() == SyntaxKind::ConditionExpr)
+            .filter_map(|b| b.first_child().map(Expr::cast))
     }
 
     pub fn elseif_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
@@ -219,18 +212,11 @@ impl SwitchCase {
         self.0.children().find_map(Expr::cast)
     }
 
-    pub fn cases(&self) -> impl Iterator<Item = Expr> {
-        let idxs = self
-            .0
+    pub fn cases(&self) -> impl Iterator<Item = Option<Expr>> {
+        self.0
             .children()
-            .enumerate()
-            .filter(|(_, t)| t.kind() == SyntaxKind::Case)
-            .map(|(i, _)| i);
-        let mut v = vec![];
-        for i in idxs {
-            v.push(self.0.children().skip(i).find_map(Expr::cast))
-        }
-        v.into_iter().flatten()
+            .filter(|t| t.kind() == SyntaxKind::ConditionExpr)
+            .filter_map(|b| b.first_child().map(Expr::cast))
     }
 
     pub fn case_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
