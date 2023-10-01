@@ -15,6 +15,13 @@ pub enum Stmt {
         kind: VarDefKind,
         value: Expr,
     },
+    ArrayDef {
+        name: SmolStr,
+        kind: VarDefKind,
+        subscript: (Expr, Expr),
+        dimensions: (Expr, Expr),
+        value: Expr,
+    },
     SubprogramDef {
         kind: SubprogramKind,
         name: SmolStr,

@@ -12,6 +12,7 @@ impl Database {
     pub(crate) fn lower_stmt(&mut self, ast: ast::Stmt) -> Option<Stmt> {
         Some(match ast {
             ast::Stmt::VarDef(ast) => self.lower_var_def(ast)?,
+            ast::Stmt::ArrayDef(ast) => self.lower_array_def(ast)?,
             ast::Stmt::SubprogDef(ast) => self.lower_subprogram_def(ast)?,
             ast::Stmt::RetStmt(ast) => self.lower_return_stmt(ast),
             ast::Stmt::IfElse(ast) => self.lower_if_else(ast),
@@ -189,6 +190,39 @@ impl Database {
                     _ => unreachable!(),
                 })
                 .unwrap_or(VarDefKind::Standard),
+            value: self.lower_expr(ast.value()),
+        })
+    }
+
+    fn lower_array_def(&mut self, ast: ast::ArrayDef) -> Option<Stmt> {
+        let subscript = {
+            if let Some(mut subs) = ast.subscript() {
+                let first = self.lower_expr(subs.next());
+                let last = self.lower_expr(subs.next());
+                (first, last)
+            } else {
+                (Expr::Missing, Expr::Missing)
+            }
+        };
+        let dimensions = {
+            let mut dims = ast.dimensions();
+            let outer = self.lower_expr(dims.next());
+            let inner = self.lower_expr(dims.next());
+
+            (outer, inner)
+        };
+        Some(Stmt::ArrayDef {
+            name: ast.name()?.text().into(),
+            kind: ast
+                .kind()
+                .map(|k| match k.kind() {
+                    SyntaxKind::Const => VarDefKind::Constant,
+                    SyntaxKind::Global => VarDefKind::Global,
+                    _ => unreachable!(),
+                })
+                .unwrap_or(VarDefKind::Standard),
+            subscript,
+            dimensions,
             value: self.lower_expr(ast.value()),
         })
     }
@@ -377,6 +411,46 @@ mod tests {
                 kind: VarDefKind::Global,
                 value: Expr::Literal {
                     value: Value::Int(0),
+                },
+            },
+        );
+    }
+
+    #[test]
+    fn lower_array_def() {
+        check_stmt(
+            "const array nums[5]",
+            Stmt::ArrayDef {
+                name: "nums".into(),
+                kind: VarDefKind::Constant,
+                subscript: (Expr::Missing, Expr::Missing),
+                dimensions: (
+                    Expr::Literal {
+                        value: Value::Int(5),
+                    },
+                    Expr::Missing,
+                ),
+                value: Expr::Missing,
+            },
+        );
+    }
+
+    #[test]
+    fn lower_array_subscript_assign() {
+        check_stmt(
+            "arr[5] = 5",
+            Stmt::ArrayDef {
+                name: "arr".into(),
+                kind: VarDefKind::Standard,
+                subscript: (
+                    Expr::Literal {
+                        value: Value::Int(5),
+                    },
+                    Expr::Missing,
+                ),
+                dimensions: (Expr::Missing, Expr::Missing),
+                value: Expr::Literal {
+                    value: Value::Int(5),
                 },
             },
         );

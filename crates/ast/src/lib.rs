@@ -65,7 +65,7 @@ impl Expr {
             SyntaxKind::UnaryExpr => Self::Unary(UnaryExpr(node)),
             SyntaxKind::ParenExpr => Self::Paren(ParenExpr(node)),
             SyntaxKind::NameRef => Self::NameRef(NameRef(node)),
-            SyntaxKind::Literal => Self::Literal(Literal(node)),
+            SyntaxKind::Literal | SyntaxKind::Number => Self::Literal(Literal(node)),
             SyntaxKind::ArrayLiteral => Self::ArrayLiteral(ArrayLiteral(node)),
             SyntaxKind::SubprogCall => Self::Call(SubprogCall(node)),
             _ => return None,
@@ -164,24 +164,44 @@ impl ArrayDef {
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
             .find(|token| token.kind() == SyntaxKind::Ident)
+            .or_else(|| {
+                self.0
+                    .children()
+                    .find(|t| t.kind() == SyntaxKind::IdentSubscript)
+                    .and_then(|t| {
+                        t.children()
+                            .find(|c| c.kind() == SyntaxKind::NameRef)
+                            .map(|n| {
+                                n.children_with_tokens()
+                                    .filter_map(SyntaxElement::into_token)
+                                    .find(|r| r.kind() == SyntaxKind::Ident)
+                            })
+                    })
+                    .flatten()
+            })
     }
 
-    pub fn subscript(&self) -> Option<impl Iterator<Item = SyntaxNode>> {
+    pub fn subscript(&self) -> Option<impl Iterator<Item = Expr>> {
         self.0
             .children()
             .find(|tok| tok.kind() == SyntaxKind::IdentSubscript)
             .map(|s| {
                 s.children()
-                    .skip_while(|t| t.kind() != SyntaxKind::LBracket)
-                    .take_while(|t| t.kind() != SyntaxKind::RBracket)
+                    .filter(|t| t.kind() == SyntaxKind::Literal)
+                    .filter_map(Expr::cast)
             })
     }
 
-    pub fn dimensions(&self) -> impl Iterator<Item = SyntaxNode> {
+    pub fn dimensions(&self) -> impl Iterator<Item = Expr> {
         self.0
             .children()
             .skip_while(|t| t.kind() != SyntaxKind::LBracket)
             .take_while(|t| t.kind() == SyntaxKind::RBracket)
+            .filter_map(Expr::cast)
+    }
+
+    pub fn value(&self) -> Option<Expr> {
+        self.0.children().filter_map(Expr::cast).last()
     }
 }
 
@@ -410,6 +430,14 @@ impl Literal {
 }
 
 impl ArrayLiteral {
+    pub fn cast(node: SyntaxNode) -> Option<Self> {
+        if node.kind() == SyntaxKind::ArrayLiteral {
+            Some(Self(node))
+        } else {
+            None
+        }
+    }
+
     pub fn items(&self) -> Option<Vec<Expr>> {
         Some(
             self.0
