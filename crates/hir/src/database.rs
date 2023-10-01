@@ -1,7 +1,7 @@
 use la_arena::Arena;
 use syntax::SyntaxKind;
 
-use crate::{BinaryOp, Expr, Stmt, SubprogramKind, UnaryOp, Value};
+use crate::{BinaryOp, Expr, Stmt, SubprogramKind, UnaryOp, Value, VarDefKind};
 
 #[derive(Debug, Default, PartialEq)]
 pub struct Database {
@@ -181,6 +181,14 @@ impl Database {
     fn lower_var_def(&mut self, ast: ast::VarDef) -> Option<Stmt> {
         Some(Stmt::VarDef {
             name: ast.name()?.text().into(),
+            kind: ast
+                .kind()
+                .map(|k| match k.kind() {
+                    SyntaxKind::Const => VarDefKind::Constant,
+                    SyntaxKind::Global => VarDefKind::Global,
+                    _ => unreachable!(),
+                })
+                .unwrap_or(VarDefKind::Standard),
             value: self.lower_expr(ast.value()),
         })
     }
@@ -328,6 +336,7 @@ mod tests {
             "foo = bar",
             Stmt::VarDef {
                 name: "foo".into(),
+                kind: VarDefKind::Standard,
                 value: Expr::NameRef { name: "bar".into() },
             },
         );
@@ -339,7 +348,36 @@ mod tests {
             "a = ",
             Stmt::VarDef {
                 name: "a".into(),
+                kind: VarDefKind::Standard,
                 value: Expr::Missing,
+            },
+        );
+    }
+
+    #[test]
+    fn lower_const_variable_def() {
+        check_stmt(
+            "const a = 15",
+            Stmt::VarDef {
+                name: "a".into(),
+                kind: VarDefKind::Constant,
+                value: Expr::Literal {
+                    value: Value::Int(15),
+                },
+            },
+        );
+    }
+
+    #[test]
+    fn lower_global_variable_def() {
+        check_stmt(
+            "global COUNTER = 0",
+            Stmt::VarDef {
+                name: "COUNTER".into(),
+                kind: VarDefKind::Global,
+                value: Expr::Literal {
+                    value: Value::Int(0),
+                },
             },
         );
     }

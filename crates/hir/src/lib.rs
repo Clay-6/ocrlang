@@ -12,6 +12,7 @@ type ExprRange = IdxRange<Expr>;
 pub enum Stmt {
     VarDef {
         name: SmolStr,
+        kind: VarDefKind,
         value: Expr,
     },
     SubprogramDef {
@@ -80,6 +81,13 @@ pub enum Expr {
 pub enum SubprogramKind {
     Function,
     Procedure,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum VarDefKind {
+    Constant,
+    Global,
+    Standard,
 }
 
 #[derive(Debug, PartialEq)]

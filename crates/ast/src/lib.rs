@@ -134,6 +134,13 @@ impl VarDef {
             .find(|token| matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::IdentSubscript))
     }
 
+    pub fn kind(&self) -> Option<SyntaxToken> {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .find(|token| matches!(token.kind(), SyntaxKind::Const | SyntaxKind::Global))
+    }
+
     pub fn value(&self) -> Option<Expr> {
         self.0.children().find_map(Expr::cast)
     }
