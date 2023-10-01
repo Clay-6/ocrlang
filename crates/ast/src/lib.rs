@@ -5,6 +5,7 @@ pub struct Root(SyntaxNode);
 #[derive(Debug, PartialEq)]
 pub enum Stmt {
     VarDef(VarDef),
+    ArrayDef(ArrayDef),
     SubprogDef(SubprogDef),
     RetStmt(RetStmt),
     IfElse(IfElse),
@@ -44,6 +45,7 @@ impl Stmt {
     pub fn cast(node: SyntaxNode) -> Option<Self> {
         Some(match node.kind() {
             SyntaxKind::VarDef => Self::VarDef(VarDef(node)),
+            SyntaxKind::ArrayDef => Self::ArrayDef(ArrayDef(node)),
             SyntaxKind::SubProgramDef => Self::SubprogDef(SubprogDef(node)),
             SyntaxKind::RetStmt => Self::RetStmt(RetStmt(node)),
             SyntaxKind::IfStmt => Self::IfElse(IfElse(node)),
@@ -75,6 +77,9 @@ impl Expr {
 
 #[derive(Debug, PartialEq)]
 pub struct VarDef(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
+pub struct ArrayDef(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
 pub struct SubprogDef(SyntaxNode);
@@ -143,6 +148,40 @@ impl VarDef {
 
     pub fn value(&self) -> Option<Expr> {
         self.0.children().find_map(Expr::cast)
+    }
+}
+
+impl ArrayDef {
+    pub fn kind(&self) -> Option<SyntaxToken> {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .find(|t| matches!(t.kind(), SyntaxKind::Const | SyntaxKind::Global))
+    }
+
+    pub fn name(&self) -> Option<SyntaxToken> {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .find(|token| token.kind() == SyntaxKind::Ident)
+    }
+
+    pub fn subscript(&self) -> Option<impl Iterator<Item = SyntaxNode>> {
+        self.0
+            .children()
+            .find(|tok| tok.kind() == SyntaxKind::IdentSubscript)
+            .map(|s| {
+                s.children()
+                    .skip_while(|t| t.kind() != SyntaxKind::LBracket)
+                    .take_while(|t| t.kind() != SyntaxKind::RBracket)
+            })
+    }
+
+    pub fn dimensions(&self) -> impl Iterator<Item = SyntaxNode> {
+        self.0
+            .children()
+            .skip_while(|t| t.kind() != SyntaxKind::LBracket)
+            .take_while(|t| t.kind() == SyntaxKind::RBracket)
     }
 }
 

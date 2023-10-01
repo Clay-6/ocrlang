@@ -399,6 +399,42 @@ mod tests {
     }
 
     #[test]
+    fn parse_global_array_decl() {
+        check(
+            "global array colours[5]",
+            expect![[r#"
+            Root@0..23
+              ArrayDef@0..23
+                Global@0..6 "global"
+                Whitespace@6..7 " "
+                Array@7..12 "array"
+                Whitespace@12..13 " "
+                Ident@13..20 "colours"
+                LBracket@20..21 "["
+                Number@21..22 "5"
+                RBracket@22..23 "]""#]],
+        )
+    }
+
+    #[test]
+    fn parse_const_array_decl() {
+        check(
+            "const array colours[5]",
+            expect![[r#"
+            Root@0..22
+              ArrayDef@0..22
+                Const@0..5 "const"
+                Whitespace@5..6 " "
+                Array@6..11 "array"
+                Whitespace@11..12 " "
+                Ident@12..19 "colours"
+                LBracket@19..20 "["
+                Number@20..21 "5"
+                RBracket@21..22 "]""#]],
+        )
+    }
+
+    #[test]
     fn parse_2d_array_decl() {
         check(
             "array gameboard[8,8]",
@@ -414,6 +450,46 @@ mod tests {
                     Number@18..19 "8"
                     RBracket@19..20 "]""#]],
         );
+    }
+
+    #[test]
+    fn parse_global_2d_array_decl() {
+        check(
+            "global array gameboard[8,8]",
+            expect![[r#"
+            Root@0..27
+              ArrayDef@0..27
+                Global@0..6 "global"
+                Whitespace@6..7 " "
+                Array@7..12 "array"
+                Whitespace@12..13 " "
+                Ident@13..22 "gameboard"
+                LBracket@22..23 "["
+                Number@23..24 "8"
+                Comma@24..25 ","
+                Number@25..26 "8"
+                RBracket@26..27 "]""#]],
+        )
+    }
+
+    #[test]
+    fn parse_const_2d_array_decl() {
+        check(
+            "const array gameboard[8,8]",
+            expect![[r#"
+            Root@0..26
+              ArrayDef@0..26
+                Const@0..5 "const"
+                Whitespace@5..6 " "
+                Array@6..11 "array"
+                Whitespace@11..12 " "
+                Ident@12..21 "gameboard"
+                LBracket@21..22 "["
+                Number@22..23 "8"
+                Comma@23..24 ","
+                Number@24..25 "8"
+                RBracket@25..26 "]""#]],
+        )
     }
 
     #[test]
