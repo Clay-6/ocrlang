@@ -117,7 +117,7 @@ fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
     Some(cm)
 }
 
-fn array_literal(p: &mut Parser) -> CompletedMarker {
+pub(crate) fn array_literal(p: &mut Parser) -> CompletedMarker {
     assert!(p.at(TokenKind::LBracket));
     let m = p.start();
     p.bump();

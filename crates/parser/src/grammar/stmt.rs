@@ -48,7 +48,7 @@ fn array_def(p: &mut Parser) -> CompletedMarker {
 
     if p.at(TokenKind::Equal) {
         p.bump(); // `=` token
-        expr::expr(p);
+        expr::array_literal(p);
     }
 
     m.complete(p, SyntaxKind::ArrayDef)
