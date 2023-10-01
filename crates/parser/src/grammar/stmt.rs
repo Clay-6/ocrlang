@@ -1,11 +1,6 @@
 use super::*;
 
-const VAR_DEF_START: [TokenKind; 4] = [
-    TokenKind::Ident,
-    TokenKind::Array,
-    TokenKind::Const,
-    TokenKind::Global,
-];
+const VAR_DEF_START: [TokenKind; 3] = [TokenKind::Ident, TokenKind::Const, TokenKind::Global];
 const SUBPROG_START: [TokenKind; 2] = [TokenKind::Function, TokenKind::Procedure];
 const SUBPROG_END: [TokenKind; 2] = [TokenKind::Endfunction, TokenKind::Endprocedure];
 const CASE_ENDINGS: [TokenKind; 3] = [TokenKind::Case, TokenKind::Default, TokenKind::Endswitch];
@@ -13,6 +8,8 @@ const CASE_ENDINGS: [TokenKind; 3] = [TokenKind::Case, TokenKind::Default, Token
 pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
     if p.at_set(&VAR_DEF_START) {
         Some(var_def(p))
+    } else if p.at(TokenKind::Array) {
+        Some(array_def(p))
     } else if p.at_set(&SUBPROG_START) {
         Some(subprog_def(p))
     } else if p.at(TokenKind::Return) {
@@ -30,6 +27,31 @@ pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
     } else {
         expr::expr(p)
     }
+}
+
+fn array_def(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::Array));
+    let m = p.start();
+    p.bump(); // `array` token
+    p.expect(TokenKind::Ident);
+
+    if p.at(TokenKind::LBracket) {
+        p.bump();
+        // Lets do a goddamn array
+        p.expect(TokenKind::Number);
+        if p.at(TokenKind::Comma) {
+            p.bump();
+            p.expect(TokenKind::Number);
+        }
+        p.expect(TokenKind::RBracket);
+    }
+
+    if p.at(TokenKind::Equal) {
+        p.bump(); // `=` token
+        expr::expr(p);
+    }
+
+    m.complete(p, SyntaxKind::ArrayDef)
 }
 
 fn switch_stmt(p: &mut Parser) -> CompletedMarker {
@@ -201,22 +223,6 @@ fn var_def(p: &mut Parser) -> CompletedMarker {
         p.bump();
     }
 
-    if p.at(TokenKind::LBracket) {
-        p.bump();
-        // Lets do a goddamn array
-        p.expect(TokenKind::Number);
-        if p.at(TokenKind::Comma) {
-            p.bump();
-            p.expect(TokenKind::Number);
-        }
-        p.expect(TokenKind::RBracket);
-
-        if !p.at(TokenKind::Equal) {
-            // Not assigned to yet, we can end here
-            return m.complete(p, SyntaxKind::VarDef);
-        }
-    }
-
     p.expect(TokenKind::Equal);
 
     expr::expr(p);
@@ -364,14 +370,14 @@ mod tests {
         check(
             "array colours[5]",
             expect![[r#"
-            Root@0..16
-              VarDef@0..16
-                Array@0..5 "array"
-                Whitespace@5..6 " "
-                Ident@6..13 "colours"
-                LBracket@13..14 "["
-                Number@14..15 "5"
-                RBracket@15..16 "]""#]],
+                Root@0..16
+                  ArrayDef@0..16
+                    Array@0..5 "array"
+                    Whitespace@5..6 " "
+                    Ident@6..13 "colours"
+                    LBracket@13..14 "["
+                    Number@14..15 "5"
+                    RBracket@15..16 "]""#]],
         );
     }
 
@@ -380,16 +386,16 @@ mod tests {
         check(
             "array gameboard[8,8]",
             expect![[r#"
-            Root@0..20
-              VarDef@0..20
-                Array@0..5 "array"
-                Whitespace@5..6 " "
-                Ident@6..15 "gameboard"
-                LBracket@15..16 "["
-                Number@16..17 "8"
-                Comma@17..18 ","
-                Number@18..19 "8"
-                RBracket@19..20 "]""#]],
+                Root@0..20
+                  ArrayDef@0..20
+                    Array@0..5 "array"
+                    Whitespace@5..6 " "
+                    Ident@6..15 "gameboard"
+                    LBracket@15..16 "["
+                    Number@16..17 "8"
+                    Comma@17..18 ","
+                    Number@18..19 "8"
+                    RBracket@19..20 "]""#]],
         );
     }
 
