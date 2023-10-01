@@ -1,6 +1,11 @@
 use super::*;
 
-const VAR_DEF_START: [TokenKind; 3] = [TokenKind::Ident, TokenKind::Const, TokenKind::Global];
+const VAR_DEF_START: [TokenKind; 4] = [
+    TokenKind::Ident,
+    TokenKind::Const,
+    TokenKind::Global,
+    TokenKind::Array,
+];
 const SUBPROG_START: [TokenKind; 2] = [TokenKind::Function, TokenKind::Procedure];
 const SUBPROG_END: [TokenKind; 2] = [TokenKind::Endfunction, TokenKind::Endprocedure];
 const CASE_ENDINGS: [TokenKind; 3] = [TokenKind::Case, TokenKind::Default, TokenKind::Endswitch];
@@ -8,8 +13,6 @@ const CASE_ENDINGS: [TokenKind; 3] = [TokenKind::Case, TokenKind::Default, Token
 pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
     if p.at_set(&VAR_DEF_START) {
         Some(var_def(p))
-    } else if p.at(TokenKind::Array) {
-        Some(array_def(p))
     } else if p.at_set(&SUBPROG_START) {
         Some(subprog_def(p))
     } else if p.at(TokenKind::Return) {
@@ -27,31 +30,6 @@ pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
     } else {
         expr::expr(p)
     }
-}
-
-fn array_def(p: &mut Parser) -> CompletedMarker {
-    assert!(p.at(TokenKind::Array));
-    let m = p.start();
-    p.bump(); // `array` token
-    p.expect(TokenKind::Ident);
-
-    if p.at(TokenKind::LBracket) {
-        p.bump();
-        // Lets do a goddamn array
-        p.expect(TokenKind::Number);
-        if p.at(TokenKind::Comma) {
-            p.bump();
-            p.expect(TokenKind::Number);
-        }
-        p.expect(TokenKind::RBracket);
-    }
-
-    if p.at(TokenKind::Equal) {
-        p.bump(); // `=` token
-        expr::array_literal(p);
-    }
-
-    m.complete(p, SyntaxKind::ArrayDef)
 }
 
 fn switch_stmt(p: &mut Parser) -> CompletedMarker {
@@ -216,7 +194,22 @@ fn var_def(p: &mut Parser) -> CompletedMarker {
 
     let m = p.start();
 
+    if p.at(TokenKind::Array) {
+        array_decl(p);
+        return m.complete(p, SyntaxKind::ArrayDef);
+    }
+
     p.bump(); // First token
+
+    /*  Weird, huh? Well actually no.
+     * `const array xs[n]` is allowed syntax, so we
+     * need to check for `array` as the second token
+     * _as well as_ the first
+     */
+    if p.at(TokenKind::Array) {
+        array_decl(p);
+        return m.complete(p, SyntaxKind::ArrayDef);
+    }
 
     if p.at(TokenKind::Ident) {
         // That wasn't the ident, bump it now
@@ -230,11 +223,35 @@ fn var_def(p: &mut Parser) -> CompletedMarker {
     m.complete(p, SyntaxKind::VarDef)
 }
 
-pub(crate) fn assignment_fallback(p: &mut Parser<'_, '_>, cm: CompletedMarker) -> CompletedMarker {
+fn array_decl(p: &mut Parser<'_, '_>) {
+    assert!(p.at(TokenKind::Array));
+    p.bump(); // Get rid of that `array` token
+    p.expect(TokenKind::Ident); // Arrays have a name
+
+    if p.at(TokenKind::LBracket) {
+        p.bump();
+        p.expect(TokenKind::Number);
+        if p.at(TokenKind::Comma) {
+            p.bump();
+            p.expect(TokenKind::Number);
+        }
+        p.expect(TokenKind::RBracket);
+    }
+
+    if p.at(TokenKind::Equal) {
+        p.bump(); // `=` token
+        expr::array_literal(p);
+    }
+}
+
+pub(crate) fn array_assigment_fallback(
+    p: &mut Parser<'_, '_>,
+    cm: CompletedMarker,
+) -> CompletedMarker {
     let m = cm.precede(p);
     p.expect(TokenKind::Equal);
     expr::expr(p);
-    m.complete(p, SyntaxKind::VarDef)
+    m.complete(p, SyntaxKind::ArrayDef)
 }
 
 fn subprog_def(p: &mut Parser) -> CompletedMarker {
@@ -405,7 +422,7 @@ mod tests {
             r#"names[3] = "Noni""#,
             expect![[r#"
                 Root@0..17
-                  VarDef@0..17
+                  ArrayDef@0..17
                     IdentSubscript@0..9
                       NameRef@0..5
                         Ident@0..5 "names"
@@ -427,7 +444,7 @@ mod tests {
             r#"gameboard[1,0] = "Pawn""#,
             expect![[r#"
                 Root@0..23
-                  VarDef@0..23
+                  ArrayDef@0..23
                     IdentSubscript@0..15
                       NameRef@0..9
                         Ident@0..9 "gameboard"

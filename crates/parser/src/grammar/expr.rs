@@ -76,7 +76,7 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
             p.expect(TokenKind::RBracket);
             if p.at(TokenKind::Equal) {
                 let cm = m.complete(p, SyntaxKind::IdentSubscript);
-                return Some(stmt::assignment_fallback(p, cm));
+                return Some(stmt::array_assigment_fallback(p, cm));
             }
         }
 
