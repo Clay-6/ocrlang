@@ -1,7 +1,7 @@
 use la_arena::Arena;
 use syntax::SyntaxKind;
 
-use crate::{BinaryOp, Expr, Stmt, SubprogramKind, UnaryOp, Value, VarDefKind};
+use crate::{BinaryOp, Expr, Literal, Stmt, SubprogramKind, UnaryOp, VarDefKind};
 
 #[derive(Debug, Default, PartialEq)]
 pub struct Database {
@@ -279,19 +279,19 @@ impl Database {
         match ast.parse() {
             Some(v) => match v {
                 ast::Val::Int(i) => Expr::Literal {
-                    value: Value::Int(i),
+                    value: Literal::Int(i),
                 },
                 ast::Val::Float(f) => Expr::Literal {
-                    value: Value::Float(f),
+                    value: Literal::Float(f),
                 },
                 ast::Val::Char(c) => Expr::Literal {
-                    value: Value::Char(c),
+                    value: Literal::Char(c),
                 },
                 ast::Val::String(s) => Expr::Literal {
-                    value: Value::String(s.trim_matches('"').into()),
+                    value: Literal::String(s.trim_matches('"').into()),
                 },
                 ast::Val::Bool(b) => Expr::Literal {
-                    value: Value::Bool(b),
+                    value: Literal::Bool(b),
                 },
             },
             None => Expr::Missing,
@@ -306,7 +306,7 @@ impl Database {
                     .map(|i| self.lower_expr(Some(i)))
                     .collect::<Vec<_>>();
                 Expr::Literal {
-                    value: Value::Array(self.exprs.alloc_many(vals)),
+                    value: Literal::Array(self.exprs.alloc_many(vals)),
                 }
             }
             None => Expr::Missing,
@@ -396,7 +396,7 @@ mod tests {
                 name: "a".into(),
                 kind: VarDefKind::Constant,
                 value: Expr::Literal {
-                    value: Value::Int(15),
+                    value: Literal::Int(15),
                 },
             },
         );
@@ -410,7 +410,7 @@ mod tests {
                 name: "COUNTER".into(),
                 kind: VarDefKind::Global,
                 value: Expr::Literal {
-                    value: Value::Int(0),
+                    value: Literal::Int(0),
                 },
             },
         );
@@ -426,7 +426,7 @@ mod tests {
                 subscript: (Expr::Missing, Expr::Missing),
                 dimensions: (
                     Expr::Literal {
-                        value: Value::Int(5),
+                        value: Literal::Int(5),
                     },
                     Expr::Missing,
                 ),
@@ -440,13 +440,13 @@ mod tests {
         let mut exprs = Arena::new();
         let nums = exprs.alloc_many([
             Expr::Literal {
-                value: Value::Int(1),
+                value: Literal::Int(1),
             },
             Expr::Literal {
-                value: Value::Int(2),
+                value: Literal::Int(2),
             },
             Expr::Literal {
-                value: Value::Int(3),
+                value: Literal::Int(3),
             },
         ]);
         check_stmt(
@@ -457,7 +457,7 @@ mod tests {
                 subscript: (Expr::Missing, Expr::Missing),
                 dimensions: (Expr::Missing, Expr::Missing),
                 value: Expr::Literal {
-                    value: Value::Array(nums),
+                    value: Literal::Array(nums),
                 },
             },
         )
@@ -473,10 +473,10 @@ mod tests {
                 subscript: (Expr::Missing, Expr::Missing),
                 dimensions: (
                     Expr::Literal {
-                        value: Value::Int(8),
+                        value: Literal::Int(8),
                     },
                     Expr::Literal {
-                        value: Value::Int(8),
+                        value: Literal::Int(8),
                     },
                 ),
                 value: Expr::Missing,
@@ -493,13 +493,13 @@ mod tests {
                 kind: VarDefKind::Standard,
                 subscript: (
                     Expr::Literal {
-                        value: Value::Int(5),
+                        value: Literal::Int(5),
                     },
                     Expr::Missing,
                 ),
                 dimensions: (Expr::Missing, Expr::Missing),
                 value: Expr::Literal {
-                    value: Value::Int(5),
+                    value: Literal::Int(5),
                 },
             },
         );
@@ -514,15 +514,15 @@ mod tests {
                 kind: VarDefKind::Standard,
                 subscript: (
                     Expr::Literal {
-                        value: Value::Int(3),
+                        value: Literal::Int(3),
                     },
                     Expr::Literal {
-                        value: Value::Int(4),
+                        value: Literal::Int(4),
                     },
                 ),
                 dimensions: (Expr::Missing, Expr::Missing),
                 value: Expr::Literal {
-                    value: Value::Int(5),
+                    value: Literal::Int(5),
                 },
             },
         );
@@ -533,7 +533,7 @@ mod tests {
         check_stmt(
             "123",
             Stmt::Expr(Expr::Literal {
-                value: Value::Int(123),
+                value: Literal::Int(123),
             }),
         );
     }
@@ -542,10 +542,10 @@ mod tests {
     fn lower_binary_expr() {
         let mut exprs = Arena::new();
         let lhs = exprs.alloc(Expr::Literal {
-            value: Value::Int(5),
+            value: Literal::Int(5),
         });
         let rhs = exprs.alloc(Expr::Literal {
-            value: Value::Int(10),
+            value: Literal::Int(10),
         });
 
         check_expr(
@@ -563,7 +563,7 @@ mod tests {
     fn lower_binary_expr_without_rhs() {
         let mut exprs = Arena::new();
         let lhs = exprs.alloc(Expr::Literal {
-            value: Value::Float(17.0),
+            value: Literal::Float(17.0),
         });
         let rhs = exprs.alloc(Expr::Missing);
 
@@ -583,14 +583,14 @@ mod tests {
         check_expr(
             "99",
             Expr::Literal {
-                value: Value::Int(99),
+                value: Literal::Int(99),
             },
             Database::default(),
         );
         check_expr(
             "1.5",
             Expr::Literal {
-                value: Value::Float(1.5),
+                value: Literal::Float(1.5),
             },
             Database::default(),
         );
@@ -601,7 +601,7 @@ mod tests {
         check_expr(
             r#""hello""#,
             Expr::Literal {
-                value: Value::String("hello".into()),
+                value: Literal::String("hello".into()),
             },
             Database::default(),
         );
@@ -612,7 +612,7 @@ mod tests {
         check_expr(
             "'c'",
             Expr::Literal {
-                value: Value::Char('c'),
+                value: Literal::Char('c'),
             },
             Database::default(),
         );
@@ -623,14 +623,14 @@ mod tests {
         check_expr(
             "true",
             Expr::Literal {
-                value: Value::Bool(true),
+                value: Literal::Bool(true),
             },
             Database::default(),
         );
         check_expr(
             "false",
             Expr::Literal {
-                value: Value::Bool(false),
+                value: Literal::Bool(false),
             },
             Database::default(),
         );
@@ -641,25 +641,25 @@ mod tests {
         let mut exprs = Arena::new();
         let elems = [
             Expr::Literal {
-                value: Value::Int(1),
+                value: Literal::Int(1),
             },
             Expr::Literal {
-                value: Value::Int(2),
+                value: Literal::Int(2),
             },
             Expr::Literal {
-                value: Value::Int(3),
+                value: Literal::Int(3),
             },
             Expr::Literal {
-                value: Value::Int(4),
+                value: Literal::Int(4),
             },
             Expr::Literal {
-                value: Value::Int(5),
+                value: Literal::Int(5),
             },
         ];
         check_expr(
             "[1, 2, 3, 4, 5]",
             Expr::Literal {
-                value: Value::Array(exprs.alloc_many(elems)),
+                value: Literal::Array(exprs.alloc_many(elems)),
             },
             Database { exprs },
         );
@@ -678,7 +678,7 @@ mod tests {
     fn lower_unary_expr() {
         let mut exprs = Arena::new();
         let five = exprs.alloc(Expr::Literal {
-            value: Value::Int(5),
+            value: Literal::Int(5),
         });
         check_expr(
             "-5",
@@ -743,7 +743,7 @@ mod tests {
     fn lower_proc_def() {
         let mut exprs = Arena::new();
         let arg = exprs.alloc_many([Expr::Literal {
-            value: Value::String("something".into()),
+            value: Literal::String("something".into()),
         }]);
         check_stmt(
             r#"procedure thing() print("something") endprocedure"#,
@@ -764,10 +764,10 @@ mod tests {
         let mut exprs = Arena::new();
         let (start, end) = (
             exprs.alloc(Expr::Literal {
-                value: Value::Int(1),
+                value: Literal::Int(1),
             }),
             exprs.alloc(Expr::Literal {
-                value: Value::Int(10),
+                value: Literal::Int(10),
             }),
         );
         let step = exprs.alloc(Expr::Missing);
@@ -791,14 +791,14 @@ mod tests {
         let mut exprs = Arena::new();
         let (start, end) = (
             exprs.alloc(Expr::Literal {
-                value: Value::Int(1),
+                value: Literal::Int(1),
             }),
             exprs.alloc(Expr::Literal {
-                value: Value::Int(10),
+                value: Literal::Int(10),
             }),
         );
         let step = exprs.alloc(Expr::Literal {
-            value: Value::Int(2),
+            value: Literal::Int(2),
         });
         let print_arg = exprs.alloc_many([Expr::NameRef { name: "i".into() }]);
         check_stmt(
@@ -823,7 +823,7 @@ mod tests {
                 name: "answer".into(),
             });
             let rhs = exprs.alloc(Expr::Literal {
-                value: Value::String("Correct".into()),
+                value: Literal::String("Correct".into()),
             });
             exprs.alloc(Expr::Binary {
                 op: BinaryOp::NotEquals,
@@ -864,7 +864,7 @@ mod tests {
         let mut exprs = Arena::new();
         let condition = {
             let lhs = exprs.alloc(Expr::Literal {
-                value: Value::Float(2.5),
+                value: Literal::Float(2.5),
             });
             let rhs = exprs.alloc(Expr::NameRef { name: "n".into() });
 
@@ -876,10 +876,10 @@ mod tests {
         };
         let elseifs = {
             let lhs = exprs.alloc(Expr::Literal {
-                value: Value::Float(2.5),
+                value: Literal::Float(2.5),
             });
             let rhs = exprs.alloc(Expr::Literal {
-                value: Value::Float(2.5),
+                value: Literal::Float(2.5),
             });
             let conditions = vec![Expr::Binary {
                 op: BinaryOp::GreaterEquals,
@@ -887,7 +887,7 @@ mod tests {
                 rhs,
             }];
             let bodies = vec![vec![Stmt::Expr(Expr::Literal {
-                value: Value::Int(2),
+                value: Literal::Int(2),
             })]];
 
             conditions
@@ -897,10 +897,10 @@ mod tests {
                 .collect()
         };
         let body = vec![Stmt::Expr(Expr::Literal {
-            value: Value::Int(5),
+            value: Literal::Int(5),
         })];
         let else_body = vec![Stmt::Expr(Expr::Literal {
-            value: Value::Int(7),
+            value: Literal::Int(7),
         })];
         check_stmt(
             "if 2.5 < n then 5 elseif 2.5 >= 2.5 then 2 else 7 endif",
@@ -919,10 +919,10 @@ mod tests {
         let scrutinee = exprs.alloc(Expr::NameRef { name: "c".into() });
         let cases = exprs.alloc_many([
             Expr::Literal {
-                value: Value::Char('a'),
+                value: Literal::Char('a'),
             },
             Expr::Literal {
-                value: Value::Char('b'),
+                value: Literal::Char('b'),
             },
         ]);
         let case_bodies = vec![

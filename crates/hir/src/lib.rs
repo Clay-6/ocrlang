@@ -80,7 +80,7 @@ pub enum Expr {
         args: IdxRange<Expr>,
     },
     Literal {
-        value: Value,
+        value: Literal,
     },
 }
 
@@ -125,7 +125,7 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Value {
+pub enum Literal {
     Int(i64),
     Float(f64),
     Char(char),
