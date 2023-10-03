@@ -436,6 +436,34 @@ mod tests {
     }
 
     #[test]
+    fn lower_array_def() {
+        let mut exprs = Arena::new();
+        let nums = exprs.alloc_many([
+            Expr::Literal {
+                value: Value::Int(1),
+            },
+            Expr::Literal {
+                value: Value::Int(2),
+            },
+            Expr::Literal {
+                value: Value::Int(3),
+            },
+        ]);
+        check_stmt(
+            "array nums = [1, 2, 3]",
+            Stmt::ArrayDef {
+                name: "nums".into(),
+                kind: VarDefKind::Standard,
+                subscript: (Expr::Missing, Expr::Missing),
+                dimensions: (Expr::Missing, Expr::Missing),
+                value: Expr::Literal {
+                    value: Value::Array(nums),
+                },
+            },
+        )
+    }
+
+    #[test]
     fn lower_2d_array_decl() {
         check_stmt(
             "global array board[8,8]",
