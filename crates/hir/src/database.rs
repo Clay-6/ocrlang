@@ -436,6 +436,27 @@ mod tests {
     }
 
     #[test]
+    fn lower_2d_array_def() {
+        check_stmt(
+            "global array board[8,8]",
+            Stmt::ArrayDef {
+                name: "board".into(),
+                kind: VarDefKind::Global,
+                subscript: (Expr::Missing, Expr::Missing),
+                dimensions: (
+                    Expr::Literal {
+                        value: Value::Int(8),
+                    },
+                    Expr::Literal {
+                        value: Value::Int(8),
+                    },
+                ),
+                value: Expr::Missing,
+            },
+        );
+    }
+
+    #[test]
     fn lower_array_subscript_assign() {
         check_stmt(
             "arr[5] = 5",
