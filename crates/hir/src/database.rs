@@ -417,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn lower_array_def() {
+    fn lower_array_decl() {
         check_stmt(
             "const array nums[5]",
             Stmt::ArrayDef {
@@ -436,7 +436,7 @@ mod tests {
     }
 
     #[test]
-    fn lower_2d_array_def() {
+    fn lower_2d_array_decl() {
         check_stmt(
             "global array board[8,8]",
             Stmt::ArrayDef {
