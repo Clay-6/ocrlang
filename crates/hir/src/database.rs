@@ -457,6 +457,29 @@ mod tests {
     }
 
     #[test]
+    fn lower_2d_array_subscript_assign() {
+        check_stmt(
+            "arr[3,4] = 5",
+            Stmt::ArrayDef {
+                name: "arr".into(),
+                kind: VarDefKind::Standard,
+                subscript: (
+                    Expr::Literal {
+                        value: Value::Int(3),
+                    },
+                    Expr::Literal {
+                        value: Value::Int(4),
+                    },
+                ),
+                dimensions: (Expr::Missing, Expr::Missing),
+                value: Expr::Literal {
+                    value: Value::Int(5),
+                },
+            },
+        );
+    }
+
+    #[test]
     fn lower_expr_stmt() {
         check_stmt(
             "123",
