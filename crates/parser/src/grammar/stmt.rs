@@ -223,12 +223,14 @@ fn var_def(p: &mut Parser) -> CompletedMarker {
     m.complete(p, SyntaxKind::VarDef)
 }
 
-fn array_decl(p: &mut Parser<'_, '_>) {
+fn array_decl(p: &mut Parser) {
     assert!(p.at(TokenKind::Array));
     p.bump(); // Get rid of that `array` token
     p.expect(TokenKind::Ident); // Arrays have a name
+    let mut seen_dimensions = false;
 
     if p.at(TokenKind::LBracket) {
+        seen_dimensions = true;
         p.bump();
         p.expect(TokenKind::Number);
         if p.at(TokenKind::Comma) {
@@ -238,16 +240,13 @@ fn array_decl(p: &mut Parser<'_, '_>) {
         p.expect(TokenKind::RBracket);
     }
 
-    if p.at(TokenKind::Equal) {
+    if !seen_dimensions && p.at(TokenKind::Equal) {
         p.bump(); // `=` token
         expr::array_literal(p);
     }
 }
 
-pub(crate) fn array_assigment_fallback(
-    p: &mut Parser<'_, '_>,
-    cm: CompletedMarker,
-) -> CompletedMarker {
+pub(crate) fn array_assigment_fallback(p: &mut Parser, cm: CompletedMarker) -> CompletedMarker {
     let m = cm.precede(p);
     p.expect(TokenKind::Equal);
     expr::expr(p);
