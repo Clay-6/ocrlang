@@ -211,6 +211,7 @@ impl Database {
 
             (outer, inner)
         };
+
         Some(Stmt::ArrayDef {
             name: ast.name()?.text().into(),
             kind: ast

@@ -65,7 +65,7 @@ impl Expr {
             SyntaxKind::UnaryExpr => Self::Unary(UnaryExpr(node)),
             SyntaxKind::ParenExpr => Self::Paren(ParenExpr(node)),
             SyntaxKind::NameRef => Self::NameRef(NameRef(node)),
-            SyntaxKind::Literal | SyntaxKind::Number => Self::Literal(Literal(node)),
+            SyntaxKind::Literal => Self::Literal(Literal::Node(node)),
             SyntaxKind::ArrayLiteral => Self::ArrayLiteral(ArrayLiteral(node)),
             SyntaxKind::SubprogCall => Self::Call(SubprogCall(node)),
             _ => return None,
@@ -109,7 +109,10 @@ pub struct BinaryExpr(SyntaxNode);
 pub struct UnaryExpr(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
-pub struct Literal(SyntaxNode);
+pub enum Literal {
+    Node(SyntaxNode),
+    Token(SyntaxToken),
+}
 
 pub enum Val {
     Int(i64),
@@ -194,10 +197,12 @@ impl ArrayDef {
 
     pub fn dimensions(&self) -> impl Iterator<Item = Expr> {
         self.0
-            .children()
+            .children_with_tokens()
             .skip_while(|t| t.kind() != SyntaxKind::LBracket)
-            .take_while(|t| t.kind() == SyntaxKind::RBracket)
-            .filter_map(Expr::cast)
+            .skip(1)
+            .take_while(|t| t.kind() != SyntaxKind::RBracket)
+            .filter(|t| t.kind() == SyntaxKind::Number)
+            .map(|t| Expr::Literal(Literal::Token(t.as_token().unwrap().clone())))
     }
 
     pub fn value(&self) -> Option<Expr> {
@@ -397,34 +402,46 @@ impl UnaryExpr {
 }
 
 impl Literal {
-    pub fn cast(node: SyntaxNode) -> Option<Self> {
-        if matches!(
-            node.kind(),
-            SyntaxKind::Number | SyntaxKind::String | SyntaxKind::True | SyntaxKind::False
-        ) {
-            Some(Self(node))
-        } else {
-            None
-        }
-    }
-
     pub fn parse(&self) -> Option<Val> {
-        let tok = self.0.first_token().unwrap();
+        match self {
+            Literal::Node(node) => {
+                let tok = node.first_token().unwrap();
 
-        match tok.kind() {
-            SyntaxKind::True => Some(Val::Bool(true)),
-            SyntaxKind::False => Some(Val::Bool(false)),
-            SyntaxKind::String => Some(Val::String(tok.text().into())),
-            SyntaxKind::Char => Some(Val::Char(tok.text().chars().find(|&c| c != '\'').unwrap())),
-            SyntaxKind::Number => {
-                let txt = tok.text();
-                if txt.contains('.') {
-                    Some(Val::Float(txt.parse().ok()?))
-                } else {
-                    Some(Val::Int(txt.parse().ok()?))
+                match tok.kind() {
+                    SyntaxKind::True => Some(Val::Bool(true)),
+                    SyntaxKind::False => Some(Val::Bool(false)),
+                    SyntaxKind::String => Some(Val::String(tok.text().into())),
+                    SyntaxKind::Char => {
+                        Some(Val::Char(tok.text().chars().find(|&c| c != '\'').unwrap()))
+                    }
+                    SyntaxKind::Number => {
+                        let txt = tok.text();
+                        if txt.contains('.') {
+                            Some(Val::Float(txt.parse().ok()?))
+                        } else {
+                            Some(Val::Int(txt.parse().ok()?))
+                        }
+                    }
+                    _ => None,
                 }
             }
-            _ => None,
+            Literal::Token(tok) => match tok.kind() {
+                SyntaxKind::True => Some(Val::Bool(true)),
+                SyntaxKind::False => Some(Val::Bool(false)),
+                SyntaxKind::String => Some(Val::String(tok.text().into())),
+                SyntaxKind::Char => {
+                    Some(Val::Char(tok.text().chars().find(|&c| c != '\'').unwrap()))
+                }
+                SyntaxKind::Number => {
+                    let txt = tok.text();
+                    if txt.contains('.') {
+                        Some(Val::Float(txt.parse().ok()?))
+                    } else {
+                        Some(Val::Int(txt.parse().ok()?))
+                    }
+                }
+                _ => None,
+            },
         }
     }
 }
