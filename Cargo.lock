@@ -75,6 +75,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "interpreter"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "hir",
+ "parser",
+ "smol_str",
+]
+
+[[package]]
 name = "la-arena"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

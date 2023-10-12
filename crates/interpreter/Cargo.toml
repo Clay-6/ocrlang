@@ -1,5 +1,5 @@
 [package]
-name = "hir"
+name = "interpreter"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,10 +7,6 @@ edition = "2021"
 
 [dependencies]
 ast = { version = "0.1.0", path = "../ast" }
-la-arena = "0.3.1"
+hir = { version = "0.1.0", path = "../hir" }
+parser = { version = "0.1.0", path = "../parser" }
 smol_str.workspace = true
-syntax = { version = "0.1.0", path = "../syntax" }
-
-[dev-dependencies]
-parser = { path = "../parser" }
-pretty_assertions.workspace = true

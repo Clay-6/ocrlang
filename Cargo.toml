@@ -4,3 +4,4 @@ resolver = "2"
 
 [workspace.dependencies]
 pretty_assertions = "1.4.0"
+smol_str = "0.2.0"
