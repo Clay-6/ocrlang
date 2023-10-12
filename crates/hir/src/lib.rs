@@ -8,7 +8,7 @@ use smol_str::SmolStr;
 type ExprIdx = Idx<Expr>;
 type ExprRange = IdxRange<Expr>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
     VarDef {
         name: SmolStr,
@@ -60,7 +60,7 @@ pub enum Stmt {
     Expr(Expr),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Missing,
     Binary {
@@ -84,20 +84,20 @@ pub enum Expr {
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum SubprogramKind {
     Function,
     Procedure,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum VarDefKind {
     Constant,
     Global,
     Standard,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -118,13 +118,13 @@ pub enum BinaryOp {
     Pow,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum UnaryOp {
     Neg,
     Not,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     Int(i64),
     Float(f64),

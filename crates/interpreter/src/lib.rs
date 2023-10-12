@@ -1,6 +1,6 @@
 mod env;
 
-use env::{Binding, Env};
+use env::{Binding, Env, SubprogKind};
 use hir::{Database, Stmt};
 use smol_str::SmolStr;
 
@@ -61,7 +61,21 @@ impl Interpreter {
                 name,
                 params,
                 body,
-            } => todo!(),
+            } => {
+                let kind = match kind {
+                    hir::SubprogramKind::Function => SubprogKind::Function,
+                    hir::SubprogramKind::Procedure => SubprogKind::Procedure,
+                };
+                self.env.insert(
+                    name.clone(),
+                    Binding::Func {
+                        kind,
+                        params: params.clone(),
+                        body: body.clone(),
+                    },
+                );
+                Ok(Value::Unit)
+            }
             Stmt::ReturnStmt { value } => todo!(),
             Stmt::IfElse {
                 condition,
@@ -96,6 +110,8 @@ impl Default for Interpreter {
         Self::new()
     }
 }
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Int(i64),
     Float(f64),
@@ -105,6 +121,7 @@ pub enum Value {
     Unit,
 }
 
+#[derive(Debug)]
 pub enum InterpretResult {
     ReassignedConstant,
 }

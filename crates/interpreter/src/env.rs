@@ -5,15 +5,26 @@ use smol_str::SmolStr;
 
 use crate::Value;
 
-#[derive(Default)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Env {
     bindings: HashMap<SmolStr, Binding>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Binding {
     Const(Value),
     Var(Value),
-    Func(Vec<Stmt>),
+    Func {
+        kind: SubprogKind,
+        params: Vec<SmolStr>,
+        body: Vec<Stmt>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SubprogKind {
+    Function,
+    Procedure,
 }
 
 impl Env {
