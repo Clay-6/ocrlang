@@ -449,11 +449,13 @@ where
                             got: args.len(),
                         });
                     }
-                    let inner_db = db.clone();
+                    let prev_env = self.env.clone();
                     for (param, arg) in sp.params.iter().zip(args) {
                         self.env.insert(param.clone(), Binding::Var(arg));
                     }
-                    self.call_subprog(sp.body, sp.kind, inner_db)
+                    let res = self.call_subprog(sp.body, sp.kind, db);
+                    self.env = prev_env;
+                    res
                 } else if callee == "print" {
                     if args.len() != 1 {
                         Err(InterpretError::InvalidArgumentCount {
@@ -476,18 +478,18 @@ where
         &mut self,
         body: Vec<Stmt>,
         kind: SubprogKind,
-        db: Database,
+        db: &Database,
     ) -> Result<Value, InterpretError> {
         match kind {
             SubprogKind::Function => match body.len().cmp(&1) {
                 std::cmp::Ordering::Equal => {
-                    self.execute(&body[..body.len() - 1], &db)?;
-                    self.exec_stmt(body.last().unwrap(), &db)
+                    self.execute(&body[..body.len() - 1], db)?;
+                    self.exec_stmt(body.last().unwrap(), db)
                 }
-                std::cmp::Ordering::Greater => self.exec_stmt(&body[0], &db),
+                std::cmp::Ordering::Greater => self.exec_stmt(&body[0], db),
                 std::cmp::Ordering::Less => Ok(Value::Unit),
             },
-            SubprogKind::Procedure => self.execute(&body, &db).map(|_| Value::Unit),
+            SubprogKind::Procedure => self.execute(&body, db).map(|_| Value::Unit),
         }
     }
 }
