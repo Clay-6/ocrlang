@@ -143,6 +143,7 @@ where
                 if !lhs.same_type(&rhs)
                     && !matches!((&lhs, &rhs), (&Value::Int(_), &Value::Float(_)))
                     && !matches!((&lhs, &rhs), (&Value::Float(_), &Value::Int(_)))
+                    && !matches!((&lhs, &rhs), (&Value::Array(_), Value::Int(_)))
                 {
                     return Err(InterpretError::MismatchedTypes {
                         expected: vec![lhs.type_str()],
@@ -291,7 +292,30 @@ where
                     hir::BinaryOp::LessEquals => todo!(),
                     hir::BinaryOp::GreaterThan => todo!(),
                     hir::BinaryOp::GreaterEquals => todo!(),
-                    hir::BinaryOp::SubScript => todo!(),
+                    hir::BinaryOp::SubScript => {
+                        if let (Value::Array(arr), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(arr
+                                .get(*i as usize)
+                                .cloned()
+                                .ok_or(InterpretError::IndexOutOfRange)?)
+                        } else if !matches!(lhs, Value::Array(_)) {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["array"],
+                                found: lhs.type_str(),
+                            })
+                        } else if !matches!(rhs, Value::Int(_)) {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int"],
+                                found: lhs.type_str(),
+                            })
+                        } else {
+                            // The only way we don't hit the first
+                            // block is if `lhs` isn't an array
+                            // and/or `rhs` isn't an int,
+                            // which we've already handled
+                            unreachable!();
+                        }
+                    }
                     hir::BinaryOp::Dot => todo!(),
                 }
             }
@@ -461,6 +485,7 @@ pub enum InterpretError {
         expected: usize,
         got: usize,
     },
+    IndexOutOfRange,
 }
 #[cfg(test)]
 mod tests {
@@ -587,5 +612,26 @@ mod tests {
         check_eval("5 == 5", Value::Bool(true));
         check_eval("3 != 3.1415926", Value::Bool(true));
         check_eval("\"string\" == \"string\"", Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_subscript() {
+        let (db, stmts) = lower("arr[1]");
+        let mut env = Env::default();
+        env.insert(
+            "arr".into(),
+            Binding::Var(Value::Array(vec![
+                Value::Int(1),
+                Value::Int(2),
+                Value::Int(3),
+            ])),
+        );
+        let mut interpreter = Interpreter {
+            output: vec![],
+            env,
+        };
+
+        let evaled = interpreter.exec_stmt(&stmts[0], &db).unwrap();
+        assert_eq!(evaled, Value::Int(2));
     }
 }
