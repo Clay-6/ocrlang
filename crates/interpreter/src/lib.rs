@@ -139,6 +139,27 @@ where
             }),
             hir::Expr::Binary { op, lhs, rhs } => {
                 let lhs = self.eval(db.get(*lhs), db)?;
+                if let hir::Expr::NameRef { name, .. } = db.get(*rhs) {
+                    if matches!(op, hir::BinaryOp::Dot) {
+                        if let Value::String(s) = &lhs {
+                            if name == "length" {
+                                return Ok(Value::Int(s.len() as _));
+                            }
+                            if name == "lower" {
+                                return Ok(Value::String(s.to_string().to_lowercase().into()));
+                            }
+                            if name == "upper" {
+                                return Ok(Value::String(s.to_string().to_uppercase().into()));
+                            }
+                        } else {
+                            return Err(InterpretError::MismatchedTypes {
+                                expected: vec!["string"],
+                                found: lhs.type_str(),
+                            });
+                        }
+                    }
+                }
+
                 let rhs = self.eval(db.get(*rhs), db)?;
                 if !lhs.same_type(&rhs)
                     && !matches!((&lhs, &rhs), (&Value::Int(_), &Value::Float(_)))
@@ -633,5 +654,12 @@ mod tests {
 
         let evaled = interpreter.exec_stmt(&stmts[0], &db).unwrap();
         assert_eq!(evaled, Value::Int(2));
+    }
+
+    #[test]
+    fn eval_basic_string_manip() {
+        check_eval("\"string\".length", Value::Int(6));
+        check_eval("\"sTrInG\".upper", Value::String("STRING".into()));
+        check_eval("\"StRiNg\".lower", Value::String("string".into()));
     }
 }
