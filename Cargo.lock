@@ -81,6 +81,7 @@ dependencies = [
  "ast",
  "hir",
  "parser",
+ "pretty_assertions",
  "smol_str",
 ]
 

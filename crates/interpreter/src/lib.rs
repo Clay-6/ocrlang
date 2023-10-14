@@ -177,7 +177,50 @@ pub enum InterpretError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
+
+    fn lower(src: &str) -> (Database, Vec<Stmt>) {
+        hir::lower(ast::Root::cast(parser::parse(src).syntax()).unwrap())
+    }
+
+    fn check_eval(expr: &str, expected: Value) {
+        let (db, stmts) = lower(expr);
+        let evaled = Interpreter::new().exec_stmt(&stmts[0], &db).unwrap();
+        assert_eq!(evaled, expected)
+    }
 
     #[test]
-    fn eval_literal() {}
+    fn eval_array_literal() {
+        check_eval(
+            "[1, 2, 3, 4]",
+            Value::Array(vec![
+                Value::Int(1),
+                Value::Int(2),
+                Value::Int(3),
+                Value::Int(4),
+            ]),
+        );
+    }
+
+    #[test]
+    fn eval_string_literal() {
+        check_eval("\"Hello World!\"", Value::String("Hello World!".into()));
+    }
+
+    #[test]
+    fn eval_bool_literals() {
+        check_eval("true", Value::Bool(true));
+        check_eval("false", Value::Bool(false));
+    }
+
+    #[test]
+    fn eval_number_literals() {
+        check_eval("42", Value::Int(42));
+        check_eval("6.9", Value::Float(6.9));
+    }
+
+    #[test]
+    fn eval_char_literal() {
+        check_eval("'c'", Value::Char('c'));
+    }
 }
