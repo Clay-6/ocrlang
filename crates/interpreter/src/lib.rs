@@ -265,8 +265,26 @@ where
                             })
                         }
                     }
-                    hir::BinaryOp::And => todo!(),
-                    hir::BinaryOp::Or => todo!(),
+                    hir::BinaryOp::And => {
+                        if let (Value::Bool(b1), Value::Bool(b2)) = (&lhs, rhs) {
+                            Ok(Value::Bool(*b1 && b2))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["boolean"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
+                    hir::BinaryOp::Or => {
+                        if let (Value::Bool(b1), Value::Bool(b2)) = (&lhs, rhs) {
+                            Ok(Value::Bool(*b1 || b2))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["boolean"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
                     hir::BinaryOp::Equals => todo!(),
                     hir::BinaryOp::NotEquals => todo!(),
                     hir::BinaryOp::LessThan => todo!(),
@@ -556,5 +574,11 @@ mod tests {
         check_eval("4.2^6.9", Value::Float(4.2_f64.powf(6.9)));
         check_eval("4.2^6", Value::Float(4.2_f64.powf(6 as _)));
         check_eval("6^4.2", Value::Float(6_f64.powf(4.2)));
+    }
+
+    #[test]
+    fn eval_and_or() {
+        check_eval("true AND false", Value::Bool(false));
+        check_eval("true OR false", Value::Bool(true));
     }
 }
