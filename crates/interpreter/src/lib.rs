@@ -217,8 +217,38 @@ where
                             })
                         }
                     }
-                    hir::BinaryOp::Mod => todo!(),
-                    hir::BinaryOp::Quot => todo!(),
+                    hir::BinaryOp::Mod => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Int(i1 % i2))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Int((f1 % f2) as i64))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Int((*i as f64 % f) as i64))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Int((f % *i as f64) as i64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
+                    hir::BinaryOp::Quot => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Int(i1.div_euclid(*i2)))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Int(f1.div_euclid(*f2) as i64))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Int((*i as f64).div_euclid(*f) as i64))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Int(f.div_euclid(*i as f64) as i64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
                     hir::BinaryOp::Pow => todo!(),
                     hir::BinaryOp::And => todo!(),
                     hir::BinaryOp::Or => todo!(),
@@ -495,5 +525,13 @@ mod tests {
             "\"Hello\" + \" World\"",
             Value::String("Hello World".into()),
         );
+    }
+
+    #[test]
+    fn eval_div_mod() {
+        check_eval("5 MOD 3", Value::Int(2));
+        check_eval("5 DIV 3", Value::Int(1));
+        check_eval("3.1 MOD 4.2", Value::Int((3.1 % 4.2) as _));
+        check_eval("4.2 DIV 3.1", Value::Int(4.2_f64.div_euclid(3.1) as _))
     }
 }
