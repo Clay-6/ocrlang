@@ -11,6 +11,7 @@ pub type IResult<T> = Result<T, InterpretError>;
 #[derive(Debug)]
 pub struct Interpreter<O> {
     env: Env,
+    root_env: Env,
     output: O,
 }
 
@@ -20,6 +21,7 @@ where
 {
     pub fn new(output: O) -> Self {
         Self {
+            root_env: Default::default(),
             env: Default::default(),
             output,
         }
@@ -50,7 +52,10 @@ where
                         .insert_constant(name.clone(), value)
                         .map_err(|_| InterpretError::ReassignedConstant)
                         .map(|_| Value::Unit),
-                    hir::VarDefKind::Global => todo!(),
+                    hir::VarDefKind::Global => {
+                        self.root_env.insert(name.clone(), Binding::Var(value));
+                        Ok(Value::Unit)
+                    }
                     hir::VarDefKind::Standard => {
                         self.env.insert(name.clone(), Binding::Var(value));
                         Ok(Value::Unit)
@@ -430,6 +435,8 @@ where
             hir::Expr::NameRef { name } => {
                 let resolved = self.env.get_var(name);
                 if let Some(v) = resolved {
+                    Ok(v)
+                } else if let Some(v) = self.root_env.get_var(name) {
                     Ok(v)
                 } else {
                     Err(InterpretError::UnresolvedVariable)
