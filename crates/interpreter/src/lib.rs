@@ -311,6 +311,12 @@ mod tests {
         let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
         assert_eq!(evaled, Value::Int(5));
     }
+
+    #[test]
+    fn eval_return_stmt() {
+        check_eval("return 17", Value::Int(17));
+    }
+
     #[test]
     fn eval_func_call() {
         let (db, stmts) = lower("function neg(x)\nreturn -x\nendfunction\nneg(3)");
