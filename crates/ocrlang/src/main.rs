@@ -15,6 +15,8 @@ fn main() -> io::Result<()> {
 
         interpreter.run(&input).unwrap();
 
+        dbg!(&interpreter);
+
         input.clear();
     }
 }

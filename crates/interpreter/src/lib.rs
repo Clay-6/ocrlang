@@ -6,6 +6,7 @@ use smol_str::SmolStr;
 
 pub type IResult<T> = Result<T, InterpretError>;
 
+#[derive(Debug)]
 pub struct Interpreter {
     env: Env,
 }
@@ -129,7 +130,101 @@ impl Interpreter {
                     Value::Array(exprs)
                 }
             }),
-            hir::Expr::Binary { op, lhs, rhs } => todo!(),
+            hir::Expr::Binary { op, lhs, rhs } => {
+                let lhs = self.eval(db.get(*lhs), db)?;
+                let rhs = self.eval(db.get(*rhs), db)?;
+                if !lhs.same_type(&rhs)
+                    && !matches!((&lhs, &rhs), (&Value::Int(_), &Value::Float(_)))
+                    && !matches!((&lhs, &rhs), (&Value::Float(_), &Value::Int(_)))
+                {
+                    return Err(InterpretError::MismatchedTypes {
+                        expected: vec![lhs.type_str()],
+                        found: rhs.type_str(),
+                    });
+                }
+
+                match op {
+                    hir::BinaryOp::Add => {
+                        if let (Value::String(s1), Value::String(s2)) = (&lhs, &rhs) {
+                            Ok(Value::String(format!("{s1}{s2}").into()))
+                        } else if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Int(i1 + i2))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Float(f1 + f2))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Float(*i as f64 + *f))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Float(*f + *i as f64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["string", "int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
+                    hir::BinaryOp::Sub => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Int(i1 - i2))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Float(f1 - f2))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Float(*i as f64 - f))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Float(f - *i as f64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
+                    hir::BinaryOp::Mul => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Int(i1 * i2))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Float(f1 * f2))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Float(*i as f64 * f))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Float(f * *i as f64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
+                    hir::BinaryOp::Div => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Float(*i1 as f64 / *i2 as f64))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Float(f1 / f2))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Float(*i as f64 / f))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Float(f / *i as f64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
+                    hir::BinaryOp::Mod => todo!(),
+                    hir::BinaryOp::Quot => todo!(),
+                    hir::BinaryOp::Pow => todo!(),
+                    hir::BinaryOp::And => todo!(),
+                    hir::BinaryOp::Or => todo!(),
+                    hir::BinaryOp::Equals => todo!(),
+                    hir::BinaryOp::NotEquals => todo!(),
+                    hir::BinaryOp::LessThan => todo!(),
+                    hir::BinaryOp::LessEquals => todo!(),
+                    hir::BinaryOp::GreaterThan => todo!(),
+                    hir::BinaryOp::GreaterEquals => todo!(),
+                    hir::BinaryOp::SubScript => todo!(),
+                    hir::BinaryOp::Dot => todo!(),
+                }
+            }
             hir::Expr::Unary { op, opand } => {
                 let operand = self.eval(db.get(*opand), db)?;
                 match op {
@@ -140,7 +235,8 @@ impl Interpreter {
                             Ok(Value::Float(-f))
                         } else {
                             Err(InterpretError::MismatchedTypes {
-                                expected: vec!["int".into(), "float".into()],
+                                expected: vec!["int", "float"],
+                                found: operand.type_str(),
                             })
                         }
                     }
@@ -149,7 +245,8 @@ impl Interpreter {
                             Ok(Value::Bool(!b))
                         } else {
                             Err(InterpretError::MismatchedTypes {
-                                expected: vec!["bool".into()],
+                                expected: vec!["bool"],
+                                found: operand.type_str(),
                             })
                         }
                     }
@@ -235,16 +332,34 @@ impl Value {
             Value::Unit => matches!(b, Value::Unit),
         }
     }
+
+    fn type_str(&self) -> &'static str {
+        match self {
+            Value::Int(_) => "int",
+            Value::Float(_) => "float",
+            Value::Char(_) => "character",
+            Value::String(_) => "string",
+            Value::Bool(_) => "boolean",
+            Value::Array(_) => "array",
+            Value::Unit => "unit",
+        }
+    }
 }
 
 #[derive(Debug)]
 pub enum InterpretError {
     ReassignedConstant,
     HeterogeneousArray,
-    MismatchedTypes { expected: Vec<String> },
+    MismatchedTypes {
+        expected: Vec<&'static str>,
+        found: &'static str,
+    },
     UnresolvedVariable,
     UnresolvedSubprogram,
-    InvalidArgumentCount { expected: usize, got: usize },
+    InvalidArgumentCount {
+        expected: usize,
+        got: usize,
+    },
 }
 #[cfg(test)]
 mod tests {
@@ -324,5 +439,15 @@ mod tests {
         interpreter.exec_stmt(&stmts[0], &db).unwrap();
         let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
         assert_eq!(evaled, Value::Int(-3));
+    }
+
+    #[test]
+    fn eval_arithmetic() {
+        check_eval("1 + 1", Value::Int(2));
+        check_eval("2 - 1", Value::Int(1));
+        check_eval("5 * 3", Value::Int(15));
+        check_eval("3 / 2", Value::Float(3.0 / 2.0));
+
+        check_eval("1.3 + 2", Value::Float(3.3))
     }
 }
