@@ -309,10 +309,70 @@ where
                     }
                     hir::BinaryOp::Equals => Ok(Value::Bool(lhs == rhs)),
                     hir::BinaryOp::NotEquals => Ok(Value::Bool(lhs != rhs)),
-                    hir::BinaryOp::LessThan => todo!(),
-                    hir::BinaryOp::LessEquals => todo!(),
-                    hir::BinaryOp::GreaterThan => todo!(),
-                    hir::BinaryOp::GreaterEquals => todo!(),
+                    hir::BinaryOp::LessThan => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(i1 < i2))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(f1 < f2))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Bool((*i as f64) < *f))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(*f < *i as f64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
+                    hir::BinaryOp::LessEquals => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(i1 <= i2))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(f1 <= f2))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Bool((*i as f64) <= *f))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(*f <= *i as f64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
+                    hir::BinaryOp::GreaterThan => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(i1 > i2))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(f1 > f2))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Bool((*i as f64) > *f))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(*f > *i as f64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
+                    hir::BinaryOp::GreaterEquals => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(i1 >= i2))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(f1 >= f2))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Bool((*i as f64) >= *f))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Bool(*f >= *i as f64))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
                     hir::BinaryOp::SubScript => {
                         if let (Value::Array(arr), Value::Int(i)) = (&lhs, &rhs) {
                             Ok(arr
@@ -661,5 +721,13 @@ mod tests {
         check_eval("\"string\".length", Value::Int(6));
         check_eval("\"sTrInG\".upper", Value::String("STRING".into()));
         check_eval("\"StRiNg\".lower", Value::String("string".into()));
+    }
+
+    #[test]
+    fn eval_comparison() {
+        check_eval("1 < 2", Value::Bool(true));
+        check_eval("1 > 2", Value::Bool(false));
+        check_eval("3 >= 3", Value::Bool(true));
+        check_eval("4 <= 3", Value::Bool(false));
     }
 }
