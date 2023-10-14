@@ -101,7 +101,26 @@ impl Interpreter {
     }
 
     fn eval(&mut self, expr: &hir::Expr, db: &Database) -> IResult<Value> {
-        todo!()
+        match expr {
+            hir::Expr::Literal { value } => Ok(match value {
+                hir::Literal::Int(i) => Value::Int(*i),
+                hir::Literal::Float(f) => Value::Float(*f),
+                hir::Literal::Char(c) => Value::Char(*c),
+                hir::Literal::String(s) => Value::String(s.clone()),
+                hir::Literal::Bool(b) => Value::Bool(*b),
+                hir::Literal::Array(range) => Value::Array(
+                    db.get_range(range.clone())
+                        .iter()
+                        .map(|e| self.eval(e, db))
+                        .collect::<IResult<Vec<_>>>()?,
+                ),
+            }),
+            hir::Expr::Binary { op, lhs, rhs } => todo!(),
+            hir::Expr::Unary { op, opand } => todo!(),
+            hir::Expr::NameRef { name } => todo!(),
+            hir::Expr::Call { callee, args } => todo!(),
+            hir::Expr::Missing => Ok(Value::Unit),
+        }
     }
 }
 
@@ -118,6 +137,7 @@ pub enum Value {
     Char(char),
     String(SmolStr),
     Bool(bool),
+    Array(Vec<Value>),
     Unit,
 }
 

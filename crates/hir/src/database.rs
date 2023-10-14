@@ -1,7 +1,9 @@
 use la_arena::Arena;
 use syntax::SyntaxKind;
 
-use crate::{BinaryOp, Expr, ExprIdx, Literal, Stmt, SubprogramKind, UnaryOp, VarDefKind};
+use crate::{
+    BinaryOp, Expr, ExprIdx, ExprRange, Literal, Stmt, SubprogramKind, UnaryOp, VarDefKind,
+};
 
 #[derive(Debug, Default, PartialEq)]
 pub struct Database {
@@ -42,6 +44,10 @@ impl Database {
 
     pub fn get(&self, idx: ExprIdx) -> &Expr {
         &self.exprs[idx]
+    }
+
+    pub fn get_range(&self, range: ExprRange) -> &[Expr] {
+        &self.exprs[range]
     }
 
     fn lower_do_until(&mut self, ast: ast::DoUntil) -> Stmt {
