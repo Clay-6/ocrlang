@@ -751,6 +751,7 @@ mod tests {
         let mut interpreter = Interpreter {
             output: vec![],
             env,
+            root_env: Default::default(),
         };
 
         let evaled = interpreter.exec_stmt(&stmts[0], &db).unwrap();
