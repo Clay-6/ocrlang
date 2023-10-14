@@ -450,4 +450,12 @@ mod tests {
 
         check_eval("1.3 + 2", Value::Float(3.3))
     }
+
+    #[test]
+    fn eval_concat() {
+        check_eval(
+            "\"Hello\" + \" World\"",
+            Value::String("Hello World".into()),
+        );
+    }
 }
