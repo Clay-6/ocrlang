@@ -130,7 +130,31 @@ impl Interpreter {
                 }
             }),
             hir::Expr::Binary { op, lhs, rhs } => todo!(),
-            hir::Expr::Unary { op, opand } => todo!(),
+            hir::Expr::Unary { op, opand } => {
+                let operand = self.eval(db.get(*opand), db)?;
+                match op {
+                    hir::UnaryOp::Neg => {
+                        if let Value::Int(i) = operand {
+                            Ok(Value::Int(-i))
+                        } else if let Value::Float(f) = operand {
+                            Ok(Value::Float(-f))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int".into(), "float".into()],
+                            })
+                        }
+                    }
+                    hir::UnaryOp::Not => {
+                        if let Value::Bool(b) = operand {
+                            Ok(Value::Bool(!b))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["bool".into()],
+                            })
+                        }
+                    }
+                }
+            }
             hir::Expr::NameRef { name } => todo!(),
             hir::Expr::Call { callee, args } => todo!(),
             hir::Expr::Missing => Ok(Value::Unit),
@@ -173,6 +197,7 @@ impl Value {
 pub enum InterpretError {
     ReassignedConstant,
     HeterogeneousArray,
+    MismatchedTypes { expected: Vec<String> },
 }
 #[cfg(test)]
 mod tests {
@@ -222,5 +247,12 @@ mod tests {
     #[test]
     fn eval_char_literal() {
         check_eval("'c'", Value::Char('c'));
+    }
+
+    #[test]
+    fn eval_unary() {
+        check_eval("-5", Value::Int(-5));
+        check_eval("-4.2", Value::Float(-4.2));
+        check_eval("NOT false", Value::Bool(true));
     }
 }
