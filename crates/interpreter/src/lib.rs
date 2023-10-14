@@ -25,7 +25,7 @@ impl Interpreter {
 
     pub fn execute(&mut self, stmts: &[Stmt], db: &Database) -> IResult<()> {
         for stmt in stmts {
-            self.exec_stmt(stmt, &db)?;
+            self.exec_stmt(stmt, db)?;
         }
 
         Ok(())
