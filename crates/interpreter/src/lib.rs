@@ -125,8 +125,23 @@ where
                 step,
                 body,
             } => todo!(),
-            Stmt::WhileLoop { condition, body } => todo!(),
-            Stmt::DoUntilLoop { condition, body } => todo!(),
+            Stmt::WhileLoop { condition, body } => {
+                let cond = db.get(*condition);
+                while self.eval(cond, db)? == Value::Bool(true) {
+                    self.execute(body, db)?;
+                }
+                Ok(Value::Unit)
+            }
+            Stmt::DoUntilLoop { condition, body } => {
+                let cond = db.get(*condition);
+                loop {
+                    self.execute(body, db)?;
+                    if self.eval(cond, db)? == Value::Bool(true) {
+                        break;
+                    }
+                }
+                Ok(Value::Unit)
+            }
         }
     }
 
