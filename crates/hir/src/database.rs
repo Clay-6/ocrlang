@@ -5,7 +5,7 @@ use crate::{
     BinaryOp, Expr, ExprIdx, ExprRange, Literal, Stmt, SubprogramKind, UnaryOp, VarDefKind,
 };
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Database {
     exprs: Arena<Expr>,
 }

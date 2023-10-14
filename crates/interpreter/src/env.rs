@@ -14,11 +14,14 @@ pub struct Env {
 pub enum Binding {
     Const(Value),
     Var(Value),
-    Func {
-        kind: SubprogKind,
-        params: Vec<SmolStr>,
-        body: Vec<Stmt>,
-    },
+    Func(Subprogram),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Subprogram {
+    pub(crate) kind: SubprogKind,
+    pub(crate) params: Vec<SmolStr>,
+    pub(crate) body: Vec<Stmt>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -49,6 +52,19 @@ impl Env {
                     Some(v)
                 } else if let Binding::Const(c) = b {
                     Some(c)
+                } else {
+                    None
+                }
+            })
+            .cloned()
+    }
+
+    pub(crate) fn get_subgrogram(&self, callee: &str) -> Option<Subprogram> {
+        self.bindings
+            .get(callee)
+            .and_then(|b| {
+                if let Binding::Func(f) = b {
+                    Some(f)
                 } else {
                     None
                 }

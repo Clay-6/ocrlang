@@ -1,6 +1,6 @@
 mod env;
 
-use env::{Binding, Env, SubprogKind};
+use env::{Binding, Env, SubprogKind, Subprogram};
 use hir::{Database, Stmt};
 use smol_str::SmolStr;
 
@@ -20,10 +20,10 @@ impl Interpreter {
     pub fn run(&mut self, src: &str) -> IResult<()> {
         let (db, stmts) = hir::lower(ast::Root::cast(parser::parse(src).syntax()).unwrap());
 
-        self.execute(&stmts, db)
+        self.execute(&stmts, &db)
     }
 
-    pub fn execute(&mut self, stmts: &[Stmt], db: Database) -> IResult<()> {
+    pub fn execute(&mut self, stmts: &[Stmt], db: &Database) -> IResult<()> {
         for stmt in stmts {
             self.exec_stmt(stmt, &db)?;
         }
@@ -68,15 +68,15 @@ impl Interpreter {
                 };
                 self.env.insert(
                     name.clone(),
-                    Binding::Func {
+                    Binding::Func(Subprogram {
                         kind,
                         params: params.clone(),
                         body: body.clone(),
-                    },
+                    }),
                 );
                 Ok(Value::Unit)
             }
-            Stmt::ReturnStmt { value } => todo!(),
+            Stmt::ReturnStmt { value } => self.eval(db.get(*value), db),
             Stmt::IfElse {
                 condition,
                 body,
@@ -163,8 +163,45 @@ impl Interpreter {
                     Err(InterpretError::UnresolvedVariable)
                 }
             }
-            hir::Expr::Call { callee, args } => todo!(),
+            hir::Expr::Call { callee, args } => {
+                let subprogram = self.env.get_subgrogram(callee);
+                if let Some(sp) = subprogram {
+                    if args.len() != sp.params.len() {
+                        return Err(InterpretError::InvalidArgumentCount {
+                            expected: sp.params.len(),
+                            got: args.len(),
+                        });
+                    }
+                    let inner_db = db.clone();
+                    for (param, arg) in sp.params.iter().zip(inner_db.get_range(args.clone())) {
+                        let val = self.eval(arg, &inner_db)?;
+                        self.env.insert(param.clone(), Binding::Var(val));
+                    }
+                    self.call_subprog(sp.body, sp.kind, inner_db)
+                } else {
+                    Err(InterpretError::UnresolvedSubprogram)
+                }
+            }
             hir::Expr::Missing => Ok(Value::Unit),
+        }
+    }
+
+    fn call_subprog(
+        &mut self,
+        body: Vec<Stmt>,
+        kind: SubprogKind,
+        db: Database,
+    ) -> Result<Value, InterpretError> {
+        match kind {
+            SubprogKind::Function => match body.len().cmp(&1) {
+                std::cmp::Ordering::Equal => {
+                    self.execute(&body[..body.len() - 1], &db)?;
+                    self.exec_stmt(body.last().unwrap(), &db)
+                }
+                std::cmp::Ordering::Greater => self.exec_stmt(&body[0], &db),
+                std::cmp::Ordering::Less => Ok(Value::Unit),
+            },
+            SubprogKind::Procedure => self.execute(&body, &db).map(|_| Value::Unit),
         }
     }
 }
@@ -206,6 +243,8 @@ pub enum InterpretError {
     HeterogeneousArray,
     MismatchedTypes { expected: Vec<String> },
     UnresolvedVariable,
+    UnresolvedSubprogram,
+    InvalidArgumentCount { expected: usize, got: usize },
 }
 #[cfg(test)]
 mod tests {
@@ -271,5 +310,13 @@ mod tests {
         interpreter.exec_stmt(&stmts[0], &db).unwrap();
         let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
         assert_eq!(evaled, Value::Int(5));
+    }
+    #[test]
+    fn eval_func_call() {
+        let (db, stmts) = lower("function neg(x)\nreturn -x\nendfunction\nneg(3)");
+        let mut interpreter = Interpreter::new();
+        interpreter.exec_stmt(&stmts[0], &db).unwrap();
+        let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
+        assert_eq!(evaled, Value::Int(-3));
     }
 }
