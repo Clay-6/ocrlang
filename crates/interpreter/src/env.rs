@@ -40,4 +40,20 @@ impl Env {
             Err(())
         }
     }
+
+    pub(crate) fn get_var(&self, name: &str) -> Option<Value> {
+        self.bindings
+            .get(name)
+            .map(|b| {
+                if let Binding::Var(v) = b {
+                    Some(v)
+                } else if let Binding::Const(c) = b {
+                    Some(c)
+                } else {
+                    None
+                }
+            })
+            .flatten()
+            .cloned()
+    }
 }

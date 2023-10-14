@@ -155,7 +155,14 @@ impl Interpreter {
                     }
                 }
             }
-            hir::Expr::NameRef { name } => todo!(),
+            hir::Expr::NameRef { name } => {
+                let resolved = self.env.get_var(name);
+                if let Some(v) = resolved {
+                    Ok(v)
+                } else {
+                    Err(InterpretError::UnresolvedVariable)
+                }
+            }
             hir::Expr::Call { callee, args } => todo!(),
             hir::Expr::Missing => Ok(Value::Unit),
         }
@@ -198,6 +205,7 @@ pub enum InterpretError {
     ReassignedConstant,
     HeterogeneousArray,
     MismatchedTypes { expected: Vec<String> },
+    UnresolvedVariable,
 }
 #[cfg(test)]
 mod tests {
@@ -254,5 +262,14 @@ mod tests {
         check_eval("-5", Value::Int(-5));
         check_eval("-4.2", Value::Float(-4.2));
         check_eval("NOT false", Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_name_ref() {
+        let (db, stmts) = lower("x = 5\nx");
+        let mut interpreter = Interpreter::new();
+        interpreter.exec_stmt(&stmts[0], &db).unwrap();
+        let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
+        assert_eq!(evaled, Value::Int(5));
     }
 }
