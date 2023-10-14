@@ -95,7 +95,24 @@ where
                 body,
                 elseifs,
                 else_body,
-            } => todo!(),
+            } => {
+                if self.eval(db.get(*condition), db)? == Value::Bool(true) {
+                    self.execute(body, db).map(|_| Value::Unit)
+                } else {
+                    let mut ran_elseif = false;
+                    for (cond, body) in elseifs {
+                        if self.eval(db.get(*cond), db)? == Value::Bool(true) {
+                            self.execute(body, db)?;
+                            ran_elseif = true;
+                            break;
+                        }
+                    }
+                    if !ran_elseif {
+                        self.execute(else_body, db)?;
+                    }
+                    Ok(Value::Unit)
+                }
+            }
             Stmt::SwitchCase {
                 scrutinee,
                 cases,
