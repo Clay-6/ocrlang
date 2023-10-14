@@ -256,6 +256,7 @@ impl Database {
             SyntaxKind::GreaterEqual => BinaryOp::GreaterEquals,
             SyntaxKind::Less => BinaryOp::LessThan,
             SyntaxKind::LessEqual => BinaryOp::LessEquals,
+            SyntaxKind::LBracket => BinaryOp::SubScript,
             _ => unreachable!(),
         };
 

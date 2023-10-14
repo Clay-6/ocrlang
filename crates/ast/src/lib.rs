@@ -384,6 +384,7 @@ impl BinaryExpr {
                         | SyntaxKind::GreaterEqual
                         | SyntaxKind::Less
                         | SyntaxKind::LessEqual
+                        | SyntaxKind::LBracket
                 )
             })
     }
