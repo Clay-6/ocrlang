@@ -1,5 +1,7 @@
 mod env;
 
+use core::fmt;
+
 use env::{Binding, Env, SubprogKind, Subprogram};
 use hir::{Database, Stmt};
 use smol_str::SmolStr;
@@ -7,14 +9,19 @@ use smol_str::SmolStr;
 pub type IResult<T> = Result<T, InterpretError>;
 
 #[derive(Debug)]
-pub struct Interpreter {
+pub struct Interpreter<O> {
     env: Env,
+    output: O,
 }
 
-impl Interpreter {
-    pub fn new() -> Self {
+impl<O> Interpreter<O>
+where
+    O: std::io::Write,
+{
+    pub fn new(output: O) -> Self {
         Self {
             env: Default::default(),
+            output,
         }
     }
 
@@ -262,6 +269,11 @@ impl Interpreter {
             }
             hir::Expr::Call { callee, args } => {
                 let subprogram = self.env.get_subgrogram(callee);
+                let args = db
+                    .get_range(args.clone())
+                    .iter()
+                    .map(|e| self.eval(e, db))
+                    .collect::<IResult<Vec<_>>>()?;
                 if let Some(sp) = subprogram {
                     if args.len() != sp.params.len() {
                         return Err(InterpretError::InvalidArgumentCount {
@@ -270,11 +282,20 @@ impl Interpreter {
                         });
                     }
                     let inner_db = db.clone();
-                    for (param, arg) in sp.params.iter().zip(inner_db.get_range(args.clone())) {
-                        let val = self.eval(arg, &inner_db)?;
-                        self.env.insert(param.clone(), Binding::Var(val));
+                    for (param, arg) in sp.params.iter().zip(args) {
+                        self.env.insert(param.clone(), Binding::Var(arg));
                     }
                     self.call_subprog(sp.body, sp.kind, inner_db)
+                } else if callee == "print" {
+                    if args.len() != 1 {
+                        Err(InterpretError::InvalidArgumentCount {
+                            expected: 1,
+                            got: args.len(),
+                        })
+                    } else {
+                        writeln!(self.output, "{}", args[0]).unwrap();
+                        Ok(Value::Unit)
+                    }
                 } else {
                     Err(InterpretError::UnresolvedSubprogram)
                 }
@@ -303,14 +324,8 @@ impl Interpreter {
     }
 }
 
-impl Default for Interpreter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
-pub enum Value {
+pub enum Value<const N: usize = 0> {
     Int(i64),
     Float(f64),
     Char(char),
@@ -346,6 +361,29 @@ impl Value {
     }
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Int(i) => i.fmt(f),
+            Value::Float(fl) => fl.fmt(f),
+            Value::Char(c) => c.fmt(f),
+            Value::String(s) => s.fmt(f),
+            Value::Bool(b) => b.fmt(f),
+            Value::Array(arr) => {
+                write!(f, "[")?;
+                if !arr.is_empty() {
+                    for v in &arr[..arr.len() - 1] {
+                        write!(f, "{}, ", v)?;
+                    }
+                    write!(f, "{}", arr[arr.len() - 1])?;
+                }
+                write!(f, "]")
+            }
+            Value::Unit => write!(f, "()"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum InterpretError {
     ReassignedConstant,
@@ -372,7 +410,7 @@ mod tests {
 
     fn check_eval(expr: &str, expected: Value) {
         let (db, stmts) = lower(expr);
-        let evaled = Interpreter::new().exec_stmt(&stmts[0], &db).unwrap();
+        let evaled = Interpreter::new(vec![]).exec_stmt(&stmts[0], &db).unwrap();
         assert_eq!(evaled, expected)
     }
 
@@ -421,7 +459,7 @@ mod tests {
     #[test]
     fn eval_name_ref() {
         let (db, stmts) = lower("x = 5\nx");
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::new(vec![]);
         interpreter.exec_stmt(&stmts[0], &db).unwrap();
         let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
         assert_eq!(evaled, Value::Int(5));
@@ -435,7 +473,7 @@ mod tests {
     #[test]
     fn eval_func_call() {
         let (db, stmts) = lower("function neg(x)\nreturn -x\nendfunction\nneg(3)");
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::new(vec![]);
         interpreter.exec_stmt(&stmts[0], &db).unwrap();
         let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
         assert_eq!(evaled, Value::Int(-3));

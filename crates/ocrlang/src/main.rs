@@ -4,18 +4,17 @@ use interpreter::Interpreter;
 
 fn main() -> io::Result<()> {
     let mut input = String::new();
-    let mut stdout = io::stdout();
+    let stdout = io::stdout();
     let stdin = io::stdin();
-    let mut interpreter = Interpreter::new();
+    let mut stderr = io::stderr();
+    let mut interpreter = Interpreter::new(stdout);
 
     loop {
-        write!(stdout, "> ")?;
-        stdout.flush()?;
+        write!(stderr, "> ")?;
+        stderr.flush()?;
         stdin.read_line(&mut input)?;
 
         interpreter.run(&input).unwrap();
-
-        dbg!(&interpreter);
 
         input.clear();
     }
