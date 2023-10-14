@@ -249,7 +249,22 @@ where
                             })
                         }
                     }
-                    hir::BinaryOp::Pow => todo!(),
+                    hir::BinaryOp::Pow => {
+                        if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
+                            Ok(Value::Int((*i1 as f64).powf(*i2 as f64) as i64))
+                        } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
+                            Ok(Value::Float(f1.powf(*f2)))
+                        } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
+                            Ok(Value::Float((*i as f64).powf(*f)))
+                        } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
+                            Ok(Value::Float(f.powf(*i as _)))
+                        } else {
+                            Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int", "float"],
+                                found: lhs.type_str(),
+                            })
+                        }
+                    }
                     hir::BinaryOp::And => todo!(),
                     hir::BinaryOp::Or => todo!(),
                     hir::BinaryOp::Equals => todo!(),
@@ -533,5 +548,13 @@ mod tests {
         check_eval("5 DIV 3", Value::Int(1));
         check_eval("3.1 MOD 4.2", Value::Int((3.1 % 4.2) as _));
         check_eval("4.2 DIV 3.1", Value::Int(4.2_f64.div_euclid(3.1) as _))
+    }
+
+    #[test]
+    fn eval_pow() {
+        check_eval("2^5", Value::Int(32));
+        check_eval("4.2^6.9", Value::Float(4.2_f64.powf(6.9)));
+        check_eval("4.2^6", Value::Float(4.2_f64.powf(6 as _)));
+        check_eval("6^4.2", Value::Float(6_f64.powf(4.2)));
     }
 }
