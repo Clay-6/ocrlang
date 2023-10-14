@@ -4,7 +4,7 @@ use env::{Binding, Env, SubprogKind};
 use hir::{Database, Stmt};
 use smol_str::SmolStr;
 
-pub type IResult<T> = Result<T, InterpretResult>;
+pub type IResult<T> = Result<T, InterpretError>;
 
 pub struct Interpreter {
     env: Env,
@@ -40,7 +40,7 @@ impl Interpreter {
                     hir::VarDefKind::Constant => self
                         .env
                         .insert_constant(name.clone(), value)
-                        .map_err(|_| InterpretResult::ReassignedConstant)
+                        .map_err(|_| InterpretError::ReassignedConstant)
                         .map(|_| Value::Unit),
                     hir::VarDefKind::Global => todo!(),
                     hir::VarDefKind::Standard => {
@@ -142,6 +142,6 @@ pub enum Value {
 }
 
 #[derive(Debug)]
-pub enum InterpretResult {
+pub enum InterpretError {
     ReassignedConstant,
 }
