@@ -374,6 +374,7 @@ impl BinaryExpr {
                         | SyntaxKind::Slash
                         | SyntaxKind::Mod
                         | SyntaxKind::Div
+                        | SyntaxKind::Caret
                         | SyntaxKind::And
                         | SyntaxKind::Or
                         | SyntaxKind::Dot
