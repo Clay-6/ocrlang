@@ -285,8 +285,8 @@ where
                             })
                         }
                     }
-                    hir::BinaryOp::Equals => todo!(),
-                    hir::BinaryOp::NotEquals => todo!(),
+                    hir::BinaryOp::Equals => Ok(Value::Bool(lhs == rhs)),
+                    hir::BinaryOp::NotEquals => Ok(Value::Bool(lhs != rhs)),
                     hir::BinaryOp::LessThan => todo!(),
                     hir::BinaryOp::LessEquals => todo!(),
                     hir::BinaryOp::GreaterThan => todo!(),
@@ -580,5 +580,12 @@ mod tests {
     fn eval_and_or() {
         check_eval("true AND false", Value::Bool(false));
         check_eval("true OR false", Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_equality() {
+        check_eval("5 == 5", Value::Bool(true));
+        check_eval("3 != 3.1415926", Value::Bool(true));
+        check_eval("\"string\" == \"string\"", Value::Bool(true));
     }
 }
