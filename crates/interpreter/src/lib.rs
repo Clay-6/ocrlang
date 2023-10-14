@@ -108,12 +108,26 @@ impl Interpreter {
                 hir::Literal::Char(c) => Value::Char(*c),
                 hir::Literal::String(s) => Value::String(s.clone()),
                 hir::Literal::Bool(b) => Value::Bool(*b),
-                hir::Literal::Array(range) => Value::Array(
-                    db.get_range(range.clone())
+                hir::Literal::Array(range) => {
+                    let exprs = db
+                        .get_range(range.clone())
                         .iter()
                         .map(|e| self.eval(e, db))
-                        .collect::<IResult<Vec<_>>>()?,
-                ),
+                        .collect::<IResult<Vec<_>>>()?;
+                    let mut chunks = exprs.chunks_exact(2);
+                    if !chunks.all(|chunk| chunk[0].same_type(&chunk[1])) {
+                        return Err(InterpretError::HeterogeneousArray);
+                    }
+                    if !chunks.remainder().is_empty()
+                        && exprs
+                            .last()
+                            .is_some_and(|e| e.same_type(&exprs[exprs.len() - 2]))
+                    {
+                        return Err(InterpretError::HeterogeneousArray);
+                    }
+
+                    Value::Array(exprs)
+                }
             }),
             hir::Expr::Binary { op, lhs, rhs } => todo!(),
             hir::Expr::Unary { op, opand } => todo!(),
@@ -141,7 +155,29 @@ pub enum Value {
     Unit,
 }
 
+impl Value {
+    fn same_type(&self, b: &Value) -> bool {
+        match self {
+            Value::Int(_) => matches!(b, Value::Int(_)),
+            Value::Float(_) => matches!(b, Value::Float(_)),
+            Value::Char(_) => matches!(b, Value::Char(_)),
+            Value::String(_) => matches!(b, Value::String(_)),
+            Value::Bool(_) => matches!(b, Value::Bool(_)),
+            Value::Array(_) => matches!(b, Value::Array(_)),
+            Value::Unit => matches!(b, Value::Unit),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum InterpretError {
     ReassignedConstant,
+    HeterogeneousArray,
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eval_literal() {}
 }
