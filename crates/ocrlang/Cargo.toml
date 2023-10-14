@@ -9,3 +9,4 @@ edition = "2021"
 parser = { path = "../parser" }
 ast = { path = "../ast" }
 hir = { path = "../hir" }
+interpreter = { version = "0.1.0", path = "../interpreter" }
