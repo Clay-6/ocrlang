@@ -127,7 +127,70 @@ where
                 end,
                 step,
                 body,
-            } => todo!(),
+            } => {
+                if loop_var.is_none() {
+                    return Err(InterpretError::ForLoopWithoutVariable);
+                }
+                let loop_var = loop_var.as_ref().unwrap();
+                let prev_env = self.env.clone();
+                let start = self.eval(db.get(*start), db)?;
+                if !matches!(start, Value::Int(_)) {
+                    return Err(InterpretError::MismatchedTypes {
+                        expected: vec!["int"],
+                        found: start.type_str(),
+                    });
+                }
+
+                self.env.insert(loop_var.clone(), Binding::Var(start));
+                let end = self.eval(db.get(*end), db)?;
+                if !matches!(end, Value::Int(_)) {
+                    return Err(InterpretError::MismatchedTypes {
+                        expected: vec!["int"],
+                        found: end.type_str(),
+                    });
+                }
+
+                let step = {
+                    let e = db.get(*step);
+                    if let hir::Expr::Missing = e {
+                        1
+                    } else {
+                        let val = self.eval(e, db)?;
+                        if let Value::Int(v) = val {
+                            v
+                        } else {
+                            return Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int"],
+                                found: val.type_str(),
+                            });
+                        }
+                    }
+                };
+
+                loop {
+                    let current_i = self
+                        .env
+                        .get_var(loop_var)
+                        .expect("There's definitely a loop var by now");
+                    let Value::Int(i) = current_i else {
+                        unreachable!()
+                    };
+                    let Value::Int(fin) = end else { unreachable!() };
+                    if (step.is_positive() && i > fin) || (step.is_negative() && i < fin) {
+                        break;
+                    }
+
+                    self.execute(body, db)?;
+                    let Some(Value::Int(old)) = self.env.get_var(loop_var) else {
+                        unreachable!()
+                    };
+                    self.env
+                        .insert(loop_var.clone(), Binding::Var(Value::Int(old + step)))
+                }
+
+                self.env = prev_env;
+                Ok(Value::Unit)
+            }
             Stmt::WhileLoop { condition, body } => {
                 let cond = db.get(*condition);
                 while self.eval(cond, db)? == Value::Bool(true) {
@@ -344,6 +407,7 @@ pub enum InterpretError {
         got: usize,
     },
     IndexOutOfRange,
+    ForLoopWithoutVariable,
 }
 
 #[cfg(test)]
