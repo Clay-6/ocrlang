@@ -1,9 +1,6 @@
-use std::io;
-
-use hir::Database;
 use smol_str::SmolStr;
 
-use crate::{InterpretError, Interpreter, Value};
+use crate::{InterpretError, Value};
 
 pub(crate) fn eval_binary_op(
     op: &hir::BinaryOp,
