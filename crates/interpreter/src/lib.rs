@@ -521,11 +521,11 @@ where
     ) -> Result<Value, InterpretError> {
         match kind {
             SubprogKind::Function => match body.len().cmp(&1) {
-                std::cmp::Ordering::Equal => {
+                std::cmp::Ordering::Equal => self.exec_stmt(&body[0], db),
+                std::cmp::Ordering::Greater => {
                     self.execute(&body[..body.len() - 1], db)?;
                     self.exec_stmt(body.last().unwrap(), db)
                 }
-                std::cmp::Ordering::Greater => self.exec_stmt(&body[0], db),
                 std::cmp::Ordering::Less => Ok(Value::Unit),
             },
             SubprogKind::Procedure => self.execute(&body, db).map(|_| Value::Unit),
