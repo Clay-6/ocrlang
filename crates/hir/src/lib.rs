@@ -44,6 +44,7 @@ pub enum Stmt {
         default_body: Vec<Stmt>,
     },
     ForLoop {
+        loop_var: Option<SmolStr>,
         start: ExprIdx,
         end: ExprIdx,
         step: ExprIdx,

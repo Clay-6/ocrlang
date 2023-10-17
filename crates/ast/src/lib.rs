@@ -306,6 +306,13 @@ impl SwitchCase {
 }
 
 impl ForLoop {
+    pub fn loop_var(&self) -> Option<SyntaxToken> {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .find(|t| t.kind() == SyntaxKind::Ident)
+    }
+
     pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()

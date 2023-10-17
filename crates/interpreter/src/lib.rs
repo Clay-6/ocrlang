@@ -120,6 +120,7 @@ where
                 default_body,
             } => todo!(),
             Stmt::ForLoop {
+                loop_var,
                 start,
                 end,
                 step,

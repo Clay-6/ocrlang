@@ -75,6 +75,7 @@ impl Database {
     }
 
     fn lower_for_loop(&mut self, ast: ast::ForLoop) -> Stmt {
+        let loop_var = ast.loop_var().map(|i| i.text().into());
         let (start, end) = {
             let tmp = ast
                 .bounds()
@@ -94,6 +95,7 @@ impl Database {
             .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
             .unwrap_or_default();
         Stmt::ForLoop {
+            loop_var,
             start,
             end,
             step,
@@ -787,6 +789,7 @@ mod tests {
         check_stmt(
             "for i = 1 to 10 print(i) next i",
             Stmt::ForLoop {
+                loop_var: Some("i".into()),
                 start,
                 end,
                 step,
@@ -816,6 +819,7 @@ mod tests {
         check_stmt(
             "for i = 1 to 10 step 2 print(i) next i",
             Stmt::ForLoop {
+                loop_var: Some("i".into()),
                 start,
                 end,
                 step,
