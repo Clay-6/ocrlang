@@ -70,7 +70,55 @@ where
                 subscript,
                 dimensions,
                 value,
-            } => todo!(),
+            } => {
+                if let (hir::Expr::Missing, hir::Expr::Missing) = subscript {
+                    todo!()
+                } else {
+                    if !matches!(kind, hir::VarDefKind::Standard) {
+                        return Err(InterpretError::DisallowedVariableQualifier);
+                    }
+                    let i1 = self.eval(&subscript.0, db)?;
+                    if !matches!(i1, Value::Int(_)) {
+                        return Err(InterpretError::MismatchedTypes {
+                            expected: vec!["int"],
+                            found: i1.type_str(),
+                        });
+                    }
+                    let Value::Int(i1) = i1 else { unreachable!() };
+
+                    let i2 = self.eval(&subscript.1, db)?;
+                    let Some(arr) = self.env.get_var(name) else {
+                        return Err(InterpretError::UnresolvedVariable);
+                    };
+                    let Value::Array(mut arr) = arr else {
+                        return Err(InterpretError::MismatchedTypes {
+                            expected: vec!["array"],
+                            found: arr.type_str(),
+                        });
+                    };
+                    let value = self.eval(value, db)?;
+                    if matches!(i2, Value::Unit) {
+                        arr[i1 as usize] = value;
+                    } else {
+                        let Value::Int(i2) = i2 else {
+                            return Err(InterpretError::MismatchedTypes {
+                                expected: vec!["int"],
+                                found: i2.type_str(),
+                            });
+                        };
+                        let Value::Array(subarr) = &mut arr[i1 as usize] else {
+                            return Err(InterpretError::MismatchedTypes {
+                                expected: vec!["array"],
+                                found: arr[i1 as usize].type_str(),
+                            });
+                        };
+                        subarr[i2 as usize] = value;
+                    }
+                    self.env
+                        .insert(name.clone(), Binding::Var(Value::Array(arr)));
+                    Ok(Value::Unit)
+                }
+            }
             Stmt::SubprogramDef {
                 kind,
                 name,
@@ -434,6 +482,7 @@ pub enum InterpretError {
     },
     IndexOutOfRange,
     ForLoopWithoutVariable,
+    DisallowedVariableQualifier,
 }
 
 #[cfg(test)]
