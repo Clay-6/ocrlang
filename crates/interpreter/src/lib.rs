@@ -120,7 +120,26 @@ where
                 cases,
                 case_bodies,
                 default_body,
-            } => todo!(),
+            } => {
+                let scrutinee = self.eval(db.get(*scrutinee), db)?;
+                let cases = db
+                    .get_range(cases.clone())
+                    .iter()
+                    .map(|i| self.eval(i, db))
+                    .collect::<IResult<Vec<_>>>()?;
+                let mut ran_case = false;
+                for (i, case) in cases.iter().enumerate() {
+                    if &scrutinee == case {
+                        self.execute(&case_bodies[i], db)?;
+                        ran_case = true;
+                    }
+                }
+                if !ran_case {
+                    self.execute(default_body, db)?;
+                }
+
+                Ok(Value::Unit)
+            }
             Stmt::ForLoop {
                 loop_var,
                 start,
