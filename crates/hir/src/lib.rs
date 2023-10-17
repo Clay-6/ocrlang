@@ -5,8 +5,8 @@ pub use database::Database;
 use la_arena::{Idx, IdxRange};
 use smol_str::SmolStr;
 
-type ExprIdx = Idx<Expr>;
-type ExprRange = IdxRange<Expr>;
+pub type ExprIdx = Idx<Expr>;
+pub type ExprRange = IdxRange<Expr>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
