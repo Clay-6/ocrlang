@@ -609,6 +609,7 @@ pub enum InterpretError {
     },
     IndexOutOfRange,
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
