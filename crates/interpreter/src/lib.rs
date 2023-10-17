@@ -127,6 +127,13 @@ where
                     .iter()
                     .map(|i| self.eval(i, db))
                     .collect::<IResult<Vec<_>>>()?;
+                if let Some(case) = cases.iter().find(|c| !c.same_type(&scrutinee)) {
+                    return Err(InterpretError::MismatchedTypes {
+                        expected: vec![scrutinee.type_str()],
+                        found: case.type_str(),
+                    });
+                }
+
                 let mut ran_case = false;
                 for (i, case) in cases.iter().enumerate() {
                     if &scrutinee == case {
