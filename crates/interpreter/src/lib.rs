@@ -94,50 +94,49 @@ where
                     }
 
                     let value = self.eval(value, db)?;
+                    let Value::Int(outer_len) = i else {
+                        unreachable!()
+                    };
+
                     if let Value::Array(arr) = value {
                         todo!();
-                    } else {
-                        let Value::Int(outer_len) = i else {
-                            unreachable!()
-                        };
-                        if let Value::Int(inner_len) = j {
-                            let mut arr = Vec::with_capacity(outer_len as usize);
+                    } else if let Value::Int(inner_len) = j {
+                        let mut arr = Vec::with_capacity(outer_len as usize);
 
-                            let mut inner = Vec::with_capacity(inner_len as usize);
-                            inner.resize(inner_len as usize, Value::Unit);
-                            arr.resize(outer_len as usize, Value::Array(inner));
-                            match kind {
-                                hir::VarDefKind::Constant => {
-                                    self.env
-                                        .insert_constant(name.clone(), Value::Array(arr))
-                                        .map_err(|_| InterpretError::ReassignedConstant)?;
-                                }
-                                hir::VarDefKind::Global => self
-                                    .root_env
-                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                                hir::VarDefKind::Standard => self
-                                    .env
-                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                        let mut inner = Vec::with_capacity(inner_len as usize);
+                        inner.resize(inner_len as usize, Value::Unit);
+                        arr.resize(outer_len as usize, Value::Array(inner));
+                        match kind {
+                            hir::VarDefKind::Constant => {
+                                self.env
+                                    .insert_constant(name.clone(), Value::Array(arr))
+                                    .map_err(|_| InterpretError::ReassignedConstant)?;
                             }
-                            Ok(Value::Unit)
-                        } else {
-                            let mut arr = Vec::with_capacity(outer_len as usize);
-                            arr.resize(outer_len as usize, Value::Unit);
-                            match kind {
-                                hir::VarDefKind::Constant => {
-                                    self.env
-                                        .insert_constant(name.clone(), Value::Array(arr))
-                                        .map_err(|_| InterpretError::ReassignedConstant)?;
-                                }
-                                hir::VarDefKind::Global => self
-                                    .root_env
-                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                                hir::VarDefKind::Standard => self
-                                    .env
-                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                            }
-                            Ok(Value::Unit)
+                            hir::VarDefKind::Global => self
+                                .root_env
+                                .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                            hir::VarDefKind::Standard => self
+                                .env
+                                .insert(name.clone(), Binding::Var(Value::Array(arr))),
                         }
+                        Ok(Value::Unit)
+                    } else {
+                        let mut arr = Vec::with_capacity(outer_len as usize);
+                        arr.resize(outer_len as usize, Value::Unit);
+                        match kind {
+                            hir::VarDefKind::Constant => {
+                                self.env
+                                    .insert_constant(name.clone(), Value::Array(arr))
+                                    .map_err(|_| InterpretError::ReassignedConstant)?;
+                            }
+                            hir::VarDefKind::Global => self
+                                .root_env
+                                .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                            hir::VarDefKind::Standard => self
+                                .env
+                                .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                        }
+                        Ok(Value::Unit)
                     }
                 } else {
                     if !matches!(kind, hir::VarDefKind::Standard) {
