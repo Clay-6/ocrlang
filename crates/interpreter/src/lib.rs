@@ -93,14 +93,11 @@ where
                         }
                     }
 
-                    let value = self.eval(value, db)?;
                     let Value::Int(outer_len) = i else {
                         unreachable!()
                     };
 
-                    if let Value::Array(arr) = value {
-                        todo!();
-                    } else if let Value::Int(inner_len) = j {
+                    if let Value::Int(inner_len) = j {
                         let mut arr = Vec::with_capacity(outer_len as usize);
 
                         let mut inner = Vec::with_capacity(inner_len as usize);
@@ -544,6 +541,10 @@ pub enum InterpretError {
     DisallowedVariableQualifier,
     InvalidArrayDeclaration,
     IllegalNegative,
+    IncorrectArrayLength {
+        expected: usize,
+        found: usize,
+    },
 }
 
 #[cfg(test)]
