@@ -73,10 +73,28 @@ where
             } => {
                 if let (hir::Expr::Missing, hir::Expr::Missing) = subscript {
                     if let (hir::Expr::Missing, hir::Expr::Missing) = dimensions {
-                        return Err(InterpretError::InvalidArrayDeclaration);
+                        if matches!(value, hir::Expr::Missing) {
+                            return Err(InterpretError::InvalidArrayDeclaration);
+                        }
+                        let value = self.eval(value, db)?;
+                        if let Value::Array(arr) = value {
+                            match kind {
+                                hir::VarDefKind::Constant => self
+                                    .env
+                                    .insert_constant(name.clone(), Value::Array(arr))
+                                    .map_err(|_| InterpretError::ReassignedConstant)?,
+                                hir::VarDefKind::Global => self
+                                    .root_env
+                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                                hir::VarDefKind::Standard => self
+                                    .env
+                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                            }
+                            return Ok(Value::Unit);
+                        }
                     }
                     let (i, j) = (self.eval(&dimensions.0, db)?, self.eval(&dimensions.1, db)?);
-                    if !matches!(i, Value::Int(_)) {
+                    if !matches!(i, Value::Int(_) | Value::Unit) {
                         return Err(InterpretError::MismatchedTypes {
                             expected: vec!["int"],
                             found: i.type_str(),
