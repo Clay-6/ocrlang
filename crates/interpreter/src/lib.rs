@@ -72,7 +72,73 @@ where
                 value,
             } => {
                 if let (hir::Expr::Missing, hir::Expr::Missing) = subscript {
-                    todo!()
+                    if let (hir::Expr::Missing, hir::Expr::Missing) = dimensions {
+                        return Err(InterpretError::InvalidArrayDeclaration);
+                    }
+                    let (i, j) = (self.eval(&dimensions.0, db)?, self.eval(&dimensions.1, db)?);
+                    if !matches!(i, Value::Int(_)) {
+                        return Err(InterpretError::MismatchedTypes {
+                            expected: vec!["int"],
+                            found: i.type_str(),
+                        });
+                    }
+                    if let Value::Int(i) = i {
+                        if i < 0 {
+                            return Err(InterpretError::IllegalNegative);
+                        }
+                    }
+                    if let Value::Int(j) = j {
+                        if j < 0 {
+                            return Err(InterpretError::IllegalNegative);
+                        }
+                    }
+
+                    let value = self.eval(value, db)?;
+                    if let Value::Array(arr) = value {
+                        todo!();
+                    } else {
+                        let Value::Int(outer_len) = i else {
+                            unreachable!()
+                        };
+                        if let Value::Int(inner_len) = j {
+                            let mut arr = Vec::with_capacity(outer_len as usize);
+
+                            let mut inner = Vec::with_capacity(inner_len as usize);
+                            inner.resize(inner_len as usize, Value::Unit);
+                            arr.resize(outer_len as usize, Value::Array(inner));
+                            match kind {
+                                hir::VarDefKind::Constant => {
+                                    self.env
+                                        .insert_constant(name.clone(), Value::Array(arr))
+                                        .map_err(|_| InterpretError::ReassignedConstant)?;
+                                }
+                                hir::VarDefKind::Global => self
+                                    .root_env
+                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                                hir::VarDefKind::Standard => self
+                                    .env
+                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                            }
+                            Ok(Value::Unit)
+                        } else {
+                            let mut arr = Vec::with_capacity(outer_len as usize);
+                            arr.resize(outer_len as usize, Value::Unit);
+                            match kind {
+                                hir::VarDefKind::Constant => {
+                                    self.env
+                                        .insert_constant(name.clone(), Value::Array(arr))
+                                        .map_err(|_| InterpretError::ReassignedConstant)?;
+                                }
+                                hir::VarDefKind::Global => self
+                                    .root_env
+                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                                hir::VarDefKind::Standard => self
+                                    .env
+                                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                            }
+                            Ok(Value::Unit)
+                        }
+                    }
                 } else {
                     if !matches!(kind, hir::VarDefKind::Standard) {
                         return Err(InterpretError::DisallowedVariableQualifier);
@@ -299,12 +365,6 @@ where
                         .iter()
                         .map(|e| self.eval(e, db))
                         .collect::<IResult<Vec<_>>>()?;
-                    if !exprs.is_empty() {
-                        let val_type = exprs[0].type_str();
-                        if exprs.iter().any(|e| e.type_str() != val_type) {
-                            return Err(InterpretError::HeterogeneousArray);
-                        }
-                    }
 
                     Value::Array(exprs)
                 }
@@ -404,7 +464,7 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Value<const N: usize = 0> {
+pub enum Value {
     Int(i64),
     Float(f64),
     Char(char),
@@ -423,7 +483,7 @@ impl Value {
             Value::String(_) => matches!(b, Value::String(_)),
             Value::Bool(_) => matches!(b, Value::Bool(_)),
             Value::Array(_) => matches!(b, Value::Array(_)),
-            Value::Unit => matches!(b, Value::Unit),
+            Value::Unit => true,
         }
     }
 
@@ -466,7 +526,6 @@ impl fmt::Display for Value {
 #[derive(Debug)]
 pub enum InterpretError {
     ReassignedConstant,
-    HeterogeneousArray,
     MismatchedTypes {
         expected: Vec<&'static str>,
         found: &'static str,
@@ -484,6 +543,8 @@ pub enum InterpretError {
     IndexOutOfRange,
     ForLoopWithoutVariable,
     DisallowedVariableQualifier,
+    InvalidArrayDeclaration,
+    IllegalNegative,
 }
 
 #[cfg(test)]
