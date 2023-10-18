@@ -88,7 +88,7 @@ where
 
                     let i2 = self.eval(&subscript.1, db)?;
                     let Some(arr) = self.env.get_var(name) else {
-                        return Err(InterpretError::UnresolvedVariable);
+                        return Err(InterpretError::UnresolvedVariable { name: name.clone() });
                     };
                     let Value::Array(mut arr) = arr else {
                         return Err(InterpretError::MismatchedTypes {
@@ -299,16 +299,11 @@ where
                         .iter()
                         .map(|e| self.eval(e, db))
                         .collect::<IResult<Vec<_>>>()?;
-                    let mut chunks = exprs.chunks_exact(2);
-                    if !chunks.all(|chunk| chunk[0].same_type(&chunk[1])) {
-                        return Err(InterpretError::HeterogeneousArray);
-                    }
-                    if !chunks.remainder().is_empty()
-                        && exprs
-                            .last()
-                            .is_some_and(|e| e.same_type(&exprs[exprs.len() - 2]))
-                    {
-                        return Err(InterpretError::HeterogeneousArray);
+                    if !exprs.is_empty() {
+                        let val_type = exprs[0].type_str();
+                        if exprs.iter().any(|e| e.type_str() != val_type) {
+                            return Err(InterpretError::HeterogeneousArray);
+                        }
                     }
 
                     Value::Array(exprs)
@@ -344,7 +339,7 @@ where
                 } else if let Some(v) = self.root_env.get_var(name) {
                     Ok(v)
                 } else {
-                    Err(InterpretError::UnresolvedVariable)
+                    Err(InterpretError::UnresolvedVariable { name: name.clone() })
                 }
             }
             hir::Expr::Call { callee, args } => {
@@ -379,7 +374,9 @@ where
                         Ok(Value::Unit)
                     }
                 } else {
-                    Err(InterpretError::UnresolvedSubprogram)
+                    Err(InterpretError::UnresolvedSubprogram {
+                        name: callee.clone(),
+                    })
                 }
             }
             hir::Expr::Missing => Ok(Value::Unit),
@@ -474,8 +471,12 @@ pub enum InterpretError {
         expected: Vec<&'static str>,
         found: &'static str,
     },
-    UnresolvedVariable,
-    UnresolvedSubprogram,
+    UnresolvedVariable {
+        name: SmolStr,
+    },
+    UnresolvedSubprogram {
+        name: SmolStr,
+    },
     InvalidArgumentCount {
         expected: usize,
         got: usize,
