@@ -41,6 +41,14 @@ where
         Ok(())
     }
 
+    fn exec_block(&mut self, block: &[Stmt], db: &Database) -> IResult<Value> {
+        let mut res = Value::Unit;
+        for stmt in block {
+            res = self.exec_stmt(stmt, db)?;
+        }
+        Ok(res)
+    }
+
     fn env(&self) -> &Env {
         self.envs.1.last().unwrap_or(&self.envs.0)
     }
@@ -263,20 +271,14 @@ where
                 else_body,
             } => {
                 if self.eval(db.get(*condition), db)? == Value::Bool(true) {
-                    self.execute(body, db).map(|_| Value::Unit)
+                    self.exec_block(body, db)
                 } else {
-                    let mut ran_elseif = false;
                     for (cond, body) in elseifs {
                         if self.eval(db.get(*cond), db)? == Value::Bool(true) {
-                            self.execute(body, db)?;
-                            ran_elseif = true;
-                            break;
+                            return self.exec_block(body, db);
                         }
                     }
-                    if !ran_elseif {
-                        self.execute(else_body, db)?;
-                    }
-                    Ok(Value::Unit)
+                    self.exec_block(else_body, db)
                 }
             }
             Stmt::SwitchCase {
@@ -298,18 +300,12 @@ where
                     });
                 }
 
-                let mut ran_case = false;
                 for (i, case) in cases.iter().enumerate() {
                     if &scrutinee == case {
-                        self.execute(&case_bodies[i], db)?;
-                        ran_case = true;
+                        return self.exec_block(&case_bodies[i], db);
                     }
                 }
-                if !ran_case {
-                    self.execute(default_body, db)?;
-                }
-
-                Ok(Value::Unit)
+                self.exec_block(default_body, db)
             }
             Stmt::ForLoop {
                 loop_var,
@@ -496,16 +492,7 @@ where
         db: &Database,
     ) -> Result<Value, InterpretError> {
         match kind {
-            SubprogKind::Function => {
-                let mut res = Value::Unit;
-                for stmt in body {
-                    res = self.exec_stmt(&stmt, db)?;
-                    if matches!(stmt, Stmt::ReturnStmt { .. }) {
-                        break;
-                    }
-                }
-                Ok(res)
-            }
+            SubprogKind::Function => self.exec_block(&body, db),
             SubprogKind::Procedure => self.execute(&body, db).map(|_| Value::Unit),
         }
     }
