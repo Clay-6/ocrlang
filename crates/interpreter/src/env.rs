@@ -59,7 +59,7 @@ impl Env {
             .cloned()
     }
 
-    pub(crate) fn get_subgrogram(&self, callee: &str) -> Option<Subprogram> {
+    pub(crate) fn get_subprogram(&self, callee: &str) -> Option<Subprogram> {
         self.bindings
             .get(callee)
             .and_then(|b| {

@@ -12,8 +12,7 @@ pub type IResult<T> = Result<T, InterpretError>;
 
 #[derive(Debug)]
 pub struct Interpreter<O> {
-    env: Env,
-    root_env: Env,
+    envs: (Env, Vec<Env>),
     output: O,
 }
 
@@ -23,8 +22,7 @@ where
 {
     pub fn new(output: O) -> Self {
         Self {
-            root_env: Default::default(),
-            env: Default::default(),
+            envs: (Env::default(), Vec::new()),
             output,
         }
     }
@@ -43,6 +41,44 @@ where
         Ok(())
     }
 
+    fn env(&self) -> &Env {
+        self.envs.1.last().unwrap_or(&self.envs.0)
+    }
+
+    fn env_mut(&mut self) -> &mut Env {
+        self.envs.1.last_mut().unwrap_or(&mut self.envs.0)
+    }
+
+    fn root_env(&mut self) -> &mut Env {
+        &mut self.envs.0
+    }
+
+    fn get_var(&self, name: &str) -> Option<Value> {
+        self.envs
+            .1
+            .iter()
+            .rev()
+            .find_map(|e| e.get_var(name))
+            .or_else(|| self.envs.0.get_var(name))
+    }
+
+    fn get_subprogram(&self, name: &str) -> Option<Subprogram> {
+        self.envs
+            .1
+            .iter()
+            .rev()
+            .find_map(|e| e.get_subprogram(name))
+            .or_else(|| self.envs.0.get_subprogram(name))
+    }
+
+    fn push_env(&mut self) {
+        self.envs.1.push(Env::default())
+    }
+
+    fn pop_env(&mut self) {
+        self.envs.1.pop();
+    }
+
     fn exec_stmt(&mut self, stmt: &Stmt, db: &Database) -> IResult<Value> {
         match stmt {
             Stmt::Expr(e) => self.eval(e, db),
@@ -50,16 +86,16 @@ where
                 let value = self.eval(value, db)?;
                 match kind {
                     hir::VarDefKind::Constant => self
-                        .env
+                        .env_mut()
                         .insert_constant(name.clone(), value)
                         .map_err(|_| InterpretError::ReassignedConstant)
                         .map(|_| Value::Unit),
                     hir::VarDefKind::Global => {
-                        self.root_env.insert(name.clone(), Binding::Var(value));
+                        self.root_env().insert(name.clone(), Binding::Var(value));
                         Ok(Value::Unit)
                     }
                     hir::VarDefKind::Standard => {
-                        self.env.insert(name.clone(), Binding::Var(value));
+                        self.env_mut().insert(name.clone(), Binding::Var(value));
                         Ok(Value::Unit)
                     }
                 }
@@ -80,14 +116,14 @@ where
                         if let Value::Array(arr) = value {
                             match kind {
                                 hir::VarDefKind::Constant => self
-                                    .env
+                                    .env_mut()
                                     .insert_constant(name.clone(), Value::Array(arr))
                                     .map_err(|_| InterpretError::ReassignedConstant)?,
                                 hir::VarDefKind::Global => self
-                                    .root_env
+                                    .root_env()
                                     .insert(name.clone(), Binding::Var(Value::Array(arr))),
                                 hir::VarDefKind::Standard => self
-                                    .env
+                                    .env_mut()
                                     .insert(name.clone(), Binding::Var(Value::Array(arr))),
                             }
                             return Ok(Value::Unit);
@@ -123,15 +159,15 @@ where
                         arr.resize(outer_len as usize, Value::Array(inner));
                         match kind {
                             hir::VarDefKind::Constant => {
-                                self.env
+                                self.env_mut()
                                     .insert_constant(name.clone(), Value::Array(arr))
                                     .map_err(|_| InterpretError::ReassignedConstant)?;
                             }
                             hir::VarDefKind::Global => self
-                                .root_env
+                                .root_env()
                                 .insert(name.clone(), Binding::Var(Value::Array(arr))),
                             hir::VarDefKind::Standard => self
-                                .env
+                                .env_mut()
                                 .insert(name.clone(), Binding::Var(Value::Array(arr))),
                         }
                         Ok(Value::Unit)
@@ -140,15 +176,15 @@ where
                         arr.resize(outer_len as usize, Value::Unit);
                         match kind {
                             hir::VarDefKind::Constant => {
-                                self.env
+                                self.env_mut()
                                     .insert_constant(name.clone(), Value::Array(arr))
                                     .map_err(|_| InterpretError::ReassignedConstant)?;
                             }
                             hir::VarDefKind::Global => self
-                                .root_env
+                                .root_env()
                                 .insert(name.clone(), Binding::Var(Value::Array(arr))),
                             hir::VarDefKind::Standard => self
-                                .env
+                                .env_mut()
                                 .insert(name.clone(), Binding::Var(Value::Array(arr))),
                         }
                         Ok(Value::Unit)
@@ -167,7 +203,7 @@ where
                     let Value::Int(i1) = i1 else { unreachable!() };
 
                     let i2 = self.eval(&subscript.1, db)?;
-                    let Some(arr) = self.env.get_var(name) else {
+                    let Some(arr) = self.get_var(name) else {
                         return Err(InterpretError::UnresolvedVariable { name: name.clone() });
                     };
                     let Value::Array(mut arr) = arr else {
@@ -194,7 +230,7 @@ where
                         };
                         subarr[i2 as usize] = value;
                     }
-                    self.env
+                    self.env_mut()
                         .insert(name.clone(), Binding::Var(Value::Array(arr)));
                     Ok(Value::Unit)
                 }
@@ -209,7 +245,7 @@ where
                     hir::SubprogramKind::Function => SubprogKind::Function,
                     hir::SubprogramKind::Procedure => SubprogKind::Procedure,
                 };
-                self.env.insert(
+                self.env_mut().insert(
                     name.clone(),
                     Binding::Func(Subprogram {
                         kind,
@@ -286,7 +322,7 @@ where
                     return Err(InterpretError::ForLoopWithoutVariable);
                 }
                 let loop_var = loop_var.as_ref().unwrap();
-                let prev_env = self.env.clone();
+                self.push_env();
                 let start = self.eval(db.get(*start), db)?;
                 if !matches!(start, Value::Int(_)) {
                     return Err(InterpretError::MismatchedTypes {
@@ -295,7 +331,7 @@ where
                     });
                 }
 
-                self.env.insert(loop_var.clone(), Binding::Var(start));
+                self.env_mut().insert(loop_var.clone(), Binding::Var(start));
                 let end = self.eval(db.get(*end), db)?;
                 if !matches!(end, Value::Int(_)) {
                     return Err(InterpretError::MismatchedTypes {
@@ -323,7 +359,7 @@ where
 
                 loop {
                     let current_i = self
-                        .env
+                        .env()
                         .get_var(loop_var)
                         .expect("There's definitely a loop var by now");
                     let Value::Int(i) = current_i else {
@@ -335,14 +371,14 @@ where
                     }
 
                     self.execute(body, db)?;
-                    let Some(Value::Int(old)) = self.env.get_var(loop_var) else {
+                    let Some(Value::Int(old)) = self.get_var(loop_var) else {
                         unreachable!()
                     };
-                    self.env
+                    self.env_mut()
                         .insert(loop_var.clone(), Binding::Var(Value::Int(old + step)))
                 }
 
-                self.env = prev_env;
+                self.pop_env();
                 Ok(Value::Unit)
             }
             Stmt::WhileLoop { condition, body } => {
@@ -406,53 +442,10 @@ where
                 eval_binary_op(op, lhs, rhs)
             }
             hir::Expr::Unary { op, opand } => eval_unary_op(self.eval(db.get(*opand), db)?, op),
-            hir::Expr::NameRef { name } => {
-                let resolved = self.env.get_var(name);
-                if let Some(v) = resolved {
-                    Ok(v)
-                } else if let Some(v) = self.root_env.get_var(name) {
-                    Ok(v)
-                } else {
-                    Err(InterpretError::UnresolvedVariable { name: name.clone() })
-                }
-            }
-            hir::Expr::Call { callee, args } => {
-                let subprogram = self.env.get_subgrogram(callee);
-                let args = db
-                    .get_range(args.clone())
-                    .iter()
-                    .map(|e| self.eval(e, db))
-                    .collect::<IResult<Vec<_>>>()?;
-                if let Some(sp) = subprogram {
-                    if args.len() != sp.params.len() {
-                        return Err(InterpretError::InvalidArgumentCount {
-                            expected: sp.params.len(),
-                            got: args.len(),
-                        });
-                    }
-                    let prev_env = self.env.clone();
-                    for (param, arg) in sp.params.iter().zip(args) {
-                        self.env.insert(param.clone(), Binding::Var(arg));
-                    }
-                    let res = self.call_subprog(sp.body, sp.kind, db);
-                    self.env = prev_env;
-                    res
-                } else if callee == "print" {
-                    if args.len() != 1 {
-                        Err(InterpretError::InvalidArgumentCount {
-                            expected: 1,
-                            got: args.len(),
-                        })
-                    } else {
-                        writeln!(self.output, "{}", args[0]).unwrap();
-                        Ok(Value::Unit)
-                    }
-                } else {
-                    Err(InterpretError::UnresolvedSubprogram {
-                        name: callee.clone(),
-                    })
-                }
-            }
+            hir::Expr::NameRef { name } => self
+                .get_var(name)
+                .ok_or_else(|| InterpretError::UnresolvedVariable { name: name.clone() }),
+            hir::Expr::Call { callee, args } => todo!(),
             hir::Expr::Missing => Ok(Value::Unit),
         }
     }
@@ -706,8 +699,7 @@ mod tests {
         );
         let mut interpreter = Interpreter {
             output: vec![],
-            env,
-            root_env: Default::default(),
+            envs: (Env::default(), Vec::default()),
         };
 
         let evaled = interpreter.exec_stmt(&stmts[0], &db).unwrap();
