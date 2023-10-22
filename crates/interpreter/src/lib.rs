@@ -255,7 +255,7 @@ where
                 );
                 Ok(Value::Unit)
             }
-            Stmt::ReturnStmt { value } => self.eval(db.get(*value), db),
+            Stmt::ReturnStmt { value } => self.eval(value, db),
             Stmt::IfElse {
                 condition,
                 body,
@@ -740,7 +740,7 @@ mod tests {
         );
         let mut interpreter = Interpreter {
             output: vec![],
-            envs: (Env::default(), Vec::default()),
+            envs: (env, Vec::default()),
         };
 
         let evaled = interpreter.exec_stmt(&stmts[0], &db).unwrap();

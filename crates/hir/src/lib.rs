@@ -29,7 +29,7 @@ pub enum Stmt {
         body: Vec<Stmt>,
     },
     ReturnStmt {
-        value: ExprIdx,
+        value: Expr,
     },
     IfElse {
         condition: ExprIdx,

@@ -173,9 +173,7 @@ impl Database {
 
     fn lower_return_stmt(&mut self, ast: ast::RetStmt) -> Stmt {
         let val = self.lower_expr(ast.value());
-        Stmt::ReturnStmt {
-            value: self.exprs.alloc(val),
-        }
+        Stmt::ReturnStmt { value: val }
     }
 
     fn lower_subprogram_def(&mut self, ast: ast::SubprogDef) -> Option<Stmt> {
@@ -740,8 +738,7 @@ mod tests {
 
     #[test]
     fn lower_func_def() {
-        let mut exprs = Arena::new();
-        let value = exprs.alloc(Expr::NameRef { name: "x".into() });
+        let value = Expr::NameRef { name: "x".into() };
         check_stmt(
             "function id(x) return x endfunction",
             Stmt::SubprogramDef {
