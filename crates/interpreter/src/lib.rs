@@ -445,7 +445,46 @@ where
             hir::Expr::NameRef { name } => self
                 .get_var(name)
                 .ok_or_else(|| InterpretError::UnresolvedVariable { name: name.clone() }),
-            hir::Expr::Call { callee, args } => todo!(),
+            hir::Expr::Call { callee, args } => {
+                let subprog = self.get_subprogram(callee);
+                let args = db
+                    .get_range(args.clone())
+                    .iter()
+                    .map(|e| self.eval(e, db))
+                    .collect::<IResult<Vec<_>>>()?;
+
+                if let Some(subprog) = subprog {
+                    if args.len() != subprog.params.len() {
+                        return Err(InterpretError::InvalidArgumentCount {
+                            expected: subprog.params.len(),
+                            got: args.len(),
+                        });
+                    }
+
+                    self.push_env();
+                    for (arg, name) in args.iter().zip(subprog.params) {
+                        self.env_mut().insert(name, Binding::Var(arg.clone()));
+                    }
+                    let result = self.call_subprog(subprog.body, subprog.kind, db);
+                    self.pop_env();
+
+                    result
+                } else if callee == "print" {
+                    if args.len() != 1 {
+                        return Err(InterpretError::InvalidArgumentCount {
+                            expected: 1,
+                            got: args.len(),
+                        });
+                    }
+
+                    writeln!(self.output, "{}", args[0]).unwrap();
+                    Ok(Value::Unit)
+                } else {
+                    Err(InterpretError::UnresolvedSubprogram {
+                        name: callee.clone(),
+                    })
+                }
+            }
             hir::Expr::Missing => Ok(Value::Unit),
         }
     }
@@ -457,14 +496,16 @@ where
         db: &Database,
     ) -> Result<Value, InterpretError> {
         match kind {
-            SubprogKind::Function => match body.len().cmp(&1) {
-                std::cmp::Ordering::Equal => self.exec_stmt(&body[0], db),
-                std::cmp::Ordering::Greater => {
-                    self.execute(&body[..body.len() - 1], db)?;
-                    self.exec_stmt(body.last().unwrap(), db)
+            SubprogKind::Function => {
+                let mut res = Value::Unit;
+                for stmt in body {
+                    res = self.exec_stmt(&stmt, db)?;
+                    if matches!(stmt, Stmt::ReturnStmt { .. }) {
+                        break;
+                    }
                 }
-                std::cmp::Ordering::Less => Ok(Value::Unit),
-            },
+                Ok(res)
+            }
             SubprogKind::Procedure => self.execute(&body, db).map(|_| Value::Unit),
         }
     }
