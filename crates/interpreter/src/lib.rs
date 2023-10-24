@@ -783,6 +783,36 @@ mod tests {
     }
 
     #[test]
+    fn exec_array_def() {
+        check_env(
+            r#"array nums[5]"#,
+            Env {
+                bindings: HashMap::from([(
+                    "nums".into(),
+                    Binding::Var(Value::Array(vec![Value::Unit; 5])),
+                )]),
+            },
+        );
+
+        check_output(
+            r#"
+            array nums = [1, 2, 3, 4, 5]
+            print(nums)"#,
+            "[1, 2, 3, 4, 5]\n",
+        );
+
+        check_env(
+            r#"array nums[5, 3]"#,
+            Env {
+                bindings: HashMap::from([(
+                    "nums".into(),
+                    Binding::Var(Value::Array(vec![Value::Array(vec![Value::Unit; 3]); 5])),
+                )]),
+            },
+        );
+    }
+
+    #[test]
     fn exec_subprog_def() {
         check_env(
             r#"
