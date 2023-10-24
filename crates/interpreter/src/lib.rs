@@ -832,6 +832,19 @@ mod tests {
     }
 
     #[test]
+    fn exec_return_stmt() {
+        check_output(
+            r#"
+            function f(x)
+                return x
+            endfunction
+            
+            print(f(5))"#,
+            "5\n",
+        )
+    }
+
+    #[test]
     fn exec_subprog_def() {
         check_env(
             r#"
