@@ -588,7 +588,10 @@ pub enum InterpretError {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
+    use hir::{Expr, Literal};
     use pretty_assertions::assert_eq;
 
     fn lower(src: &str) -> (Database, Vec<Stmt>) {
@@ -607,6 +610,13 @@ mod tests {
         interpreter.run(code).unwrap();
 
         assert_eq!(std::str::from_utf8(&output).unwrap(), expected);
+    }
+
+    fn check_env(code: &str, expected: Env) {
+        let mut interpreter = Interpreter::new(vec![]);
+        interpreter.run(code).unwrap();
+
+        assert_eq!(interpreter.env(), &expected);
     }
 
     #[test]
@@ -769,6 +779,45 @@ mod tests {
             r#"const C = "Const defined"
             print(C)"#,
             "Const defined\n",
+        );
+    }
+
+    #[test]
+    fn exec_subprog_def() {
+        check_env(
+            r#"
+            function f()
+                return 0
+            endfunction"#,
+            Env {
+                bindings: HashMap::from([(
+                    "f".into(),
+                    Binding::Func(Subprogram {
+                        kind: SubprogKind::Function,
+                        params: vec![],
+                        body: vec![Stmt::ReturnStmt {
+                            value: Expr::Literal {
+                                value: Literal::Int(0),
+                            },
+                        }],
+                    }),
+                )]),
+            },
+        );
+        check_env(
+            r#"
+            procedure p()
+            endprocedure"#,
+            Env {
+                bindings: HashMap::from([(
+                    "p".into(),
+                    Binding::Func(Subprogram {
+                        kind: SubprogKind::Procedure,
+                        params: vec![],
+                        body: vec![],
+                    }),
+                )]),
+            },
         );
     }
 }

@@ -7,7 +7,7 @@ use crate::Value;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Env {
-    bindings: HashMap<SmolStr, Binding>,
+    pub(crate) bindings: HashMap<SmolStr, Binding>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
