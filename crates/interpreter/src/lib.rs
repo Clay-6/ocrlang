@@ -920,6 +920,48 @@ mod tests {
                 print("NO")
             endif"#,
             "Hooray!\n",
-        )
+        );
+    }
+
+    #[test]
+    fn exec_switch_case() {
+        check_output(
+            r#"
+            switch 'c':
+                case 'c':
+                    print("Yes")
+                case 'd':
+                    print("No")
+                default:
+                    print("Also no")
+            endswitch"#,
+            "Yes\n",
+        );
+
+        check_output(
+            r#"
+            switch 'd':
+                case 'c':
+                    print("No")
+                case 'd':
+                    print("Yes")
+                default:
+                    print("Also no")
+            endswitch"#,
+            "Yes\n",
+        );
+
+        check_output(
+            r#"
+            switch 'x':
+                case 'c':
+                    print("No")
+                case 'd':
+                    print("Also no")
+                default:
+                    print("Yes")
+            endswitch"#,
+            "Yes\n",
+        );
     }
 }
