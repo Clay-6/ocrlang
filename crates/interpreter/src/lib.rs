@@ -795,14 +795,14 @@ mod tests {
         );
 
         check_output(
-            r#"
+            "
             array nums = [1, 2, 3, 4, 5]
-            print(nums)"#,
+            print(nums)",
             "[1, 2, 3, 4, 5]\n",
         );
 
         check_env(
-            r#"array nums[5, 3]"#,
+            "array nums[5, 3]",
             Env {
                 bindings: HashMap::from([(
                     "nums".into(),
@@ -810,6 +810,25 @@ mod tests {
                 )]),
             },
         );
+    }
+
+    #[test]
+    fn exec_array_assign() {
+        check_output(
+            r#"
+        array nums = [1, 2, 3]
+        nums[2] = 5
+        print(nums[2])"#,
+            "5\n",
+        );
+
+        check_output(
+            "
+            array nums = [[1, 2], [3, 4], [5, 6]]
+            nums[2, 1] = 69
+            print(nums[2, 1])",
+            "[5, 69]\n",
+        )
     }
 
     #[test]
