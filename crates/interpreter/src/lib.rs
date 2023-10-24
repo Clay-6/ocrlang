@@ -601,6 +601,14 @@ mod tests {
         assert_eq!(evaled, expected)
     }
 
+    fn check_output(code: &str, expected: &str) {
+        let mut output = Vec::new();
+        let mut interpreter = Interpreter::new(&mut output);
+        interpreter.run(code).unwrap();
+
+        assert_eq!(std::str::from_utf8(&output).unwrap(), expected);
+    }
+
     #[test]
     fn eval_array_literal() {
         check_eval(
@@ -747,5 +755,20 @@ mod tests {
         check_eval("1 > 2", Value::Bool(false));
         check_eval("3 >= 3", Value::Bool(true));
         check_eval("4 <= 3", Value::Bool(false));
+    }
+
+    #[test]
+    fn exec_var_def() {
+        check_output(
+            r#"
+            x = 69
+            print(x)"#,
+            "69\n",
+        );
+        check_output(
+            r#"const C = "Const defined"
+            print(C)"#,
+            "Const defined\n",
+        );
     }
 }
