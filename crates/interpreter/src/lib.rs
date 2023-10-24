@@ -362,7 +362,7 @@ where
                         unreachable!()
                     };
                     let Value::Int(fin) = end else { unreachable!() };
-                    if (step.is_positive() && i > fin) || (step.is_negative() && i < fin) {
+                    if (step.is_positive() && i >= fin) || (step.is_negative() && i <= fin) {
                         break;
                     }
 
@@ -963,5 +963,16 @@ mod tests {
             endswitch"#,
             "Yes\n",
         );
+    }
+
+    #[test]
+    fn exec_for_loop() {
+        check_output(
+            r#"
+            for i = 0 to 10
+                print("Ran")
+            next i"#,
+            &"Ran\n".repeat(10),
+        )
     }
 }
