@@ -764,6 +764,7 @@ mod tests {
         check_eval("1 < 2", Value::Bool(true));
         check_eval("1 > 2", Value::Bool(false));
         check_eval("3 >= 3", Value::Bool(true));
+        check_eval("3 <= 3", Value::Bool(true));
         check_eval("4 <= 3", Value::Bool(false));
     }
 
@@ -881,5 +882,44 @@ mod tests {
                 )]),
             },
         );
+    }
+
+    #[test]
+    fn exec_simple_if_else() {
+        check_output(
+            r#"
+        if true then
+            print(true)
+        else
+            print(false)
+        endif"#,
+            "true\n",
+        );
+        check_output(
+            r#"
+        if false then
+            print(true)
+        else
+            print(false)
+        endif"#,
+            "false\n",
+        );
+    }
+
+    #[test]
+    fn exec_multi_branch_if_else() {
+        check_output(
+            r#"
+            if 5 < 3 then
+                print("no")
+            elseif 3 == 3 then
+                print("Hooray!")
+            elseif 5 == 5 then
+                print("Shit")
+            else
+                print("NO")
+            endif"#,
+            "Hooray!\n",
+        )
     }
 }
