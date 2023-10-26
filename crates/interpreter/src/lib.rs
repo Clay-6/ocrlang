@@ -2,6 +2,7 @@ mod env;
 mod eval;
 
 use core::fmt;
+use std::io::{self, BufRead};
 
 use env::{Binding, Env, SubprogKind, Subprogram};
 use eval::*;
@@ -11,19 +12,22 @@ use smol_str::SmolStr;
 pub type IResult<T> = Result<T, InterpretError>;
 
 #[derive(Debug)]
-pub struct Interpreter<O> {
+pub struct Interpreter<I, O> {
     envs: (Env, Vec<Env>),
     output: O,
+    input: io::BufReader<I>,
 }
 
-impl<O> Interpreter<O>
+impl<I, O> Interpreter<I, O>
 where
-    O: std::io::Write,
+    O: io::Write,
+    I: io::Read,
 {
-    pub fn new(output: O) -> Self {
+    pub fn new(input: I, output: O) -> Self {
         Self {
             envs: (Env::default(), Vec::new()),
             output,
+            input: io::BufReader::new(input),
         }
     }
 
@@ -569,6 +573,27 @@ where
                 writeln!(self.output, "{}", args[0]).unwrap();
                 Ok(Value::Unit)
             }
+            "input" => {
+                if args.len() != 1 {
+                    return Err(InterpretError::InvalidArgumentCount {
+                        expected: 1,
+                        got: args.len(),
+                    });
+                }
+
+                if let Value::String(ref prompt) = args[0] {
+                    write!(self.output, "{prompt}").unwrap();
+                    self.output.flush().unwrap();
+                    let mut buf = String::new();
+                    self.input.read_line(&mut buf).unwrap();
+                    Ok(Value::String(buf.into()))
+                } else {
+                    Err(InterpretError::MismatchedTypes {
+                        expected: vec!["string"],
+                        found: args[0].type_str(),
+                    })
+                }
+            }
             _ => Err(InterpretError::UnresolvedSubprogram {
                 name: callee.into(),
             }),
@@ -666,7 +691,8 @@ pub enum InterpretError {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::io::empty;
+    use std::{collections::HashMap, io::BufReader};
 
     use super::*;
     use hir::{Expr, Literal};
@@ -678,20 +704,22 @@ mod tests {
 
     fn check_eval(expr: &str, expected: Value) {
         let (db, stmts) = lower(expr);
-        let evaled = Interpreter::new(vec![]).exec_stmt(&stmts[0], &db).unwrap();
+        let evaled = Interpreter::new(std::io::empty(), vec![])
+            .exec_stmt(&stmts[0], &db)
+            .unwrap();
         assert_eq!(evaled, expected)
     }
 
     fn check_output(code: &str, expected: &str) {
         let mut output = Vec::new();
-        let mut interpreter = Interpreter::new(&mut output);
+        let mut interpreter = Interpreter::new(empty(), &mut output);
         interpreter.run(code).unwrap();
 
         assert_eq!(std::str::from_utf8(&output).unwrap(), expected);
     }
 
     fn check_env(code: &str, expected: Env) {
-        let mut interpreter = Interpreter::new(vec![]);
+        let mut interpreter = Interpreter::new(empty(), empty());
         interpreter.run(code).unwrap();
 
         assert_eq!(interpreter.env(), &expected);
@@ -742,7 +770,7 @@ mod tests {
     #[test]
     fn eval_name_ref() {
         let (db, stmts) = lower("x = 5\nx");
-        let mut interpreter = Interpreter::new(vec![]);
+        let mut interpreter = Interpreter::new(empty(), empty());
         interpreter.exec_stmt(&stmts[0], &db).unwrap();
         let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
         assert_eq!(evaled, Value::Int(5));
@@ -756,7 +784,7 @@ mod tests {
     #[test]
     fn eval_func_call() {
         let (db, stmts) = lower("function neg(x)\nreturn -x\nendfunction\nneg(3)");
-        let mut interpreter = Interpreter::new(vec![]);
+        let mut interpreter = Interpreter::new(empty(), empty());
         interpreter.exec_stmt(&stmts[0], &db).unwrap();
         let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
         assert_eq!(evaled, Value::Int(-3));
@@ -822,7 +850,8 @@ mod tests {
             ])),
         );
         let mut interpreter = Interpreter {
-            output: vec![],
+            input: BufReader::new(empty()),
+            output: empty(),
             envs: (env, Vec::default()),
         };
 
