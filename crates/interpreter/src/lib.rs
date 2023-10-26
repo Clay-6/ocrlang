@@ -692,10 +692,11 @@ pub enum InterpretError {
 
 #[cfg(test)]
 mod tests {
-    use std::io::empty;
-    use std::{collections::HashMap, io::BufReader};
-
     use super::*;
+
+    use std::collections::HashMap;
+    use std::io::{empty, BufReader};
+
     use hir::{Expr, Literal};
     use pretty_assertions::assert_eq;
 
