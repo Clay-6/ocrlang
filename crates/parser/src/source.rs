@@ -35,9 +35,9 @@ impl<'t, 'input> Source<'t, 'input> {
         self.skip_trivia();
         let mut next = self.peek_next_kind_raw();
         let mut i = self.cursor + 1;
-        while next.is_some_and(|n| n.is_trivia()) {
+        while next.is_some_and(lexer::TokenKind::is_trivia) {
             i += 1;
-            next = self.tokens.get(i).map(|Token { kind, .. }| *kind)
+            next = self.tokens.get(i).map(|Token { kind, .. }| *kind);
         }
         next
     }

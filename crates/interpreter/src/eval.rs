@@ -237,7 +237,7 @@ pub(crate) fn eval_binary_op(
 }
 
 pub(crate) fn eval_string_attrs(
-    op: &hir::BinaryOp,
+    op: hir::BinaryOp,
     lhs: &Value,
     name: &SmolStr,
 ) -> Option<Result<Value, InterpretError>> {
@@ -262,7 +262,7 @@ pub(crate) fn eval_string_attrs(
     None
 }
 
-pub(crate) fn eval_unary_op(operand: Value, op: &hir::UnaryOp) -> Result<Value, InterpretError> {
+pub(crate) fn eval_unary_op(operand: Value, op: hir::UnaryOp) -> Result<Value, InterpretError> {
     match op {
         hir::UnaryOp::Neg => {
             if let Value::Int(i) = operand {

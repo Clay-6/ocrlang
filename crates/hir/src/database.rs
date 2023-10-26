@@ -31,10 +31,10 @@ impl Database {
             match ast {
                 ast::Expr::Binary(ast) => self.lower_binary(ast),
                 ast::Expr::Unary(ast) => self.lower_unary(ast),
-                ast::Expr::Literal(ast) => self.lower_literal(ast),
+                ast::Expr::Literal(ast) => Self::lower_literal(ast),
                 ast::Expr::ArrayLiteral(ast) => self.lower_array_literal(ast),
                 ast::Expr::Paren(ast) => self.lower_expr(ast.expr()),
-                ast::Expr::NameRef(ast) => self.lower_name_ref(ast),
+                ast::Expr::NameRef(ast) => Self::lower_name_ref(ast),
                 ast::Expr::Call(ast) => self.lower_call(ast),
             }
         } else {
@@ -42,10 +42,12 @@ impl Database {
         }
     }
 
+    #[must_use]
     pub fn get(&self, idx: ExprIdx) -> &Expr {
         &self.exprs[idx]
     }
 
+    #[must_use]
     pub fn get_range(&self, range: ExprRange) -> &[Expr] {
         &self.exprs[range]
     }
@@ -79,15 +81,15 @@ impl Database {
         let (start, end) = {
             let tmp = ast
                 .bounds()
-                .map(|(s, e)| (self.lower_expr(Some(s)), self.lower_expr(Some(e))))
-                .unwrap_or((Expr::Missing, Expr::Missing));
+                .map_or((Expr::Missing, Expr::Missing), |(s, e)| {
+                    (self.lower_expr(Some(s)), self.lower_expr(Some(e)))
+                });
             (self.exprs.alloc(tmp.0), self.exprs.alloc(tmp.1))
         };
         let step = {
             let tmp = ast
                 .step()
-                .map(|ast| self.lower_expr(Some(ast)))
-                .unwrap_or(Expr::Missing);
+                .map_or(Expr::Missing, |ast| self.lower_expr(Some(ast)));
             self.exprs.alloc(tmp)
         };
         let body = ast
@@ -192,14 +194,11 @@ impl Database {
     fn lower_var_def(&mut self, ast: ast::VarDef) -> Option<Stmt> {
         Some(Stmt::VarDef {
             name: ast.name()?.text().into(),
-            kind: ast
-                .kind()
-                .map(|k| match k.kind() {
-                    SyntaxKind::Const => VarDefKind::Constant,
-                    SyntaxKind::Global => VarDefKind::Global,
-                    _ => unreachable!(),
-                })
-                .unwrap_or(VarDefKind::Standard),
+            kind: ast.kind().map_or(VarDefKind::Standard, |k| match k.kind() {
+                SyntaxKind::Const => VarDefKind::Constant,
+                SyntaxKind::Global => VarDefKind::Global,
+                _ => unreachable!(),
+            }),
             value: self.lower_expr(ast.value()),
         })
     }
@@ -224,14 +223,11 @@ impl Database {
 
         Some(Stmt::ArrayDef {
             name: ast.name()?.text().into(),
-            kind: ast
-                .kind()
-                .map(|k| match k.kind() {
-                    SyntaxKind::Const => VarDefKind::Constant,
-                    SyntaxKind::Global => VarDefKind::Global,
-                    _ => unreachable!(),
-                })
-                .unwrap_or(VarDefKind::Standard),
+            kind: ast.kind().map_or(VarDefKind::Standard, |k| match k.kind() {
+                SyntaxKind::Const => VarDefKind::Constant,
+                SyntaxKind::Global => VarDefKind::Global,
+                _ => unreachable!(),
+            }),
             subscript,
             dimensions,
             value: self.lower_expr(ast.value()),
@@ -287,7 +283,7 @@ impl Database {
         }
     }
 
-    fn lower_literal(&mut self, ast: ast::Literal) -> Expr {
+    fn lower_literal(ast: ast::Literal) -> Expr {
         match ast.parse() {
             Some(v) => match v {
                 ast::Val::Int(i) => Expr::Literal {
@@ -325,7 +321,7 @@ impl Database {
         }
     }
 
-    fn lower_name_ref(&mut self, ast: ast::NameRef) -> Expr {
+    fn lower_name_ref(ast: ast::NameRef) -> Expr {
         Expr::NameRef {
             name: ast.name().unwrap().text().into(),
         }
@@ -373,7 +369,7 @@ mod tests {
         let hir = database.lower_expr(Some(ast));
 
         assert_eq!(hir, expected_hir);
-        assert_eq!(database, expected_database)
+        assert_eq!(database, expected_database);
     }
 
     #[test]
@@ -472,7 +468,7 @@ mod tests {
                     value: Literal::Array(nums),
                 },
             },
-        )
+        );
     }
 
     #[test]
@@ -699,7 +695,7 @@ mod tests {
                 opand: five,
             },
             Database { exprs },
-        )
+        );
     }
 
     #[test]
@@ -747,7 +743,7 @@ mod tests {
                 params: vec!["x".into()],
                 body: vec![Stmt::ReturnStmt { value }],
             },
-        )
+        );
     }
 
     #[test]
@@ -767,7 +763,7 @@ mod tests {
                     args: arg,
                 })],
             },
-        )
+        );
     }
 
     #[test]
@@ -795,7 +791,7 @@ mod tests {
                     args: print_arg,
                 })],
             },
-        )
+        );
     }
 
     #[test]
@@ -825,7 +821,7 @@ mod tests {
                     args: print_arg,
                 })],
             },
-        )
+        );
     }
 
     #[test]
@@ -923,7 +919,7 @@ mod tests {
                 elseifs,
                 else_body,
             },
-        )
+        );
     }
 
     #[test]
@@ -959,6 +955,6 @@ mod tests {
                     args: exprs.alloc_many([]),
                 })],
             },
-        )
+        );
     }
 }

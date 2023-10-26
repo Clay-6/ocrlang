@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn lex_caret() {
-        check("^", TokenKind::Caret)
+        check("^", TokenKind::Caret);
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
     #[test]
     fn lex_brackets() {
         check("[", TokenKind::LBracket);
-        check("]", TokenKind::RBracket)
+        check("]", TokenKind::RBracket);
     }
 
     #[test]
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn lex_if() {
-        check("if", TokenKind::If)
+        check("if", TokenKind::If);
     }
 
     #[test]
@@ -360,17 +360,17 @@ mod tests {
 
     #[test]
     fn lex_elseif() {
-        check("elseif", TokenKind::Elseif)
+        check("elseif", TokenKind::Elseif);
     }
 
     #[test]
     fn lex_else() {
-        check("else", TokenKind::Else)
+        check("else", TokenKind::Else);
     }
 
     #[test]
     fn lex_endif() {
-        check("endif", TokenKind::Endif)
+        check("endif", TokenKind::Endif);
     }
 
     #[test]
@@ -420,7 +420,7 @@ mod tests {
 
     #[test]
     fn lex_until() {
-        check("until", TokenKind::Until)
+        check("until", TokenKind::Until);
     }
 
     #[test]

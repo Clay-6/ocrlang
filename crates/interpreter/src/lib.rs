@@ -5,7 +5,7 @@ use core::fmt;
 use std::io::{self, BufRead};
 
 use env::{Binding, Env, SubprogKind, Subprogram};
-use eval::*;
+use eval::{eval_binary_op, eval_string_attrs, eval_unary_op};
 use hir::{Database, ExprIdx, ExprRange, Stmt};
 use smol_str::SmolStr;
 
@@ -84,7 +84,7 @@ where
     }
 
     fn push_env(&mut self) {
-        self.envs.1.push(Env::default())
+        self.envs.1.push(Env::default());
     }
 
     fn pop_env(&mut self) {
@@ -101,45 +101,45 @@ where
                 subscript,
                 dimensions,
                 value,
-            } => self.exec_array_def(subscript, dimensions, value, db, kind, name),
+            } => self.exec_array_def(subscript, dimensions, value, db, *kind, name),
             Stmt::SubprogramDef {
                 kind,
                 name,
                 params,
                 body,
-            } => self.exec_subprogram_def(kind, name, params, body),
+            } => Ok(self.exec_subprogram_def(*kind, name, params, body)),
             Stmt::ReturnStmt { value } => self.eval(value, db),
             Stmt::IfElse {
                 condition,
                 body,
                 elseifs,
                 else_body,
-            } => self.exec_if_else(db, condition, body, elseifs, else_body),
+            } => self.exec_if_else(db, *condition, body, elseifs, else_body),
             Stmt::SwitchCase {
                 scrutinee,
                 cases,
                 case_bodies,
                 default_body,
-            } => self.exec_switch_case(db, scrutinee, cases, case_bodies, default_body),
+            } => self.exec_switch_case(db, *scrutinee, cases, case_bodies, default_body),
             Stmt::ForLoop {
                 loop_var,
                 start,
                 end,
                 step,
                 body,
-            } => self.exec_for_loop(loop_var, db, start, end, step, body),
-            Stmt::WhileLoop { condition, body } => self.exec_while_loop(db, condition, body),
-            Stmt::DoUntilLoop { condition, body } => self.exec_do_until(db, condition, body),
+            } => self.exec_for_loop(loop_var, db, *start, *end, *step, body),
+            Stmt::WhileLoop { condition, body } => self.exec_while_loop(db, *condition, body),
+            Stmt::DoUntilLoop { condition, body } => self.exec_do_until(db, *condition, body),
         }
     }
 
     fn exec_do_until(
         &mut self,
         db: &Database,
-        condition: &ExprIdx,
+        condition: ExprIdx,
         body: &[Stmt],
     ) -> Result<Value, InterpretError> {
-        let cond = db.get(*condition);
+        let cond = db.get(condition);
         loop {
             self.execute(body, db)?;
             if self.eval(cond, db)? == Value::Bool(true) {
@@ -152,10 +152,10 @@ where
     fn exec_while_loop(
         &mut self,
         db: &Database,
-        condition: &ExprIdx,
+        condition: ExprIdx,
         body: &[Stmt],
     ) -> Result<Value, InterpretError> {
-        let cond = db.get(*condition);
+        let cond = db.get(condition);
         while self.eval(cond, db)? == Value::Bool(true) {
             self.execute(body, db)?;
         }
@@ -166,9 +166,9 @@ where
         &mut self,
         loop_var: &Option<SmolStr>,
         db: &Database,
-        start: &ExprIdx,
-        end: &ExprIdx,
-        step: &ExprIdx,
+        start: ExprIdx,
+        end: ExprIdx,
+        step: ExprIdx,
         body: &[Stmt],
     ) -> Result<Value, InterpretError> {
         if loop_var.is_none() {
@@ -176,7 +176,7 @@ where
         }
         let loop_var = loop_var.as_ref().unwrap();
         self.push_env();
-        let start = self.eval(db.get(*start), db)?;
+        let start = self.eval(db.get(start), db)?;
         if !matches!(start, Value::Int(_)) {
             return Err(InterpretError::MismatchedTypes {
                 expected: vec!["int"],
@@ -184,7 +184,7 @@ where
             });
         }
         self.env_mut().insert(loop_var.clone(), Binding::Var(start));
-        let end = self.eval(db.get(*end), db)?;
+        let end = self.eval(db.get(end), db)?;
         if !matches!(end, Value::Int(_)) {
             return Err(InterpretError::MismatchedTypes {
                 expected: vec!["int"],
@@ -192,7 +192,7 @@ where
             });
         }
         let step = {
-            let e = db.get(*step);
+            let e = db.get(step);
             if let hir::Expr::Missing = e {
                 1
             } else {
@@ -225,7 +225,7 @@ where
                 unreachable!()
             };
             self.env_mut()
-                .insert(loop_var.clone(), Binding::Var(Value::Int(old + step)))
+                .insert(loop_var.clone(), Binding::Var(Value::Int(old + step)));
         }
         self.pop_env();
         Ok(Value::Unit)
@@ -234,12 +234,12 @@ where
     fn exec_switch_case(
         &mut self,
         db: &Database,
-        scrutinee: &ExprIdx,
+        scrutinee: ExprIdx,
         cases: &ExprRange,
         case_bodies: &[Vec<Stmt>],
         default_body: &[Stmt],
     ) -> Result<Value, InterpretError> {
-        let scrutinee = self.eval(db.get(*scrutinee), db)?;
+        let scrutinee = self.eval(db.get(scrutinee), db)?;
         let cases = db
             .get_range(cases.clone())
             .iter()
@@ -262,12 +262,12 @@ where
     fn exec_if_else(
         &mut self,
         db: &Database,
-        condition: &ExprIdx,
+        condition: ExprIdx,
         body: &[Stmt],
         elseifs: &[(ExprIdx, Vec<Stmt>)],
         else_body: &[Stmt],
     ) -> Result<Value, InterpretError> {
-        if self.eval(db.get(*condition), db)? == Value::Bool(true) {
+        if self.eval(db.get(condition), db)? == Value::Bool(true) {
             self.exec_block(body, db)
         } else {
             for (cond, body) in elseifs {
@@ -281,11 +281,11 @@ where
 
     fn exec_subprogram_def(
         &mut self,
-        kind: &hir::SubprogramKind,
+        kind: hir::SubprogramKind,
         name: &SmolStr,
         params: &[SmolStr],
         body: &[Stmt],
-    ) -> Result<Value, InterpretError> {
+    ) -> Value {
         let kind = match kind {
             hir::SubprogramKind::Function => SubprogKind::Function,
             hir::SubprogramKind::Procedure => SubprogKind::Procedure,
@@ -298,7 +298,8 @@ where
                 body: body.to_vec(),
             }),
         );
-        Ok(Value::Unit)
+
+        Value::Unit
     }
 
     fn exec_array_def(
@@ -307,7 +308,7 @@ where
         dimensions: &(hir::Expr, hir::Expr),
         value: &hir::Expr,
         db: &Database,
-        kind: &hir::VarDefKind,
+        kind: hir::VarDefKind,
         name: &SmolStr,
     ) -> Result<Value, InterpretError> {
         if let (hir::Expr::Missing, hir::Expr::Missing) = subscript {
@@ -321,7 +322,7 @@ where
                         hir::VarDefKind::Constant => self
                             .env_mut()
                             .insert_constant(name.clone(), Value::Array(arr))
-                            .map_err(|_| InterpretError::ReassignedConstant)?,
+                            .map_err(|()| InterpretError::ReassignedConstant)?,
                         hir::VarDefKind::Global => self
                             .root_env()
                             .insert(name.clone(), Binding::Var(Value::Array(arr))),
@@ -364,7 +365,7 @@ where
                     hir::VarDefKind::Constant => {
                         self.env_mut()
                             .insert_constant(name.clone(), Value::Array(arr))
-                            .map_err(|_| InterpretError::ReassignedConstant)?;
+                            .map_err(|()| InterpretError::ReassignedConstant)?;
                     }
                     hir::VarDefKind::Global => self
                         .root_env()
@@ -381,7 +382,7 @@ where
                     hir::VarDefKind::Constant => {
                         self.env_mut()
                             .insert_constant(name.clone(), Value::Array(arr))
-                            .map_err(|_| InterpretError::ReassignedConstant)?;
+                            .map_err(|()| InterpretError::ReassignedConstant)?;
                     }
                     hir::VarDefKind::Global => self
                         .root_env()
@@ -451,8 +452,8 @@ where
             hir::VarDefKind::Constant => self
                 .env_mut()
                 .insert_constant(name.clone(), value)
-                .map_err(|_| InterpretError::ReassignedConstant)
-                .map(|_| Value::Unit),
+                .map_err(|()| InterpretError::ReassignedConstant)
+                .map(|()| Value::Unit),
             hir::VarDefKind::Global => {
                 self.root_env().insert(name.clone(), Binding::Var(value));
                 Ok(Value::Unit)
@@ -485,7 +486,7 @@ where
             hir::Expr::Binary { op, lhs, rhs } => {
                 let lhs = self.eval(db.get(*lhs), db)?;
                 if let hir::Expr::NameRef { name, .. } = db.get(*rhs) {
-                    if let Some(value) = eval_string_attrs(op, &lhs, name) {
+                    if let Some(value) = eval_string_attrs(*op, &lhs, name) {
                         return value;
                     }
                 }
@@ -504,7 +505,7 @@ where
 
                 eval_binary_op(op, lhs, rhs)
             }
-            hir::Expr::Unary { op, opand } => eval_unary_op(self.eval(db.get(*opand), db)?, op),
+            hir::Expr::Unary { op, opand } => eval_unary_op(self.eval(db.get(*opand), db)?, *op),
             hir::Expr::NameRef { name } => self
                 .get_var(name)
                 .ok_or_else(|| InterpretError::UnresolvedVariable { name: name.clone() }),
@@ -530,7 +531,7 @@ where
                 for (arg, name) in args.iter().zip(subprog.params) {
                     self.env_mut().insert(name, Binding::Var(arg.clone()));
                 }
-                let result = self.call_subprog(subprog.body, subprog.kind, db);
+                let result = self.call_subprog(&subprog.body, subprog.kind, db);
                 self.pop_env();
 
                 result
@@ -541,13 +542,13 @@ where
 
     fn call_subprog(
         &mut self,
-        body: Vec<Stmt>,
+        body: &[Stmt],
         kind: SubprogKind,
         db: &Database,
     ) -> Result<Value, InterpretError> {
         match kind {
-            SubprogKind::Function => self.exec_block(&body, db),
-            SubprogKind::Procedure => self.execute(&body, db).map(|_| Value::Unit),
+            SubprogKind::Function => self.exec_block(body, db),
+            SubprogKind::Procedure => self.execute(body, db).map(|()| Value::Unit),
         }
     }
 
@@ -651,7 +652,7 @@ impl fmt::Display for Value {
                 write!(f, "[")?;
                 if !arr.is_empty() {
                     for v in &arr[..arr.len() - 1] {
-                        write!(f, "{}, ", v)?;
+                        write!(f, "{v}, ")?;
                     }
                     write!(f, "{}", arr[arr.len() - 1])?;
                 }
@@ -709,7 +710,7 @@ mod tests {
         let evaled = Interpreter::new(std::io::empty(), vec![])
             .exec_stmt(&stmts[0], &db)
             .unwrap();
-        assert_eq!(evaled, expected)
+        assert_eq!(evaled, expected);
     }
 
     fn check_output(code: &str, expected: &str) {
@@ -799,7 +800,7 @@ mod tests {
         check_eval("5 * 3", Value::Int(15));
         check_eval("3 / 2", Value::Float(3.0 / 2.0));
 
-        check_eval("1.3 + 2", Value::Float(3.3))
+        check_eval("1.3 + 2", Value::Float(3.3));
     }
 
     #[test]
@@ -815,14 +816,14 @@ mod tests {
         check_eval("5 MOD 3", Value::Int(2));
         check_eval("5 DIV 3", Value::Int(1));
         check_eval("3.1 MOD 4.2", Value::Int((3.1 % 4.2) as _));
-        check_eval("4.2 DIV 3.1", Value::Int(4.2_f64.div_euclid(3.1) as _))
+        check_eval("4.2 DIV 3.1", Value::Int(4.2_f64.div_euclid(3.1) as _));
     }
 
     #[test]
     fn eval_pow() {
         check_eval("2^5", Value::Int(32));
         check_eval("4.2^6.9", Value::Float(4.2_f64.powf(6.9)));
-        check_eval("4.2^6", Value::Float(4.2_f64.powf(6 as _)));
+        check_eval("4.2^6", Value::Float(4.2_f64.powf(f64::from(6))));
         check_eval("6^4.2", Value::Float(6_f64.powf(4.2)));
     }
 
@@ -938,7 +939,7 @@ mod tests {
             nums[2, 1] = 69
             print(nums[2, 1])",
             "[5, 69]\n",
-        )
+        );
     }
 
     #[test]
@@ -951,7 +952,7 @@ mod tests {
             
             print(f(5))"#,
             "5\n",
-        )
+        );
     }
 
     #[test]
@@ -1082,6 +1083,6 @@ mod tests {
                 print("Ran")
             next i"#,
             &"Ran\n".repeat(10),
-        )
+        );
     }
 }

@@ -28,6 +28,7 @@ pub enum Expr {
 }
 
 impl Root {
+    #[must_use]
     pub fn cast(node: SyntaxNode) -> Option<Self> {
         if node.kind() == SyntaxKind::Root {
             Some(Self(node))
@@ -42,6 +43,7 @@ impl Root {
 }
 
 impl Stmt {
+    #[must_use]
     pub fn cast(node: SyntaxNode) -> Option<Self> {
         Some(match node.kind() {
             SyntaxKind::VarDef => Self::VarDef(VarDef(node)),
@@ -59,6 +61,7 @@ impl Stmt {
 }
 
 impl Expr {
+    #[must_use]
     pub fn cast(node: SyntaxNode) -> Option<Self> {
         let result = match node.kind() {
             SyntaxKind::BinaryExpr => Self::Binary(BinaryExpr(node)),
@@ -184,6 +187,7 @@ impl ArrayDef {
             })
     }
 
+    #[must_use]
     pub fn subscript(&self) -> Option<impl Iterator<Item = Expr>> {
         self.0
             .children()
@@ -202,7 +206,13 @@ impl ArrayDef {
             .skip(1)
             .take_while(|t| t.kind() != SyntaxKind::RBracket)
             .filter(|t| t.kind() == SyntaxKind::Number)
-            .map(|t| Expr::Literal(Literal::Token(t.as_token().unwrap().clone())))
+            .map(|t| {
+                Expr::Literal(Literal::Token(
+                    t.as_token()
+                        .expect("Everything that's `SyntaxKind::Number` is a token")
+                        .clone(),
+                ))
+            })
     }
 
     pub fn value(&self) -> Option<Expr> {
@@ -249,6 +259,7 @@ impl IfElse {
         self.0.children().find_map(Expr::cast)
     }
 
+    #[must_use]
     pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
@@ -270,6 +281,7 @@ impl IfElse {
             .map(|b| b.children().filter_map(Stmt::cast))
     }
 
+    #[must_use]
     pub fn else_body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
@@ -297,6 +309,7 @@ impl SwitchCase {
             .map(|b| b.children().filter_map(Stmt::cast))
     }
 
+    #[must_use]
     pub fn default_body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
@@ -313,6 +326,7 @@ impl ForLoop {
             .find(|t| t.kind() == SyntaxKind::Ident)
     }
 
+    #[must_use]
     pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
@@ -338,6 +352,7 @@ impl WhileLoop {
         self.0.children().find_map(Expr::cast)
     }
 
+    #[must_use]
     pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
@@ -351,6 +366,7 @@ impl DoUntil {
         self.0.children().filter_map(Expr::cast).last()
     }
 
+    #[must_use]
     pub fn body(&self) -> Option<impl Iterator<Item = Stmt>> {
         self.0
             .children()
@@ -411,10 +427,13 @@ impl UnaryExpr {
 }
 
 impl Literal {
+    #[must_use]
     pub fn parse(&self) -> Option<Val> {
         match self {
             Literal::Node(node) => {
-                let tok = node.first_token().unwrap();
+                let tok = node
+                    .first_token()
+                    .expect("This definitely has at least one token");
 
                 match tok.kind() {
                     SyntaxKind::True => Some(Val::Bool(true)),
@@ -456,6 +475,7 @@ impl Literal {
 }
 
 impl ArrayLiteral {
+    #[must_use]
     pub fn cast(node: SyntaxNode) -> Option<Self> {
         if node.kind() == SyntaxKind::ArrayLiteral {
             Some(Self(node))
@@ -482,12 +502,14 @@ impl ParenExpr {
 }
 
 impl NameRef {
+    #[must_use]
     pub fn name(&self) -> Option<SyntaxToken> {
         self.0.first_token()
     }
 }
 
 impl SubprogCall {
+    #[must_use]
     pub fn callee(&self) -> Option<SyntaxToken> {
         self.0.first_token()
     }

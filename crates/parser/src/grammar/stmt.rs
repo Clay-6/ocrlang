@@ -1,4 +1,4 @@
-use super::*;
+use super::{expr, CompletedMarker, Parser, SyntaxKind, TokenKind};
 
 const VAR_DEF_START: [TokenKind; 4] = [
     TokenKind::Ident,
@@ -342,7 +342,7 @@ mod tests {
             Whitespace@3..4 " "
             NameRef@4..5
               Ident@4..5 "y""#]],
-        )
+        );
     }
 
     #[test]
@@ -412,7 +412,7 @@ mod tests {
                 LBracket@20..21 "["
                 Number@21..22 "5"
                 RBracket@22..23 "]""#]],
-        )
+        );
     }
 
     #[test]
@@ -430,7 +430,7 @@ mod tests {
                 LBracket@19..20 "["
                 Number@20..21 "5"
                 RBracket@21..22 "]""#]],
-        )
+        );
     }
 
     #[test]
@@ -468,7 +468,7 @@ mod tests {
                 Comma@24..25 ","
                 Number@25..26 "8"
                 RBracket@26..27 "]""#]],
-        )
+        );
     }
 
     #[test]
@@ -488,7 +488,7 @@ mod tests {
                 Comma@23..24 ","
                 Number@24..25 "8"
                 RBracket@25..26 "]""#]],
-        )
+        );
     }
 
     #[test]
@@ -535,7 +535,7 @@ mod tests {
                     Whitespace@16..17 " "
                     Literal@17..23
                       String@17..23 "\"Pawn\"""#]],
-        )
+        );
     }
 
     #[test]

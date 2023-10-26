@@ -1,4 +1,4 @@
-use super::*;
+use super::{expr, stmt, CompletedMarker, Parser, SyntaxKind, TokenKind};
 
 pub(crate) fn expr(p: &mut Parser) -> Option<CompletedMarker> {
     expr_bp(p, 0)
@@ -246,7 +246,7 @@ mod tests {
         Root@0..1
           NameRef@0..1
             Ident@0..1 "x""#]],
-        )
+        );
     }
 
     #[test]
@@ -276,7 +276,7 @@ mod tests {
                 Plus@8..9 "+"
                 Literal@9..17
                   String@9..17 "\"World!\"""#]],
-        )
+        );
     }
 
     #[test]
@@ -478,7 +478,7 @@ mod tests {
                 Dot@6..7 "."
                 NameRef@7..12
                   Ident@7..12 "upper""#]],
-        )
+        );
     }
 
     #[test]
@@ -513,7 +513,7 @@ mod tests {
                 Literal@4..5
                   Number@4..5 "0"
                 RBracket@5..6 "]""#]],
-        )
+        );
     }
 
     #[test]
@@ -534,7 +534,7 @@ mod tests {
                 Literal@7..8
                   Number@7..8 "0"
                 RBracket@8..9 "]""#]],
-        )
+        );
     }
 
     #[test]
@@ -553,7 +553,7 @@ mod tests {
                 Literal@8..9
                   Number@8..9 "0"
                 RBracket@9..10 "]""#]],
-        )
+        );
     }
 
     #[test]
@@ -573,7 +573,7 @@ mod tests {
                 Literal@5..6
                   Number@5..6 "3"
                 RBracket@6..7 "]""#]],
-        )
+        );
     }
 
     #[test]
@@ -587,7 +587,7 @@ mod tests {
                       Ident@0..1 "f"
                     LParen@1..2 "("
                     RParen@2..3 ")""#]],
-        )
+        );
     }
 
     #[test]
@@ -603,7 +603,7 @@ mod tests {
                     NameRef@2..3
                       Ident@2..3 "x"
                     RParen@3..4 ")""#]],
-        )
+        );
     }
 
     #[test]
@@ -625,6 +625,6 @@ mod tests {
                     NameRef@6..7
                       Ident@6..7 "z"
                     RParen@7..8 ")""#]],
-        )
+        );
     }
 }
