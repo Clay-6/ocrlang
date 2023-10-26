@@ -512,6 +512,7 @@ where
                 let Some(subprog) = self.get_subprogram(callee) else {
                     return self.builtin_subprog_call(callee, args, db);
                 };
+
                 let args = db
                     .get_range(args.clone())
                     .iter()
