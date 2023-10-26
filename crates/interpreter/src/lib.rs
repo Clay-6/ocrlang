@@ -505,44 +505,30 @@ where
                 .get_var(name)
                 .ok_or_else(|| InterpretError::UnresolvedVariable { name: name.clone() }),
             hir::Expr::Call { callee, args } => {
-                let subprog = self.get_subprogram(callee);
+                let Some(subprog) = self.get_subprogram(callee) else {
+                    return self.builtin_subprog_call(callee, args, db);
+                };
                 let args = db
                     .get_range(args.clone())
                     .iter()
                     .map(|e| self.eval(e, db))
                     .collect::<IResult<Vec<_>>>()?;
 
-                if let Some(subprog) = subprog {
-                    if args.len() != subprog.params.len() {
-                        return Err(InterpretError::InvalidArgumentCount {
-                            expected: subprog.params.len(),
-                            got: args.len(),
-                        });
-                    }
-
-                    self.push_env();
-                    for (arg, name) in args.iter().zip(subprog.params) {
-                        self.env_mut().insert(name, Binding::Var(arg.clone()));
-                    }
-                    let result = self.call_subprog(subprog.body, subprog.kind, db);
-                    self.pop_env();
-
-                    result
-                } else if callee == "print" {
-                    if args.len() != 1 {
-                        return Err(InterpretError::InvalidArgumentCount {
-                            expected: 1,
-                            got: args.len(),
-                        });
-                    }
-
-                    writeln!(self.output, "{}", args[0]).unwrap();
-                    Ok(Value::Unit)
-                } else {
-                    Err(InterpretError::UnresolvedSubprogram {
-                        name: callee.clone(),
-                    })
+                if args.len() != subprog.params.len() {
+                    return Err(InterpretError::InvalidArgumentCount {
+                        expected: subprog.params.len(),
+                        got: args.len(),
+                    });
                 }
+
+                self.push_env();
+                for (arg, name) in args.iter().zip(subprog.params) {
+                    self.env_mut().insert(name, Binding::Var(arg.clone()));
+                }
+                let result = self.call_subprog(subprog.body, subprog.kind, db);
+                self.pop_env();
+
+                result
             }
             hir::Expr::Missing => Ok(Value::Unit),
         }
@@ -557,6 +543,35 @@ where
         match kind {
             SubprogKind::Function => self.exec_block(&body, db),
             SubprogKind::Procedure => self.execute(&body, db).map(|_| Value::Unit),
+        }
+    }
+
+    fn builtin_subprog_call(
+        &mut self,
+        callee: &str,
+        args: &ExprRange,
+        db: &Database,
+    ) -> Result<Value, InterpretError> {
+        let args = db
+            .get_range(args.clone())
+            .iter()
+            .map(|e| self.eval(e, db))
+            .collect::<IResult<Vec<_>>>()?;
+        match callee {
+            "print" => {
+                if args.len() != 1 {
+                    return Err(InterpretError::InvalidArgumentCount {
+                        expected: 1,
+                        got: args.len(),
+                    });
+                }
+
+                writeln!(self.output, "{}", args[0]).unwrap();
+                Ok(Value::Unit)
+            }
+            _ => Err(InterpretError::UnresolvedSubprogram {
+                name: callee.into(),
+            }),
         }
     }
 }
