@@ -32,7 +32,7 @@ where
     }
 
     pub fn run(&mut self, src: &str) -> IResult<()> {
-        let (db, stmts) = hir::lower(ast::Root::cast(parser::parse(src).syntax()).unwrap());
+        let (db, stmts) = hir::lower(&ast::Root::cast(parser::parse(src).syntax()).unwrap());
 
         self.execute(&stmts, &db)
     }
@@ -94,7 +94,7 @@ where
     fn exec_stmt(&mut self, stmt: &Stmt, db: &Database) -> IResult<Value> {
         match stmt {
             Stmt::Expr(e) => self.eval(e, db),
-            Stmt::VarDef { name, kind, value } => self.exec_var_def(value, db, kind, name),
+            Stmt::VarDef { name, kind, value } => self.exec_var_def(value, db, *kind, name),
             Stmt::ArrayDef {
                 name,
                 kind,
@@ -311,140 +311,206 @@ where
         kind: hir::VarDefKind,
         name: &SmolStr,
     ) -> Result<Value, InterpretError> {
-        if let (hir::Expr::Missing, hir::Expr::Missing) = subscript {
-            if let (hir::Expr::Missing, hir::Expr::Missing) = dimensions {
-                if matches!(value, hir::Expr::Missing) {
-                    return Err(InterpretError::InvalidArrayDeclaration);
-                }
-                let value = self.eval(value, db)?;
-                if let Value::Array(arr) = value {
-                    match kind {
-                        hir::VarDefKind::Constant => self
-                            .env_mut()
-                            .insert_constant(name.clone(), Value::Array(arr))
-                            .map_err(|()| InterpretError::ReassignedConstant)?,
-                        hir::VarDefKind::Global => self
-                            .root_env()
-                            .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                        hir::VarDefKind::Standard => self
-                            .env_mut()
-                            .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                    }
-                    return Ok(Value::Unit);
-                }
-            }
-            let (i, j) = (self.eval(&dimensions.0, db)?, self.eval(&dimensions.1, db)?);
-            if !matches!(i, Value::Int(_) | Value::Unit) {
-                return Err(InterpretError::MismatchedTypes {
-                    expected: vec!["int"],
-                    found: i.type_str(),
-                });
-            }
-            if let Value::Int(i) = i {
-                if i < 0 {
-                    return Err(InterpretError::IllegalNegative);
-                }
-            }
-            if let Value::Int(j) = j {
-                if j < 0 {
-                    return Err(InterpretError::IllegalNegative);
-                }
-            }
-
-            let Value::Int(outer_len) = i else {
-                unreachable!()
-            };
-
-            if let Value::Int(inner_len) = j {
-                let mut arr = Vec::with_capacity(outer_len as usize);
-
-                let mut inner = Vec::with_capacity(inner_len as usize);
-                inner.resize(inner_len as usize, Value::Unit);
-                arr.resize(outer_len as usize, Value::Array(inner));
-                match kind {
-                    hir::VarDefKind::Constant => {
-                        self.env_mut()
-                            .insert_constant(name.clone(), Value::Array(arr))
-                            .map_err(|()| InterpretError::ReassignedConstant)?;
-                    }
-                    hir::VarDefKind::Global => self
-                        .root_env()
-                        .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                    hir::VarDefKind::Standard => self
-                        .env_mut()
-                        .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                }
-                Ok(Value::Unit)
+        if matches!(subscript, (hir::Expr::Missing, hir::Expr::Missing)) {
+            if matches!(dimensions, (hir::Expr::Missing, hir::Expr::Missing)) {
+                self.array_define(value, db, kind, name)
             } else {
-                let mut arr = Vec::with_capacity(outer_len as usize);
-                arr.resize(outer_len as usize, Value::Unit);
-                match kind {
-                    hir::VarDefKind::Constant => {
-                        self.env_mut()
-                            .insert_constant(name.clone(), Value::Array(arr))
-                            .map_err(|()| InterpretError::ReassignedConstant)?;
-                    }
-                    hir::VarDefKind::Global => self
-                        .root_env()
-                        .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                    hir::VarDefKind::Standard => self
-                        .env_mut()
-                        .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                }
-                Ok(Value::Unit)
+                self.array_decl(dimensions, db, kind, name)
             }
         } else {
-            if !matches!(kind, hir::VarDefKind::Standard) {
-                return Err(InterpretError::DisallowedVariableQualifier);
-            }
-            let i1 = self.eval(&subscript.0, db)?;
-            if !matches!(i1, Value::Int(_)) {
-                return Err(InterpretError::MismatchedTypes {
-                    expected: vec!["int"],
-                    found: i1.type_str(),
-                });
-            }
-            let Value::Int(i1) = i1 else { unreachable!() };
+            self.array_subscript_assign(kind, subscript, db, name, value)
+        }
+    }
 
-            let i2 = self.eval(&subscript.1, db)?;
-            let Some(arr) = self.get_var(name) else {
-                return Err(InterpretError::UnresolvedVariable { name: name.clone() });
-            };
-            let Value::Array(mut arr) = arr else {
-                return Err(InterpretError::MismatchedTypes {
-                    expected: vec!["array"],
-                    found: arr.type_str(),
-                });
-            };
-            let value = self.eval(value, db)?;
-            if matches!(i2, Value::Unit) {
-                arr[i1 as usize] = value;
-            } else {
-                let Value::Int(i2) = i2 else {
-                    return Err(InterpretError::MismatchedTypes {
-                        expected: vec!["int"],
-                        found: i2.type_str(),
-                    });
-                };
-                let Value::Array(subarr) = &mut arr[i1 as usize] else {
-                    return Err(InterpretError::MismatchedTypes {
-                        expected: vec!["array"],
-                        found: arr[i1 as usize].type_str(),
-                    });
-                };
-                subarr[i2 as usize] = value;
+    fn array_define(
+        &mut self,
+        value: &hir::Expr,
+        db: &Database,
+        kind: hir::VarDefKind,
+        name: &SmolStr,
+    ) -> Result<Value, InterpretError> {
+        if matches!(value, hir::Expr::Missing) {
+            return Err(InterpretError::InvalidArrayDeclaration);
+        }
+        let value = self.eval(value, db)?;
+        let Value::Array(arr) = value else {
+            return Err(InterpretError::MismatchedTypes {
+                expected: vec!["array"],
+                found: value.type_str(),
+            });
+        };
+        match kind {
+            hir::VarDefKind::Constant => self
+                .env_mut()
+                .insert_constant(name.clone(), Value::Array(arr))
+                .map_err(|()| InterpretError::ReassignedConstant)?,
+            hir::VarDefKind::Global => self
+                .root_env()
+                .insert(name.clone(), Binding::Var(Value::Array(arr))),
+            hir::VarDefKind::Standard => self
+                .env_mut()
+                .insert(name.clone(), Binding::Var(Value::Array(arr))),
+        }
+        Ok(Value::Unit)
+    }
+
+    fn array_decl(
+        &mut self,
+        dimensions: &(hir::Expr, hir::Expr),
+        db: &Database,
+        kind: hir::VarDefKind,
+        name: &SmolStr,
+    ) -> Result<Value, InterpretError> {
+        let (i, j) = (self.eval(&dimensions.0, db)?, self.eval(&dimensions.1, db)?);
+        if !matches!(i, Value::Int(_) | Value::Unit) {
+            return Err(InterpretError::MismatchedTypes {
+                expected: vec!["int"],
+                found: i.type_str(),
+            });
+        }
+        if let Value::Int(i) = i {
+            if i < 0 {
+                return Err(InterpretError::IllegalNegative);
             }
-            self.env_mut()
-                .insert(name.clone(), Binding::Var(Value::Array(arr)));
+        }
+        if let Value::Int(j) = j {
+            if j < 0 {
+                return Err(InterpretError::IllegalNegative);
+            }
+        }
+
+        let Value::Int(outer_len) = i else {
+            unreachable!()
+        };
+
+        if let Value::Int(inner_len) = j {
+            let mut arr = Vec::with_capacity(
+                outer_len
+                    .try_into()
+                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+            );
+
+            let mut inner = Vec::with_capacity(
+                inner_len
+                    .try_into()
+                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+            );
+            inner.resize(
+                inner_len
+                    .try_into()
+                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+                Value::Unit,
+            );
+            arr.resize(
+                outer_len
+                    .try_into()
+                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+                Value::Array(inner),
+            );
+            match kind {
+                hir::VarDefKind::Constant => {
+                    self.env_mut()
+                        .insert_constant(name.clone(), Value::Array(arr))
+                        .map_err(|()| InterpretError::ReassignedConstant)?;
+                }
+                hir::VarDefKind::Global => self
+                    .root_env()
+                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                hir::VarDefKind::Standard => self
+                    .env_mut()
+                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+            }
+            Ok(Value::Unit)
+        } else {
+            let mut arr = Vec::with_capacity(
+                outer_len
+                    .try_into()
+                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+            );
+            arr.resize(
+                outer_len
+                    .try_into()
+                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+                Value::Unit,
+            );
+            match kind {
+                hir::VarDefKind::Constant => {
+                    self.env_mut()
+                        .insert_constant(name.clone(), Value::Array(arr))
+                        .map_err(|()| InterpretError::ReassignedConstant)?;
+                }
+                hir::VarDefKind::Global => self
+                    .root_env()
+                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                hir::VarDefKind::Standard => self
+                    .env_mut()
+                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+            }
             Ok(Value::Unit)
         }
+    }
+
+    fn array_subscript_assign(
+        &mut self,
+        kind: hir::VarDefKind,
+        subscript: &(hir::Expr, hir::Expr),
+        db: &Database,
+        name: &SmolStr,
+        value: &hir::Expr,
+    ) -> Result<Value, InterpretError> {
+        if !matches!(kind, hir::VarDefKind::Standard) {
+            return Err(InterpretError::DisallowedVariableQualifier);
+        }
+        let i1 = self.eval(&subscript.0, db)?;
+        if !matches!(i1, Value::Int(_)) {
+            return Err(InterpretError::MismatchedTypes {
+                expected: vec!["int"],
+                found: i1.type_str(),
+            });
+        }
+        let Value::Int(i1) = i1 else { unreachable!() };
+
+        let i2 = self.eval(&subscript.1, db)?;
+        let Some(arr) = self.get_var(name) else {
+            return Err(InterpretError::UnresolvedVariable { name: name.clone() });
+        };
+        let Value::Array(mut arr) = arr else {
+            return Err(InterpretError::MismatchedTypes {
+                expected: vec!["array"],
+                found: arr.type_str(),
+            });
+        };
+        let value = self.eval(value, db)?;
+        if matches!(i2, Value::Unit) {
+            arr[usize::try_from(i1).map_err(|_| InterpretError::IntegerTooLarge)?] = value;
+        } else {
+            let Value::Int(i2) = i2 else {
+                return Err(InterpretError::MismatchedTypes {
+                    expected: vec!["int"],
+                    found: i2.type_str(),
+                });
+            };
+            let Value::Array(subarr) =
+                &mut arr[usize::try_from(i1).map_err(|_| InterpretError::IntegerTooLarge)?]
+            else {
+                return Err(InterpretError::MismatchedTypes {
+                    expected: vec!["array"],
+                    found: arr[usize::try_from(i1).map_err(|_| InterpretError::IntegerTooLarge)?]
+                        .type_str(),
+                });
+            };
+            subarr[usize::try_from(i2).map_err(|_| InterpretError::IntegerTooLarge)?] = value;
+        }
+        self.env_mut()
+            .insert(name.clone(), Binding::Var(Value::Array(arr)));
+        Ok(Value::Unit)
     }
 
     fn exec_var_def(
         &mut self,
         value: &hir::Expr,
         db: &Database,
-        kind: &hir::VarDefKind,
+        kind: hir::VarDefKind,
         name: &SmolStr,
     ) -> Result<Value, InterpretError> {
         let value = self.eval(value, db)?;
@@ -820,7 +886,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     fn lower(src: &str) -> (Database, Vec<Stmt>) {
-        hir::lower(ast::Root::cast(parser::parse(src).syntax()).unwrap())
+        hir::lower(&ast::Root::cast(parser::parse(src).syntax()).unwrap())
     }
 
     fn check_eval(expr: &str, expected: Value) {
