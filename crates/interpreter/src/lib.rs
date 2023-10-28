@@ -485,13 +485,20 @@ where
             }),
             hir::Expr::Binary { op, lhs, rhs } => {
                 let lhs = self.eval(db.get(*lhs), db)?;
-                if let hir::Expr::NameRef { name, .. } = db.get(*rhs) {
+                let rhs = db.get(*rhs);
+                if let hir::Expr::NameRef { name, .. } = rhs {
                     if let Some(value) = eval_string_attrs(*op, &lhs, name) {
+                        return value;
+                    }
+                } else if let hir::Expr::Call { callee, args } = rhs {
+                    if let Some(value) =
+                        self.eval_string_methods(*op, &lhs, callee, args.clone(), db)
+                    {
                         return value;
                     }
                 }
 
-                let rhs = self.eval(db.get(*rhs), db)?;
+                let rhs = self.eval(rhs, db)?;
                 if !lhs.same_type(&rhs)
                     && !matches!(
                         (&lhs, &rhs),
@@ -541,6 +548,106 @@ where
             }
             hir::Expr::Missing => Ok(Value::Unit),
         }
+    }
+
+    fn eval_string_methods(
+        &mut self,
+        op: hir::BinaryOp,
+        lhs: &Value,
+        callee: &str,
+        args: ExprRange,
+        db: &Database,
+    ) -> Option<IResult<Value>> {
+        if matches!(op, hir::BinaryOp::Dot) {
+            let Value::String(lhs) = lhs else {
+                return Some(Err(InterpretError::MismatchedTypes {
+                    expected: vec!["string"],
+                    found: lhs.type_str(),
+                }));
+            };
+
+            let args = match db
+                .get_range(args)
+                .iter()
+                .map(|e| self.eval(e, db))
+                .collect::<IResult<Vec<_>>>()
+            {
+                Ok(args) => args,
+                Err(e) => return Some(Err(e)),
+            };
+            if let Some(a) = args.iter().find(|a| !matches!(a, &&Value::Int(_))) {
+                return Some(Err(InterpretError::MismatchedTypes {
+                    expected: vec!["int"],
+                    found: a.type_str(),
+                }));
+            }
+
+            match callee {
+                f @ ("left" | "right") => {
+                    if args.len() != 1 {
+                        return Some(Err(InterpretError::InvalidArgumentCount {
+                            expected: 1,
+                            got: args.len(),
+                        }));
+                    }
+                    let Value::Int(n) = args[0] else {
+                        unreachable!();
+                    };
+                    let Ok(n) = n.try_into() else {
+                        return Some(Err(InterpretError::IntegerTooLarge));
+                    };
+
+                    if f == "left" {
+                        return Some(Ok(Value::String(lhs.chars().take(n).collect())));
+                    } else if f == "right" {
+                        return Some(Ok(Value::String(
+                            lhs.chars()
+                                .rev()
+                                .take(n)
+                                .collect::<SmolStr>()
+                                .chars()
+                                .rev()
+                                .collect(),
+                        )));
+                    }
+                }
+                "substring" => {
+                    if args.len() != 2 {
+                        return Some(Err(InterpretError::InvalidArgumentCount {
+                            expected: 2,
+                            got: args.len(),
+                        }));
+                    }
+                    if let Some(a) = args.iter().find(|a| !matches!(a, Value::Int(_))) {
+                        return Some(Err(InterpretError::MismatchedTypes {
+                            expected: vec!["int"],
+                            found: a.type_str(),
+                        }));
+                    }
+                    let (Value::Int(skip), Value::Int(len)) = (&args[0], &args[1]) else {
+                        unreachable!()
+                    };
+                    if *skip < 0 || *len < 0 {
+                        return Some(Err(InterpretError::IllegalNegative));
+                    }
+                    let (Ok(skip), Ok(len)) = (usize::try_from(*skip), usize::try_from(*len))
+                    else {
+                        return Some(Err(InterpretError::IntegerTooLarge));
+                    };
+
+                    return Some(Ok(Value::String(
+                        lhs.chars().skip(skip).take(len).collect(),
+                    )));
+                }
+                _ => {
+                    return Some(Err(InterpretError::InvalidDotTarget {
+                        name: callee.into(),
+                    }))
+                }
+            }
+        }
+
+        None
     }
 
     fn call_subprog(
@@ -691,6 +798,10 @@ pub enum InterpretError {
     IncorrectArrayLength {
         expected: usize,
         found: usize,
+    },
+    IntegerTooLarge,
+    InvalidDotTarget {
+        name: SmolStr,
     },
 }
 
@@ -866,10 +977,20 @@ mod tests {
     }
 
     #[test]
-    fn eval_basic_string_manip() {
+    fn eval_string_attributes() {
         check_eval("\"string\".length", Value::Int(6));
         check_eval("\"sTrInG\".upper", Value::String("STRING".into()));
         check_eval("\"StRiNg\".lower", Value::String("string".into()));
+    }
+
+    #[test]
+    fn eval_string_methods() {
+        check_eval(r#""ComputerScience".left(4)"#, Value::String("Comp".into()));
+        check_eval(r#""ComputerScience".right(3)"#, Value::String("nce".into()));
+        check_eval(
+            r#""ComputerScience".substring(3, 5)"#,
+            Value::String("puter".into()),
+        );
     }
 
     #[test]
