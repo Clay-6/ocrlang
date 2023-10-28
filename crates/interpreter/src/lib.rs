@@ -673,26 +673,19 @@ where
             .iter()
             .map(|e| self.eval(e, db))
             .collect::<IResult<Vec<_>>>()?;
+        if args.len() != 1 {
+            return Err(InterpretError::InvalidArgumentCount {
+                expected: 1,
+                got: args.len(),
+            });
+        }
+
         match callee {
             "print" => {
-                if args.len() != 1 {
-                    return Err(InterpretError::InvalidArgumentCount {
-                        expected: 1,
-                        got: args.len(),
-                    });
-                }
-
                 writeln!(self.output, "{}", args[0]).unwrap();
                 Ok(Value::Unit)
             }
             "input" => {
-                if args.len() != 1 {
-                    return Err(InterpretError::InvalidArgumentCount {
-                        expected: 1,
-                        got: args.len(),
-                    });
-                }
-
                 if let Value::String(ref prompt) = args[0] {
                     write!(self.output, "{prompt}").unwrap();
                     self.output.flush().unwrap();
@@ -705,6 +698,27 @@ where
                         found: args[0].type_str(),
                     })
                 }
+            }
+            "ASC" => {
+                let Value::Char(ref c) = args[0] else {
+                    return Err(InterpretError::MismatchedTypes {
+                        expected: vec!["char"],
+                        found: args[0].type_str(),
+                    });
+                };
+                Ok(Value::Int(u32::from(*c).into()))
+            }
+            "CHR" => {
+                let Value::Int(ref n) = args[0] else {
+                    return Err(InterpretError::MismatchedTypes {
+                        expected: vec!["int"],
+                        found: args[0].type_str(),
+                    });
+                };
+                let Ok(n) = u8::try_from(*n) else {
+                    return Err(InterpretError::IntegerTooLarge);
+                };
+                Ok(Value::Char(n.into()))
             }
             _ => Err(InterpretError::UnresolvedSubprogram {
                 name: callee.into(),
@@ -905,6 +919,12 @@ mod tests {
         interpreter.exec_stmt(&stmts[0], &db).unwrap();
         let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
         assert_eq!(evaled, Value::Int(-3));
+    }
+
+    #[test]
+    fn eval_builtin_ascii_conversions() {
+        check_eval("CHR(97)", Value::Char('a'));
+        check_eval("ASC('A')", Value::Int(65));
     }
 
     #[test]
