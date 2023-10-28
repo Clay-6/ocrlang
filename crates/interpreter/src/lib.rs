@@ -1085,4 +1085,30 @@ mod tests {
             &"Ran\n".repeat(10),
         );
     }
+
+    #[test]
+    fn exec_do_until() {
+        check_output(
+            r#"
+            i = 1
+            do
+                print("Ran")
+                i = i +1
+            until i > 10"#,
+            &"Ran\n".repeat(10),
+        );
+    }
+
+    #[test]
+    fn exec_while_loop() {
+        check_output(
+            r#"
+            i = 1
+            while i < 10
+                print("Ran")
+                i = i+1
+            endwhile"#,
+            &"Ran\n".repeat(9),
+        );
+    }
 }
