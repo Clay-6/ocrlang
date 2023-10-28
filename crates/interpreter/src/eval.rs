@@ -1,5 +1,3 @@
-use smol_str::SmolStr;
-
 use crate::{InterpretError, Value};
 
 pub(crate) fn eval_binary_op(
@@ -239,7 +237,7 @@ pub(crate) fn eval_binary_op(
 pub(crate) fn eval_string_attrs(
     op: hir::BinaryOp,
     lhs: &Value,
-    name: &SmolStr,
+    name: &str,
 ) -> Option<Result<Value, InterpretError>> {
     if matches!(op, hir::BinaryOp::Dot) {
         let Value::String(s) = lhs else {
@@ -249,15 +247,12 @@ pub(crate) fn eval_string_attrs(
             }));
         };
 
-        if name == "length" {
-            return Some(Ok(Value::Int(s.len() as _)));
-        }
-        if name == "lower" {
-            return Some(Ok(Value::String(s.to_string().to_lowercase().into())));
-        }
-        if name == "upper" {
-            return Some(Ok(Value::String(s.to_string().to_uppercase().into())));
-        }
+        return match name {
+            "length" => Some(Ok(Value::Int(s.len() as _))),
+            "lower" => Some(Ok(Value::String(s.to_string().to_lowercase().into()))),
+            "upper" => Some(Ok(Value::String(s.to_string().to_uppercase().into()))),
+            _ => Some(Err(InterpretError::InvalidDotTarget { name: name.into() })),
+        };
     }
 
     None
