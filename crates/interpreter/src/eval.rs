@@ -242,23 +242,24 @@ pub(crate) fn eval_string_attrs(
     name: &SmolStr,
 ) -> Option<Result<Value, InterpretError>> {
     if matches!(op, hir::BinaryOp::Dot) {
-        if let Value::String(s) = lhs {
-            if name == "length" {
-                return Some(Ok(Value::Int(s.len() as _)));
-            }
-            if name == "lower" {
-                return Some(Ok(Value::String(s.to_string().to_lowercase().into())));
-            }
-            if name == "upper" {
-                return Some(Ok(Value::String(s.to_string().to_uppercase().into())));
-            }
-        } else {
+        let Value::String(s) = lhs else {
             return Some(Err(InterpretError::MismatchedTypes {
                 expected: vec!["string"],
                 found: lhs.type_str(),
             }));
+        };
+
+        if name == "length" {
+            return Some(Ok(Value::Int(s.len() as _)));
+        }
+        if name == "lower" {
+            return Some(Ok(Value::String(s.to_string().to_lowercase().into())));
+        }
+        if name == "upper" {
+            return Some(Ok(Value::String(s.to_string().to_uppercase().into())));
         }
     }
+
     None
 }
 
