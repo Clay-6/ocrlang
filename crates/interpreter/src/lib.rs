@@ -773,7 +773,7 @@ impl fmt::Display for Value {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InterpretError {
     ReassignedConstant,
     MismatchedTypes {
@@ -991,6 +991,21 @@ mod tests {
             r#""ComputerScience".substring(3, 5)"#,
             Value::String("puter".into()),
         );
+    }
+
+    #[test]
+    fn invalid_dot_target_errors() {
+        {
+            let (db, stmts) = lower(r#""string".ballsack"#);
+            let res = Interpreter::new(std::io::empty(), vec![]).exec_stmt(&stmts[0], &db);
+
+            assert_eq!(
+                res,
+                Err(InterpretError::InvalidDotTarget {
+                    name: "ballsack".into()
+                })
+            );
+        };
     }
 
     #[test]
