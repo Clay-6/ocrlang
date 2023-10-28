@@ -582,7 +582,7 @@ where
                 }));
             }
 
-            match callee {
+            return match callee {
                 f @ ("left" | "right") => {
                     if args.len() != 1 {
                         return Some(Err(InterpretError::InvalidArgumentCount {
@@ -598,9 +598,9 @@ where
                     };
 
                     if f == "left" {
-                        return Some(Ok(Value::String(lhs.chars().take(n).collect())));
-                    } else if f == "right" {
-                        return Some(Ok(Value::String(lhs.chars().skip(lhs.len() - n).collect())));
+                        Some(Ok(Value::String(lhs.chars().take(n).collect())))
+                    } else {
+                        Some(Ok(Value::String(lhs.chars().skip(lhs.len() - n).collect())))
                     }
                 }
                 "substring" => {
@@ -627,16 +627,14 @@ where
                         return Some(Err(InterpretError::IntegerTooLarge));
                     };
 
-                    return Some(Ok(Value::String(
+                    Some(Ok(Value::String(
                         lhs.chars().skip(skip).take(len).collect(),
-                    )));
+                    )))
                 }
-                _ => {
-                    return Some(Err(InterpretError::InvalidDotTarget {
-                        name: callee.into(),
-                    }))
-                }
-            }
+                _ => Some(Err(InterpretError::InvalidDotTarget {
+                    name: callee.into(),
+                })),
+            };
         }
 
         None
