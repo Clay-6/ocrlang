@@ -493,9 +493,12 @@ where
 
                 let rhs = self.eval(db.get(*rhs), db)?;
                 if !lhs.same_type(&rhs)
-                    && !matches!((&lhs, &rhs), (&Value::Int(_), &Value::Float(_)))
-                    && !matches!((&lhs, &rhs), (&Value::Float(_), &Value::Int(_)))
-                    && !matches!((&lhs, &rhs), (&Value::Array(_), Value::Int(_)))
+                    && !matches!(
+                        (&lhs, &rhs),
+                        (&Value::Int(_), &Value::Float(_))
+                            | (&Value::Float(_), &Value::Int(_))
+                            | (&Value::Array(_), Value::Int(_))
+                    )
                 {
                     return Err(InterpretError::MismatchedTypes {
                         expected: vec![lhs.type_str()],
