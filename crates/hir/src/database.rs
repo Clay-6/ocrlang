@@ -361,9 +361,8 @@ mod tests {
     fn check_expr(input: &str, expected_hir: Expr, expected_database: Database) {
         let root = parse(input);
         let first_stmt = root.stmts().next().unwrap();
-        let ast = match first_stmt {
-            ast::Stmt::Expr(ast) => ast,
-            _ => unreachable!(),
+        let ast::Stmt::Expr(ast) = first_stmt else {
+            unreachable!()
         };
         let mut database = Database::default();
         let hir = database.lower_expr(Some(ast));
