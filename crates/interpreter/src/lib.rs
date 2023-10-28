@@ -579,7 +579,7 @@ where
                     });
                 }
 
-                eval_binary_op(op, lhs, rhs)
+                eval_binary_op(*op, lhs, rhs)
             }
             hir::Expr::Unary { op, opand } => eval_unary_op(self.eval(db.get(*opand), db)?, *op),
             hir::Expr::NameRef { name } => self

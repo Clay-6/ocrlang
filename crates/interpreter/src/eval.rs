@@ -1,7 +1,8 @@
 use crate::{InterpretError, Value};
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn eval_binary_op(
-    op: &hir::BinaryOp,
+    op: hir::BinaryOp,
     lhs: Value,
     rhs: Value,
 ) -> Result<Value, InterpretError> {
@@ -106,13 +107,19 @@ pub(crate) fn eval_binary_op(
         }
         hir::BinaryOp::Pow => {
             if let (Value::Int(i1), Value::Int(i2)) = (&lhs, &rhs) {
-                Ok(Value::Int((*i1 as f64).powf(*i2 as f64) as i64))
+                Ok(Value::Int(
+                    i1.pow(
+                        (*i2)
+                            .try_into()
+                            .map_err(|_| InterpretError::IntegerTooLarge)?,
+                    ),
+                ))
             } else if let (Value::Float(f1), Value::Float(f2)) = (&lhs, &rhs) {
                 Ok(Value::Float(f1.powf(*f2)))
             } else if let (Value::Int(i), Value::Float(f)) = (&lhs, &rhs) {
                 Ok(Value::Float((*i as f64).powf(*f)))
             } else if let (Value::Float(f), Value::Int(i)) = (&lhs, &rhs) {
-                Ok(Value::Float(f.powf(*i as _)))
+                Ok(Value::Float(f.powf(*i as f64)))
             } else {
                 Err(InterpretError::MismatchedTypes {
                     expected: vec!["int", "float"],
@@ -209,7 +216,7 @@ pub(crate) fn eval_binary_op(
         hir::BinaryOp::SubScript => {
             if let (Value::Array(arr), Value::Int(i)) = (&lhs, &rhs) {
                 Ok(arr
-                    .get(*i as usize)
+                    .get(usize::try_from(*i).map_err(|_| InterpretError::IntegerTooLarge)?)
                     .cloned()
                     .ok_or(InterpretError::IndexOutOfRange)?)
             } else if !matches!(lhs, Value::Array(_)) {
@@ -248,7 +255,12 @@ pub(crate) fn eval_string_attrs(
         };
 
         return match name {
-            "length" => Some(Ok(Value::Int(s.len() as _))),
+            "length" => {
+                let Ok(len) = s.len().try_into() else {
+                    return Some(Err(InterpretError::IntegerTooLarge));
+                };
+                Some(Ok(Value::Int(len)))
+            }
             "lower" => Some(Ok(Value::String(s.to_string().to_lowercase().into()))),
             "upper" => Some(Ok(Value::String(s.to_string().to_uppercase().into()))),
             _ => Some(Err(InterpretError::InvalidDotTarget { name: name.into() })),
