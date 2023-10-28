@@ -600,15 +600,7 @@ where
                     if f == "left" {
                         return Some(Ok(Value::String(lhs.chars().take(n).collect())));
                     } else if f == "right" {
-                        return Some(Ok(Value::String(
-                            lhs.chars()
-                                .rev()
-                                .take(n)
-                                .collect::<SmolStr>()
-                                .chars()
-                                .rev()
-                                .collect(),
-                        )));
+                        return Some(Ok(Value::String(lhs.chars().skip(lhs.len() - n).collect())));
                     }
                 }
                 "substring" => {
