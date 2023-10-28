@@ -627,4 +627,24 @@ mod tests {
                     RParen@7..8 ")""#]],
         );
     }
+
+    #[test]
+    fn parse_subscript_call() {
+        check(
+            "string.left(4)",
+            expect![[r#"
+            Root@0..14
+              BinaryExpr@0..14
+                NameRef@0..6
+                  Ident@0..6 "string"
+                Dot@6..7 "."
+                SubprogCall@7..14
+                  NameRef@7..11
+                    Ident@7..11 "left"
+                  LParen@11..12 "("
+                  Literal@12..13
+                    Number@12..13 "4"
+                  RParen@13..14 ")""#]],
+        );
+    }
 }
