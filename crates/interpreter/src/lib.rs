@@ -874,7 +874,7 @@ impl fmt::Display for Value {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum InterpretError {
     ParseErrors {
         errors: Vec<parser::ParseError>,
@@ -908,6 +908,48 @@ pub enum InterpretError {
         name: SmolStr,
     },
     ReturnOutsideFunction,
+}
+
+impl fmt::Display for InterpretError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            InterpretError::ParseErrors { errors } => {
+                errors.iter().fold(String::new(), |mut output, e| {
+                    use std::fmt::Write;
+                    let _ = writeln!(output, "{e}");
+                    output
+                })
+            }
+            InterpretError::ReassignedConstant => "reassigned constant".into(),
+            InterpretError::MismatchedTypes { expected, found } => {
+                format!("mismatched types. Expected one of {expected:?}, but found {found}")
+            }
+            InterpretError::UnresolvedVariable { name } => format!("unresolved variable '{name}'"),
+            InterpretError::UnresolvedSubprogram { name } => {
+                format!("unresolved subprogram '{name}'")
+            }
+            InterpretError::InvalidArgumentCount { expected, got } => {
+                format!("invalid argument count. Expected {expected}, but found {got}")
+            }
+            InterpretError::IndexOutOfRange => "index out of range".to_string(),
+            InterpretError::ForLoopWithoutVariable => "for loop without variable".to_string(),
+            InterpretError::DisallowedVariableQualifier => "disallowed variable qualifier".into(),
+            InterpretError::InvalidArrayDeclaration => "invalid array declaration".to_string(),
+            InterpretError::IllegalNegative => "negative value not allowed".to_string(),
+            InterpretError::IncorrectArrayLength { expected, found } => {
+                format!("incorrect array length; expected {expected}, but found {found}")
+            }
+            InterpretError::IntegerTooLarge => "integer too large".to_string(),
+            InterpretError::InvalidDotTarget { name } => {
+                format!("invalid dot expression target '{name}'")
+            }
+            InterpretError::ReturnOutsideFunction => {
+                "return statement outside of function".to_string()
+            }
+        };
+
+        write!(f, "{s}")
+    }
 }
 
 #[cfg(test)]
