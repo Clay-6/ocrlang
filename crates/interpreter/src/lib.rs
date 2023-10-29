@@ -38,12 +38,18 @@ where
     }
 
     pub fn run(&mut self, src: &str) -> InterpretResult<()> {
-        let (db, stmts) = hir::lower(&ast::Root::cast(parser::parse(src).syntax()).unwrap());
-
-        self.execute(&stmts, &db)
+        let parse_tree = parser::parse(src);
+        if parse_tree.errors().is_empty() {
+            let (db, stmts) = hir::lower(&ast::Root::cast(parse_tree.syntax()).unwrap());
+            self.execute(&stmts, &db)
+        } else {
+            Err(InterpretError::ParseErrors {
+                errors: parse_tree.errors().to_owned(),
+            })
+        }
     }
 
-    pub fn execute(&mut self, stmts: &[Stmt], db: &Database) -> InterpretResult<()> {
+    pub(crate) fn execute(&mut self, stmts: &[Stmt], db: &Database) -> InterpretResult<()> {
         for stmt in stmts {
             self.exec_stmt(stmt, db)?;
         }
@@ -870,6 +876,9 @@ impl fmt::Display for Value {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterpretError {
+    ParseErrors {
+        errors: Vec<parser::ParseError>,
+    },
     ReassignedConstant,
     MismatchedTypes {
         expected: Vec<&'static str>,

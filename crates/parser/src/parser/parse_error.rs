@@ -3,8 +3,8 @@ use std::ops::Range;
 
 use lexer::TokenKind;
 
-#[derive(Debug, PartialEq)]
-pub(crate) struct ParseError {
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParseError {
     pub(super) expected: Vec<TokenKind>,
     pub(super) found: Option<TokenKind>,
     pub(super) range: Range<usize>,

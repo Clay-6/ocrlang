@@ -1,5 +1,5 @@
 pub(crate) mod marker;
-mod parse_error;
+pub(crate) mod parse_error;
 
 use std::mem;
 
