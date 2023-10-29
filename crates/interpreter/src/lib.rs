@@ -568,20 +568,17 @@ where
                 }
             }),
             hir::Expr::Binary { op, lhs, rhs } => {
-                let lhs = self.eval(db.get(*lhs), db)?;
+                let mut lhs = self.eval(db.get(*lhs), db)?;
                 let rhs = db.get(*rhs);
                 if let hir::Expr::NameRef { name, .. } = rhs {
                     if let Some(value) = eval_string_attrs(*op, &lhs, name) {
                         return value;
                     }
                 } else if let hir::Expr::Call { callee, args } = rhs {
-                    if let Some(value) =
-                        self.eval_string_methods(*op, &lhs, callee, args.clone(), db)
-                    {
+                    if let Some(value) = self.eval_method(*op, &mut lhs, callee, args.clone(), db) {
                         return value;
                     }
                 }
-
                 let rhs = self.eval(rhs, db)?;
                 if !lhs.same_type(&rhs)
                     && !matches!(
@@ -723,6 +720,47 @@ where
         }
 
         None
+    }
+
+    fn eval_file_methods(
+        &mut self,
+        op: hir::BinaryOp,
+        lhs: &mut Value,
+        callee: &str,
+        args: ExprRange,
+        db: &Database,
+    ) -> Option<InterpretResult<Value>> {
+        if !matches!(op, hir::BinaryOp::Dot) {
+            return None;
+        }
+
+        let Value::File(FileInner(file)) = lhs else {
+            return Some(Err(InterpretError::MismatchedTypes {
+                expected: vec!["file"],
+                found: lhs.type_str(),
+            }));
+        };
+
+        let args = match db
+            .get_range(args)
+            .iter()
+            .map(|a| self.eval(a, db))
+            .collect::<InterpretResult<Vec<_>>>()
+        {
+            Ok(args) => args,
+            Err(e) => return Some(Err(e)),
+        };
+
+        match callee {
+            "close" => {
+                // Reassign to drop the `File` & close it in its `Drop` impl
+                *lhs = Value::Unit;
+                Some(Ok(Value::Unit))
+            }
+            _ => Some(Err(InterpretError::InvalidDotTarget {
+                name: callee.into(),
+            })),
+        }
     }
 
     fn call_subprog(&mut self, body: &[Stmt], db: &Database) -> InterpretResult<Value> {
@@ -899,6 +937,21 @@ where
             _ => Err(InterpretError::UnresolvedSubprogram {
                 name: callee.into(),
             }),
+        }
+    }
+
+    fn eval_method(
+        &mut self,
+        op: hir::BinaryOp,
+        lhs: &mut Value,
+        callee: &str,
+        args: ExprRange,
+        db: &Database,
+    ) -> Option<Result<Value, InterpretError>> {
+        match lhs {
+            Value::String(_) => self.eval_string_methods(op, lhs, callee, args, db),
+            Value::File(_) => self.eval_file_methods(op, lhs, callee, args, db),
+            _ => None,
         }
     }
 }
@@ -1586,11 +1639,26 @@ mod tests {
     fn file_create_open() {
         check_output(
             r#"
-            newFile("test.txt")
+            newFile("file_create_open.txt")
             print("created")
-            file = open("test.txt")
+            file = open("file_create_open.txt")
             print("opened")"#,
             "created\nopened\n",
         );
+        fs::remove_file("file_create_open.txt").unwrap()
+    }
+
+    #[test]
+    fn file_close() {
+        File::create("file_close.txt").unwrap();
+        check_output(
+            r#"
+            f = open("file_close.txt")
+            print("opened")
+            f.close()
+            print("closed")"#,
+            "opened\nclosed\n",
+        );
+        fs::remove_file("file_close.txt").unwrap();
     }
 }
