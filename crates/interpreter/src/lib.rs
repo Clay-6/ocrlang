@@ -51,7 +51,11 @@ where
 
     pub(crate) fn execute(&mut self, stmts: &[Stmt], db: &Database) -> InterpretResult<()> {
         for stmt in stmts {
+            let prev_depth = self.call_depth;
             self.exec_stmt(stmt, db)?;
+            if prev_depth > self.call_depth {
+                break;
+            }
         }
 
         Ok(())
@@ -60,7 +64,11 @@ where
     fn exec_block(&mut self, block: &[Stmt], db: &Database) -> InterpretResult<Value> {
         let mut res = Value::Unit;
         for stmt in block {
+            let prev_depth = self.call_depth;
             res = self.exec_stmt(stmt, db)?;
+            if prev_depth > self.call_depth {
+                break;
+            }
         }
         Ok(res)
     }
@@ -122,7 +130,9 @@ where
             } => Ok(self.exec_subprogram_def(*kind, name, params, body)),
             Stmt::ReturnStmt { value } => {
                 if self.call_depth > 0 {
-                    self.eval(value, db)
+                    let res = self.eval(value, db);
+                    self.call_depth -= 1;
+                    res
                 } else {
                     Err(InterpretError::ReturnOutsideFunction)
                 }
@@ -627,7 +637,6 @@ where
                 }
                 self.call_depth += 1;
                 let result = self.call_subprog(&subprog.body, subprog.kind, db);
-                self.call_depth -= 1;
                 self.pop_env();
 
                 result
@@ -734,7 +743,11 @@ where
     ) -> InterpretResult<Value> {
         match kind {
             SubprogKind::Function => self.exec_block(body, db),
-            SubprogKind::Procedure => self.execute(body, db).map(|()| Value::Unit),
+            SubprogKind::Procedure => {
+                let res = self.execute(body, db).map(|()| Value::Unit);
+                self.call_depth -= 1;
+                res
+            }
         }
     }
 
