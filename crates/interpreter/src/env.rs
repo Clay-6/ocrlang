@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 
 use hir::Stmt;
 use smol_str::SmolStr;
@@ -36,7 +36,7 @@ impl Env {
     }
 
     pub fn insert_constant(&mut self, name: SmolStr, value: Value) -> Result<(), ()> {
-        if let std::collections::hash_map::Entry::Vacant(e) = self.bindings.entry(name) {
+        if let Entry::Vacant(e) = self.bindings.entry(name) {
             e.insert(Binding::Const(value));
             Ok(())
         } else {
