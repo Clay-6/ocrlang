@@ -6,7 +6,6 @@ use std::{
     fs::{self, File},
     io::{self, BufRead},
     ops::Range,
-    rc::Rc,
 };
 
 use env::{Binding, Env, Subprogram};
@@ -886,6 +885,17 @@ where
                     })
                 }
             }
+            "newFile" => {
+                if let Value::String(ref path) = args[0] {
+                    File::create(path.as_str())?;
+                    Ok(Value::Unit)
+                } else {
+                    Err(InterpretError::MismatchedTypes {
+                        expected: vec!["string"],
+                        found: args[0].type_str(),
+                    })
+                }
+            }
             _ => Err(InterpretError::UnresolvedSubprogram {
                 name: callee.into(),
             }),
@@ -1569,6 +1579,18 @@ mod tests {
                 i = i+1
             endwhile"#,
             &"Ran\n".repeat(9),
+        );
+    }
+
+    #[test]
+    fn file_create_open() {
+        check_output(
+            r#"
+            newFile("test.txt")
+            print("created")
+            file = open("test.txt")
+            print("opened")"#,
+            "created\nopened\n",
         );
     }
 }
