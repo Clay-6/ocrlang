@@ -19,15 +19,8 @@ pub enum Binding {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Subprogram {
-    pub(crate) kind: SubprogKind,
     pub(crate) params: Vec<SmolStr>,
     pub(crate) body: Vec<Stmt>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SubprogKind {
-    Function,
-    Procedure,
 }
 
 impl Env {

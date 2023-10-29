@@ -7,7 +7,7 @@ use std::{
     ops::Range,
 };
 
-use env::{Binding, Env, SubprogKind, Subprogram};
+use env::{Binding, Env, Subprogram};
 use eval::{eval_binary_op, eval_string_attrs, eval_unary_op};
 use hir::{Database, ExprIdx, ExprRange, Stmt};
 use smol_str::SmolStr;
@@ -125,12 +125,9 @@ where
                 dimensions,
                 value,
             } => self.exec_array_def(subscript, dimensions, value, db, *kind, name),
-            Stmt::SubprogramDef {
-                kind,
-                name,
-                params,
-                body,
-            } => Ok(self.exec_subprogram_def(*kind, name, params, body)),
+            Stmt::SubprogramDef { name, params, body } => {
+                Ok(self.exec_subprogram_def(name, params, body))
+            }
             Stmt::ReturnStmt { value } => {
                 if self.call_depth > 0 {
                     let res = self.eval(value, db);
@@ -310,21 +307,10 @@ where
         }
     }
 
-    fn exec_subprogram_def(
-        &mut self,
-        kind: hir::SubprogramKind,
-        name: &SmolStr,
-        params: &[SmolStr],
-        body: &[Stmt],
-    ) -> Value {
-        let kind = match kind {
-            hir::SubprogramKind::Function => SubprogKind::Function,
-            hir::SubprogramKind::Procedure => SubprogKind::Procedure,
-        };
+    fn exec_subprogram_def(&mut self, name: &SmolStr, params: &[SmolStr], body: &[Stmt]) -> Value {
         self.env_mut().insert(
             name.clone(),
             Binding::Func(Subprogram {
-                kind,
                 params: params.to_vec(),
                 body: body.to_vec(),
             }),
@@ -639,7 +625,7 @@ where
                     self.env_mut().insert(name, Binding::Var(arg.clone()));
                 }
                 self.call_depth += 1;
-                let result = self.call_subprog(&subprog.body, subprog.kind, db);
+                let result = self.call_subprog(&subprog.body, db);
                 self.pop_env();
 
                 result
@@ -738,20 +724,8 @@ where
         None
     }
 
-    fn call_subprog(
-        &mut self,
-        body: &[Stmt],
-        kind: SubprogKind,
-        db: &Database,
-    ) -> InterpretResult<Value> {
-        match kind {
-            SubprogKind::Function => self.exec_block(body, db),
-            SubprogKind::Procedure => {
-                let res = self.execute(body, db).map(|()| Value::Unit);
-                self.call_depth -= 1;
-                res
-            }
-        }
+    fn call_subprog(&mut self, body: &[Stmt], db: &Database) -> InterpretResult<Value> {
+        self.exec_block(body, db)
     }
 
     fn builtin_subprog_call(
@@ -1303,7 +1277,6 @@ mod tests {
                 bindings: HashMap::from([(
                     "f".into(),
                     Binding::Func(Subprogram {
-                        kind: SubprogKind::Function,
                         params: vec![],
                         body: vec![Stmt::ReturnStmt {
                             value: Expr::Literal {
@@ -1322,9 +1295,10 @@ mod tests {
                 bindings: HashMap::from([(
                     "p".into(),
                     Binding::Func(Subprogram {
-                        kind: SubprogKind::Procedure,
                         params: vec![],
-                        body: vec![],
+                        body: vec![Stmt::ReturnStmt {
+                            value: Expr::Missing,
+                        }],
                     }),
                 )]),
             },

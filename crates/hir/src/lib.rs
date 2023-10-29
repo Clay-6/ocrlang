@@ -85,12 +85,6 @@ pub enum Expr {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum SubprogramKind {
-    Function,
-    Procedure,
-}
-
-#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum VarDefKind {
     Constant,
     Global,

@@ -3,9 +3,7 @@ use std::iter;
 use la_arena::Arena;
 use syntax::SyntaxKind;
 
-use crate::{
-    BinaryOp, Expr, ExprIdx, ExprRange, Literal, Stmt, SubprogramKind, UnaryOp, VarDefKind,
-};
+use crate::{BinaryOp, Expr, ExprIdx, ExprRange, Literal, Stmt, UnaryOp, VarDefKind};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Database {
