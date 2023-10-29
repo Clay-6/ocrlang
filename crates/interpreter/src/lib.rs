@@ -4,7 +4,7 @@ mod eval;
 use core::fmt;
 use std::{
     fs::{self, File},
-    io::{self, BufRead},
+    io::{self, BufRead, BufReader},
     ops::Range,
 };
 
@@ -23,7 +23,7 @@ where
 {
     envs: (Env, Vec<Env>),
     output: O,
-    input: io::BufReader<I>,
+    input: BufReader<I>,
     call_depth: usize,
 }
 
@@ -36,7 +36,7 @@ where
         Self {
             envs: (Env::default(), Vec::new()),
             output,
-            input: io::BufReader::new(input),
+            input: BufReader::new(input),
             call_depth: 0,
         }
     }
@@ -751,16 +751,29 @@ where
             Err(e) => return Some(Err(e)),
         };
 
-        match callee {
+        use io::Read;
+        Some(match callee {
             "close" => {
                 // Reassign to drop the `File` & close it in its `Drop` impl
                 *lhs = Value::Unit;
-                Some(Ok(Value::Unit))
+                Ok(Value::Unit)
             }
-            _ => Some(Err(InterpretError::InvalidDotTarget {
+            "readLine" => {
+                let mut line = Vec::new();
+                let mut buf = [0];
+                while let Ok(()) = file.read_exact(&mut buf) {
+                    line.push(buf[0]);
+                    if line.ends_with(&[b'\n']) {
+                        break;
+                    }
+                    buf = [0];
+                }
+                Ok(Value::String(String::from_utf8_lossy(&line).into()))
+            }
+            _ => Err(InterpretError::InvalidDotTarget {
                 name: callee.into(),
-            })),
-        }
+            }),
+        })
     }
 
     fn call_subprog(&mut self, body: &[Stmt], db: &Database) -> InterpretResult<Value> {
@@ -961,7 +974,7 @@ impl Default for Interpreter {
         Self {
             envs: Default::default(),
             output: io::stdout(),
-            input: io::BufReader::new(io::stdin()),
+            input: BufReader::new(io::stdin()),
             call_depth: 0,
         }
     }
@@ -1660,5 +1673,23 @@ mod tests {
             "opened\nclosed\n",
         );
         fs::remove_file("file_close.txt").unwrap();
+    }
+
+    #[test]
+    fn file_read_line() {
+        use io::Write;
+        let mut f = File::create("file_read_line.txt").unwrap();
+        writeln!(f, "Some line").unwrap();
+        check_output(
+            r#"
+            f = open("file_read_line.txt")
+            line = f.readLine()
+            print(line)
+            f.close()
+            "#,
+            "Some line\n\n",
+        );
+        drop(f);
+        fs::remove_file("file_read_line.txt").unwrap();
     }
 }
