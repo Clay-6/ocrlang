@@ -12,7 +12,11 @@ use smol_str::SmolStr;
 pub type IResult<T> = Result<T, InterpretError>;
 
 #[derive(Debug)]
-pub struct Interpreter<I, O> {
+pub struct Interpreter<I = io::Stdin, O = io::Stdout>
+where
+    I: io::Read,
+    O: io::Write,
+{
     envs: (Env, Vec<Env>),
     output: O,
     input: io::BufReader<I>,
@@ -779,6 +783,16 @@ where
             _ => Err(InterpretError::UnresolvedSubprogram {
                 name: callee.into(),
             }),
+        }
+    }
+}
+
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self {
+            envs: Default::default(),
+            output: io::stdout(),
+            input: io::BufReader::new(io::stdin()),
         }
     }
 }
