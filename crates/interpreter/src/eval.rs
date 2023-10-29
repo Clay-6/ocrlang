@@ -1,11 +1,7 @@
-use crate::{InterpretError, Value};
+use crate::{InterpretError, InterpretResult, Value};
 
 #[allow(clippy::too_many_lines)]
-pub(crate) fn eval_binary_op(
-    op: hir::BinaryOp,
-    lhs: Value,
-    rhs: Value,
-) -> Result<Value, InterpretError> {
+pub(crate) fn eval_binary_op(op: hir::BinaryOp, lhs: Value, rhs: Value) -> InterpretResult<Value> {
     match op {
         hir::BinaryOp::Add => eval_add(&lhs, &rhs),
         hir::BinaryOp::Sub => eval_sub(&lhs, &rhs),
@@ -35,7 +31,7 @@ pub(crate) fn eval_string_attrs(
     op: hir::BinaryOp,
     lhs: &Value,
     name: &str,
-) -> Option<Result<Value, InterpretError>> {
+) -> Option<InterpretResult<Value>> {
     if matches!(op, hir::BinaryOp::Dot) {
         let Value::String(s) = lhs else {
             return Some(Err(InterpretError::MismatchedTypes {
@@ -60,7 +56,7 @@ pub(crate) fn eval_string_attrs(
     None
 }
 
-pub(crate) fn eval_unary_op(operand: Value, op: hir::UnaryOp) -> Result<Value, InterpretError> {
+pub(crate) fn eval_unary_op(operand: Value, op: hir::UnaryOp) -> InterpretResult<Value> {
     match op {
         hir::UnaryOp::Neg => {
             if let Value::Int(i) = operand {
@@ -87,7 +83,7 @@ pub(crate) fn eval_unary_op(operand: Value, op: hir::UnaryOp) -> Result<Value, I
     }
 }
 
-fn eval_subscript(lhs: Value, rhs: Value) -> Result<Value, InterpretError> {
+fn eval_subscript(lhs: Value, rhs: Value) -> InterpretResult<Value> {
     if let (Value::Array(arr), Value::Int(i)) = (&lhs, &rhs) {
         Ok(arr
             .get(usize::try_from(*i).map_err(|_| InterpretError::IntegerTooLarge)?)
@@ -112,7 +108,7 @@ fn eval_subscript(lhs: Value, rhs: Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_ge(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_ge(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Bool(i1 >= i2))
     } else if let (Value::Float(f1), Value::Float(f2)) = (lhs, rhs) {
@@ -129,7 +125,7 @@ fn eval_ge(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_le(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_le(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Bool(i1 <= i2))
     } else if let (Value::Float(f1), Value::Float(f2)) = (lhs, rhs) {
@@ -146,7 +142,7 @@ fn eval_le(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_lt(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_lt(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Bool(i1 < i2))
     } else if let (Value::Float(f1), Value::Float(f2)) = (lhs, rhs) {
@@ -163,7 +159,7 @@ fn eval_lt(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_logic_or(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_logic_or(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Bool(b1), Value::Bool(b2)) = (lhs, rhs) {
         Ok(Value::Bool(*b1 || *b2))
     } else {
@@ -174,7 +170,7 @@ fn eval_logic_or(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_logic_and(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_logic_and(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Bool(b1), Value::Bool(b2)) = (lhs, rhs) {
         Ok(Value::Bool(*b1 && *b2))
     } else {
@@ -185,7 +181,7 @@ fn eval_logic_and(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_pow(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_pow(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Int(
             i1.pow(
@@ -208,7 +204,7 @@ fn eval_pow(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_quot(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_quot(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Int(i1.div_euclid(*i2)))
     } else if let (Value::Float(f1), Value::Float(f2)) = (lhs, rhs) {
@@ -225,7 +221,7 @@ fn eval_quot(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_mod(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_mod(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Int(i1 % i2))
     } else if let (Value::Float(f1), Value::Float(f2)) = (lhs, rhs) {
@@ -242,7 +238,7 @@ fn eval_mod(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_div(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_div(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Float(*i1 as f64 / *i2 as f64))
     } else if let (Value::Float(f1), Value::Float(f2)) = (lhs, rhs) {
@@ -259,7 +255,7 @@ fn eval_div(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_gt(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_gt(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Bool(i1 > i2))
     } else if let (Value::Float(f1), Value::Float(f2)) = (lhs, rhs) {
@@ -276,7 +272,7 @@ fn eval_gt(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_mul(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_mul(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Int(i1 * i2))
     } else if let (Value::Float(f1), Value::Float(f2)) = (lhs, rhs) {
@@ -293,7 +289,7 @@ fn eval_mul(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_sub(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_sub(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {
         Ok(Value::Int(i1 - i2))
     } else if let (Value::Float(f1), Value::Float(f2)) = (lhs, rhs) {
@@ -310,7 +306,7 @@ fn eval_sub(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
     }
 }
 
-fn eval_add(lhs: &Value, rhs: &Value) -> Result<Value, InterpretError> {
+fn eval_add(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::String(s1), Value::String(s2)) = (lhs, rhs) {
         Ok(Value::String(format!("{s1}{s2}").into()))
     } else if let (Value::Int(i1), Value::Int(i2)) = (lhs, rhs) {

@@ -142,7 +142,7 @@ where
         db: &Database,
         condition: ExprIdx,
         body: &[Stmt],
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         let cond = db.get(condition);
         loop {
             self.execute(body, db)?;
@@ -158,7 +158,7 @@ where
         db: &Database,
         condition: ExprIdx,
         body: &[Stmt],
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         let cond = db.get(condition);
         while self.eval(cond, db)? == Value::Bool(true) {
             self.execute(body, db)?;
@@ -174,7 +174,7 @@ where
         end: ExprIdx,
         step: ExprIdx,
         body: &[Stmt],
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         if loop_var.is_none() {
             return Err(InterpretError::ForLoopWithoutVariable);
         }
@@ -242,7 +242,7 @@ where
         cases: &ExprRange,
         case_bodies: &[Vec<Stmt>],
         default_body: &[Stmt],
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         let scrutinee = self.eval(db.get(scrutinee), db)?;
         let cases = db
             .get_range(cases.clone())
@@ -270,7 +270,7 @@ where
         body: &[Stmt],
         elseifs: &[(ExprIdx, Vec<Stmt>)],
         else_body: &[Stmt],
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         if self.eval(db.get(condition), db)? == Value::Bool(true) {
             self.exec_block(body, db)
         } else {
@@ -314,7 +314,7 @@ where
         db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         if matches!(subscript, (hir::Expr::Missing, hir::Expr::Missing)) {
             if matches!(dimensions, (hir::Expr::Missing, hir::Expr::Missing)) {
                 self.array_define(value, db, kind, name)
@@ -332,7 +332,7 @@ where
         db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         if matches!(value, hir::Expr::Missing) {
             return Err(InterpretError::InvalidArrayDeclaration);
         }
@@ -364,7 +364,7 @@ where
         db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         let (i, j) = (self.eval(&dimensions.0, db)?, self.eval(&dimensions.1, db)?);
         if !matches!(i, Value::Int(_) | Value::Unit) {
             return Err(InterpretError::MismatchedTypes {
@@ -461,7 +461,7 @@ where
         db: &Database,
         name: &SmolStr,
         value: &hir::Expr,
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         if !matches!(kind, hir::VarDefKind::Standard) {
             return Err(InterpretError::DisallowedVariableQualifier);
         }
@@ -516,7 +516,7 @@ where
         db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         let value = self.eval(value, db)?;
         match kind {
             hir::VarDefKind::Constant => self
@@ -715,7 +715,7 @@ where
         body: &[Stmt],
         kind: SubprogKind,
         db: &Database,
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         match kind {
             SubprogKind::Function => self.exec_block(body, db),
             SubprogKind::Procedure => self.execute(body, db).map(|()| Value::Unit),
@@ -727,7 +727,7 @@ where
         callee: &str,
         args: &ExprRange,
         db: &Database,
-    ) -> Result<Value, InterpretError> {
+    ) -> InterpretResult<Value> {
         let args = db
             .get_range(args.clone())
             .iter()
