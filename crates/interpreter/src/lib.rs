@@ -9,7 +9,7 @@ use eval::{eval_binary_op, eval_string_attrs, eval_unary_op};
 use hir::{Database, ExprIdx, ExprRange, Stmt};
 use smol_str::SmolStr;
 
-pub type IResult<T> = Result<T, InterpretError>;
+pub type InterpretResult<T> = Result<T, InterpretError>;
 
 #[derive(Debug)]
 pub struct Interpreter<I = io::Stdin, O = io::Stdout>
@@ -35,13 +35,13 @@ where
         }
     }
 
-    pub fn run(&mut self, src: &str) -> IResult<()> {
+    pub fn run(&mut self, src: &str) -> InterpretResult<()> {
         let (db, stmts) = hir::lower(&ast::Root::cast(parser::parse(src).syntax()).unwrap());
 
         self.execute(&stmts, &db)
     }
 
-    pub fn execute(&mut self, stmts: &[Stmt], db: &Database) -> IResult<()> {
+    pub fn execute(&mut self, stmts: &[Stmt], db: &Database) -> InterpretResult<()> {
         for stmt in stmts {
             self.exec_stmt(stmt, db)?;
         }
@@ -49,7 +49,7 @@ where
         Ok(())
     }
 
-    fn exec_block(&mut self, block: &[Stmt], db: &Database) -> IResult<Value> {
+    fn exec_block(&mut self, block: &[Stmt], db: &Database) -> InterpretResult<Value> {
         let mut res = Value::Unit;
         for stmt in block {
             res = self.exec_stmt(stmt, db)?;
@@ -95,7 +95,7 @@ where
         self.envs.1.pop();
     }
 
-    fn exec_stmt(&mut self, stmt: &Stmt, db: &Database) -> IResult<Value> {
+    fn exec_stmt(&mut self, stmt: &Stmt, db: &Database) -> InterpretResult<Value> {
         match stmt {
             Stmt::Expr(e) => self.eval(e, db),
             Stmt::VarDef { name, kind, value } => self.exec_var_def(value, db, *kind, name),
@@ -248,7 +248,7 @@ where
             .get_range(cases.clone())
             .iter()
             .map(|i| self.eval(i, db))
-            .collect::<IResult<Vec<_>>>()?;
+            .collect::<InterpretResult<Vec<_>>>()?;
         if let Some(case) = cases.iter().find(|c| !c.same_type(&scrutinee)) {
             return Err(InterpretError::MismatchedTypes {
                 expected: vec![scrutinee.type_str()],
@@ -535,7 +535,7 @@ where
         }
     }
 
-    fn eval(&mut self, expr: &hir::Expr, db: &Database) -> IResult<Value> {
+    fn eval(&mut self, expr: &hir::Expr, db: &Database) -> InterpretResult<Value> {
         match expr {
             hir::Expr::Literal { value } => Ok(match value {
                 hir::Literal::Int(i) => Value::Int(*i),
@@ -548,7 +548,7 @@ where
                         .get_range(range.clone())
                         .iter()
                         .map(|e| self.eval(e, db))
-                        .collect::<IResult<Vec<_>>>()?;
+                        .collect::<InterpretResult<Vec<_>>>()?;
 
                     Value::Array(exprs)
                 }
@@ -598,7 +598,7 @@ where
                     .get_range(args.clone())
                     .iter()
                     .map(|e| self.eval(e, db))
-                    .collect::<IResult<Vec<_>>>()?;
+                    .collect::<InterpretResult<Vec<_>>>()?;
 
                 if args.len() != subprog.params.len() {
                     return Err(InterpretError::InvalidArgumentCount {
@@ -627,7 +627,7 @@ where
         callee: &str,
         args: ExprRange,
         db: &Database,
-    ) -> Option<IResult<Value>> {
+    ) -> Option<InterpretResult<Value>> {
         if matches!(op, hir::BinaryOp::Dot) {
             let Value::String(lhs) = lhs else {
                 return Some(Err(InterpretError::MismatchedTypes {
@@ -640,7 +640,7 @@ where
                 .get_range(args)
                 .iter()
                 .map(|e| self.eval(e, db))
-                .collect::<IResult<Vec<_>>>()
+                .collect::<InterpretResult<Vec<_>>>()
             {
                 Ok(args) => args,
                 Err(e) => return Some(Err(e)),
@@ -732,7 +732,7 @@ where
             .get_range(args.clone())
             .iter()
             .map(|e| self.eval(e, db))
-            .collect::<IResult<Vec<_>>>()?;
+            .collect::<InterpretResult<Vec<_>>>()?;
         if args.len() != 1 {
             return Err(InterpretError::InvalidArgumentCount {
                 expected: 1,
