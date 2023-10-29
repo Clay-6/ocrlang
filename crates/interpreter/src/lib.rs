@@ -791,7 +791,7 @@ where
                 Value::Bool(b) => Ok(Value::Int(b.into())),
                 Value::Float(f) => Ok(Value::Int(f as i64)),
                 Value::Char(c) => Ok(Value::Int(u32::from(c).into())),
-                Value::String(ref s) => Ok(Value::Int(s.parse().map_err(|_| {
+                Value::String(ref s) => Ok(Value::Int(s.trim().parse().map_err(|_| {
                     InterpretError::CastFailure {
                         value: args[0].clone(),
                         target: "integer",
@@ -807,7 +807,7 @@ where
                 Value::Int(i) => Ok(Value::Float(i as f64)),
                 Value::Float(_) => Ok(args[0].clone()),
                 Value::Char(c) => Ok(Value::Float(u32::from(c).into())),
-                Value::String(ref s) => Ok(Value::Float(s.parse().map_err(|_| {
+                Value::String(ref s) => Ok(Value::Float(s.trim().parse().map_err(|_| {
                     InterpretError::CastFailure {
                         value: args[0].clone(),
                         target: "float",
@@ -838,7 +838,7 @@ where
                         target: "boolean",
                     })?
                 })),
-                Value::String(ref s) => Ok(Value::Bool(match s.to_lowercase().as_str() {
+                Value::String(ref s) => Ok(Value::Bool(match s.to_lowercase().trim() {
                     "true" => true,
                     "false" => false,
                     _ => Err(InterpretError::CastFailure {
