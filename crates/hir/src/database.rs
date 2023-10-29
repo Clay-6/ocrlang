@@ -347,7 +347,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     fn parse(input: &str) -> ast::Root {
-        ast::Root::cast(parser::parse(input).syntax()).unwrap()
+        ast::Root::cast(parser::parse(input).unwrap().syntax()).unwrap()
     }
 
     fn check_stmt(input: &str, expected_hir: Stmt) {

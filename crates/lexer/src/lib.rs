@@ -28,13 +28,17 @@ impl<'i> Lexer<'i> {
 }
 
 impl<'i> Iterator for Lexer<'i> {
-    type Item = Token<'i>;
+    type Item = Result<Token<'i>, (&'i str, Range<usize>)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let kind = self.inner.next()?.unwrap();
+        let kind = self.inner.next()?;
         let text = self.inner.slice();
         let range = self.inner.span();
 
-        Some(Self::Item { kind, text, range })
+        if let Ok(kind) = kind {
+            Some(Ok(Token { kind, text, range }))
+        } else {
+            Some(Err((text, range)))
+        }
     }
 }

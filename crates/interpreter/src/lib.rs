@@ -2,7 +2,10 @@ mod env;
 mod eval;
 
 use core::fmt;
-use std::io::{self, BufRead};
+use std::{
+    io::{self, BufRead},
+    ops::Range,
+};
 
 use env::{Binding, Env, SubprogKind, Subprogram};
 use eval::{eval_binary_op, eval_string_attrs, eval_unary_op};
@@ -38,7 +41,7 @@ where
     }
 
     pub fn run(&mut self, src: &str) -> InterpretResult<()> {
-        let parse_tree = parser::parse(src);
+        let parse_tree = parser::parse(src)?;
         if parse_tree.errors().is_empty() {
             let (db, stmts) = hir::lower(&ast::Root::cast(parse_tree.syntax()).unwrap());
             self.execute(&stmts, &db)
@@ -889,6 +892,10 @@ impl fmt::Display for Value {
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum InterpretError {
+    LexError {
+        text: SmolStr,
+        range: Range<usize>,
+    },
     ParseErrors {
         errors: Vec<parser::ParseError>,
     },
@@ -959,9 +966,21 @@ impl fmt::Display for InterpretError {
             InterpretError::ReturnOutsideFunction => {
                 "return statement outside of function".to_string()
             }
+            InterpretError::LexError { text, range } => {
+                format!("lex error at '{text}' ({range:?})")
+            }
         };
 
         write!(f, "{s}")
+    }
+}
+
+impl From<parser::LexError<'_>> for InterpretError {
+    fn from(err: parser::LexError) -> Self {
+        Self::LexError {
+            text: err.text.into(),
+            range: err.range,
+        }
     }
 }
 
@@ -976,7 +995,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     fn lower(src: &str) -> (Database, Vec<Stmt>) {
-        hir::lower(&ast::Root::cast(parser::parse(src).syntax()).unwrap())
+        hir::lower(&ast::Root::cast(parser::parse(src).unwrap().syntax()).unwrap())
     }
 
     fn check_eval(expr: &str, expected: Value) {

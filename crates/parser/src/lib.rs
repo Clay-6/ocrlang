@@ -4,6 +4,8 @@ mod parser;
 mod sink;
 mod source;
 
+use std::ops::Range;
+
 pub use crate::parser::parse_error::ParseError;
 use crate::{parser::Parser, sink::Sink, source::Source};
 
@@ -11,15 +13,25 @@ use lexer::Lexer;
 use rowan::GreenNode;
 use syntax::SyntaxNode;
 
-#[must_use]
-pub fn parse(input: &str) -> Parse {
-    let tokens = Lexer::new(input).collect::<Vec<_>>();
+pub fn parse(input: &str) -> Result<Parse, LexError> {
+    let tokens = Lexer::new(input).collect::<Result<Vec<_>, _>>();
+    if let Err((text, range)) = tokens {
+        return Err(LexError { text, range });
+    }
+    let tokens = tokens.unwrap();
     let source = Source::new(&tokens);
     let parser = Parser::new(source);
     let events = parser.parse();
     let sink = Sink::new(&tokens, events);
 
-    sink.finish()
+    Ok(sink.finish())
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("Error at {text} ({range:?})")]
+pub struct LexError<'i> {
+    pub text: &'i str,
+    pub range: Range<usize>,
 }
 
 pub struct Parse {
@@ -56,7 +68,7 @@ impl Parse {
 
 #[cfg(test)]
 fn check(input: &str, expected_tree: expect_test::Expect) {
-    let tree = parse(input).debug_tree();
+    let tree = parse(input).unwrap().debug_tree();
 
     expected_tree.assert_eq(&tree);
 }
