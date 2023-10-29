@@ -20,6 +20,7 @@ where
     envs: (Env, Vec<Env>),
     output: O,
     input: io::BufReader<I>,
+    call_depth: usize,
 }
 
 impl<I, O> Interpreter<I, O>
@@ -32,6 +33,7 @@ where
             envs: (Env::default(), Vec::new()),
             output,
             input: io::BufReader::new(input),
+            call_depth: 0,
         }
     }
 
@@ -112,7 +114,13 @@ where
                 params,
                 body,
             } => Ok(self.exec_subprogram_def(*kind, name, params, body)),
-            Stmt::ReturnStmt { value } => self.eval(value, db),
+            Stmt::ReturnStmt { value } => {
+                if self.call_depth > 0 {
+                    self.eval(value, db)
+                } else {
+                    Err(InterpretError::ReturnOutsideFunction)
+                }
+            }
             Stmt::IfElse {
                 condition,
                 body,
@@ -611,7 +619,9 @@ where
                 for (arg, name) in args.iter().zip(subprog.params) {
                     self.env_mut().insert(name, Binding::Var(arg.clone()));
                 }
+                self.call_depth += 1;
                 let result = self.call_subprog(&subprog.body, subprog.kind, db);
+                self.call_depth -= 1;
                 self.pop_env();
 
                 result
@@ -793,6 +803,7 @@ impl Default for Interpreter {
             envs: Default::default(),
             output: io::stdout(),
             input: io::BufReader::new(io::stdin()),
+            call_depth: 0,
         }
     }
 }
@@ -887,6 +898,7 @@ pub enum InterpretError {
     InvalidDotTarget {
         name: SmolStr,
     },
+    ReturnOutsideFunction,
 }
 
 #[cfg(test)]
@@ -979,7 +991,19 @@ mod tests {
 
     #[test]
     fn eval_return_stmt() {
-        check_eval("return 17", Value::Int(17));
+        {
+            let expected = Value::Int(17);
+            let (db, stmts) = lower("return 17");
+            let evaled = Interpreter {
+                input: BufReader::new(std::io::empty()),
+                output: vec![],
+                envs: (Default::default(), Default::default()),
+                call_depth: 1, // Pretend we're actually inside a function
+            }
+            .exec_stmt(&stmts[0], &db)
+            .unwrap();
+            assert_eq!(evaled, expected);
+        };
     }
 
     #[test]
@@ -1060,6 +1084,7 @@ mod tests {
             input: BufReader::new(empty()),
             output: empty(),
             envs: (env, Vec::default()),
+            call_depth: 0,
         };
 
         let evaled = interpreter.exec_stmt(&stmts[0], &db).unwrap();
