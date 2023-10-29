@@ -4,7 +4,7 @@ mod eval;
 use core::fmt;
 use std::{
     fs::{self, File},
-    io::{self, BufRead, BufReader},
+    io::{self, BufRead, BufReader, Seek, SeekFrom},
     ops::Range,
 };
 
@@ -770,7 +770,26 @@ where
                 }
                 Ok(Value::String(String::from_utf8_lossy(&line).into()))
             }
-            // "endOfFile" =>
+            "endOfFile" => {
+                let mut buf = [0];
+                let res = file.read_exact(&mut buf);
+
+                match file.stream_position() {
+                    Ok(pos) => {
+                        if pos > 0 {
+                            if let Err(e) = file.seek(SeekFrom::Current(-1)) {
+                                return Some(Err(e.into()));
+                            }
+                        }
+                    }
+                    Err(e) => return Some(Err(e.into())),
+                }
+                Ok(match res {
+                    Ok(_) => Value::Bool(false),
+                    Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => Value::Bool(true),
+                    Err(e) => return Some(Err(e.into())),
+                })
+            }
             _ => Err(InterpretError::InvalidDotTarget {
                 name: callee.into(),
             }),
@@ -1695,5 +1714,19 @@ mod tests {
         );
         drop(f);
         fs::remove_file("file_read_line.txt").unwrap();
+    }
+
+    #[test]
+    fn file_end_of_file() {
+        let f = File::create("file_end_of_file.txt").unwrap();
+        check_output(
+            r#"
+            f = open("file_end_of_file.txt")
+            print(f.endOfFile())
+            f.close()"#,
+            "true\n",
+        );
+        drop(f);
+        fs::remove_file("file_end_of_file.txt").unwrap();
     }
 }
