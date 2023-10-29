@@ -739,6 +739,27 @@ where
             .iter()
             .map(|e| self.eval(e, db))
             .collect::<InterpretResult<Vec<_>>>()?;
+        if callee == "random" {
+            if args.len() != 2 {
+                return Err(InterpretError::InvalidArgumentCount {
+                    expected: 2,
+                    got: args.len(),
+                });
+            }
+            use rand::Rng;
+            let mut rng = rand::thread_rng();
+            return if let (Value::Int(lower), Value::Int(upper)) = (&args[0], &args[1]) {
+                Ok(Value::Int(rng.gen_range(*lower..=*upper)))
+            } else if let (Value::Float(lower), Value::Float(upper)) = (&args[0], &args[1]) {
+                Ok(Value::Float(rng.gen_range(*lower..=*upper)))
+            } else {
+                Err(InterpretError::MismatchedTypes {
+                    expected: vec!["float", "integer"],
+                    found: args[0].type_str(),
+                })
+            };
+        }
+
         if args.len() != 1 {
             return Err(InterpretError::InvalidArgumentCount {
                 expected: 1,

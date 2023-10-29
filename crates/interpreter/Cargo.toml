@@ -11,6 +11,7 @@ license.workspace = true
 ast = { version = "0.1.0", path = "../ast" }
 hir = { version = "0.1.0", path = "../hir" }
 parser = { version = "0.1.0", path = "../parser" }
+rand = "0.8.5"
 smol_str.workspace = true
 thiserror.workspace = true
 
