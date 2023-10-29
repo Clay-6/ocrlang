@@ -3,8 +3,10 @@ mod eval;
 
 use core::fmt;
 use std::{
+    fs::{self, File},
     io::{self, BufRead},
     ops::Range,
+    rc::Rc,
 };
 
 use env::{Binding, Env, Subprogram};
@@ -873,6 +875,17 @@ where
                     to: "boolean",
                 }),
             },
+            "open" => {
+                if let Value::String(ref path) = args[0] {
+                    let file = fs::File::open(path.as_str())?;
+                    Ok(Value::File(file.into()))
+                } else {
+                    Err(InterpretError::MismatchedTypes {
+                        expected: vec!["string"],
+                        found: args[0].type_str(),
+                    })
+                }
+            }
             _ => Err(InterpretError::UnresolvedSubprogram {
                 name: callee.into(),
             }),
@@ -899,7 +912,29 @@ pub enum Value {
     String(SmolStr),
     Bool(bool),
     Array(Vec<Value>),
+    File(FileInner),
     Unit,
+}
+
+#[derive(Debug)]
+pub struct FileInner(File);
+
+impl From<File> for FileInner {
+    fn from(value: File) -> Self {
+        Self(value)
+    }
+}
+
+impl PartialEq for FileInner {
+    fn eq(&self, _: &Self) -> bool {
+        false
+    }
+}
+
+impl Clone for FileInner {
+    fn clone(&self) -> Self {
+        Self(self.0.try_clone().unwrap())
+    }
 }
 
 impl Value {
@@ -911,6 +946,7 @@ impl Value {
             Value::String(_) => matches!(b, Value::String(_)),
             Value::Bool(_) => matches!(b, Value::Bool(_)),
             Value::Array(_) => matches!(b, Value::Array(_)),
+            Value::File(_) => matches!(b, Value::File(_)),
             Value::Unit => true,
         }
     }
@@ -923,6 +959,7 @@ impl Value {
             Value::String(_) => "string",
             Value::Bool(_) => "boolean",
             Value::Array(_) => "array",
+            Value::File(_) => "file",
             Value::Unit => "unit",
         }
     }
@@ -946,12 +983,13 @@ impl fmt::Display for Value {
                 }
                 write!(f, "]")
             }
+            Value::File(_) => write!(f, "[file]"),
             Value::Unit => write!(f, "()"),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum InterpretError {
     LexError {
         text: SmolStr,
@@ -997,6 +1035,7 @@ pub enum InterpretError {
         from: &'static str,
         to: &'static str,
     },
+    IoError(#[from] std::io::Error),
 }
 
 impl fmt::Display for InterpretError {
@@ -1044,6 +1083,7 @@ impl fmt::Display for InterpretError {
             InterpretError::CastFailure { value, target } => {
                 format!("failed to cast {value} to type {target}")
             }
+            InterpretError::IoError(e) => e.to_string(),
         };
 
         write!(f, "{s}")
@@ -1281,12 +1321,11 @@ mod tests {
             let (db, stmts) = lower(r#""string".ballsack"#);
             let res = Interpreter::new(std::io::empty(), vec![]).exec_stmt(&stmts[0], &db);
 
-            assert_eq!(
-                res,
-                Err(InterpretError::InvalidDotTarget {
-                    name: "ballsack".into()
-                })
-            );
+            let err = res.unwrap_err();
+            let InterpretError::InvalidDotTarget { name } = err else {
+                panic!("Wrong error type")
+            };
+            assert_eq!(name, "ballsack")
         };
     }
 
