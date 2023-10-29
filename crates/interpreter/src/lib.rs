@@ -786,6 +786,72 @@ where
                 };
                 Ok(Value::Char(n.into()))
             }
+            "str" => Ok(Value::String(args[0].to_string().into())),
+            "int" => match args[0] {
+                Value::Bool(b) => Ok(Value::Int(b.into())),
+                Value::Float(f) => Ok(Value::Int(f as i64)),
+                Value::Char(c) => Ok(Value::Int(u32::from(c).into())),
+                Value::String(ref s) => Ok(Value::Int(s.parse().map_err(|_| {
+                    InterpretError::CastFailure {
+                        value: args[0].clone(),
+                        target: "integer",
+                    }
+                })?)),
+                Value::Int(_) => Ok(args[0].clone()),
+                _ => Err(InterpretError::InvalidCast {
+                    from: args[0].type_str(),
+                    to: "int",
+                }),
+            },
+            "float" | "real" => match args[0] {
+                Value::Int(i) => Ok(Value::Float(i as f64)),
+                Value::Float(_) => Ok(args[0].clone()),
+                Value::Char(c) => Ok(Value::Float(u32::from(c).into())),
+                Value::String(ref s) => Ok(Value::Float(s.parse().map_err(|_| {
+                    InterpretError::CastFailure {
+                        value: args[0].clone(),
+                        target: "float",
+                    }
+                })?)),
+                Value::Bool(b) => Ok(Value::Float(b.into())),
+                _ => Err(InterpretError::InvalidCast {
+                    from: args[0].type_str(),
+                    to: "float",
+                }),
+            },
+            "bool" => match args[0] {
+                Value::Int(i) => Ok(Value::Bool(match i {
+                    1 => true,
+                    0 => false,
+                    _ => Err(InterpretError::CastFailure {
+                        value: args[0].clone(),
+                        target: "boolean",
+                    })?,
+                })),
+                Value::Float(f) => Ok(Value::Bool(if f == 1.0 {
+                    true
+                } else if f == 0.0 {
+                    false
+                } else {
+                    Err(InterpretError::CastFailure {
+                        value: args[0].clone(),
+                        target: "boolean",
+                    })?
+                })),
+                Value::String(ref s) => Ok(Value::Bool(match s.to_lowercase().as_str() {
+                    "true" => true,
+                    "false" => false,
+                    _ => Err(InterpretError::CastFailure {
+                        value: args[0].clone(),
+                        target: "boolean",
+                    })?,
+                })),
+                Value::Bool(_) => Ok(args[0].clone()),
+                _ => Err(InterpretError::InvalidCast {
+                    from: args[0].type_str(),
+                    to: "boolean",
+                }),
+            },
             _ => Err(InterpretError::UnresolvedSubprogram {
                 name: callee.into(),
             }),
@@ -902,6 +968,14 @@ pub enum InterpretError {
         name: SmolStr,
     },
     ReturnOutsideFunction,
+    CastFailure {
+        value: Value,
+        target: &'static str,
+    },
+    InvalidCast {
+        from: &'static str,
+        to: &'static str,
+    },
 }
 
 impl fmt::Display for InterpretError {
@@ -942,6 +1016,12 @@ impl fmt::Display for InterpretError {
             }
             InterpretError::LexError { text, range } => {
                 format!("lex error at '{text}' ({range:?})")
+            }
+            InterpretError::InvalidCast { from, to } => {
+                format!("casting {from} to {to} is invalid")
+            }
+            InterpretError::CastFailure { value, target } => {
+                format!("failed to cast {value} to type {target}")
             }
         };
 
@@ -1076,6 +1156,15 @@ mod tests {
     fn eval_builtin_ascii_conversions() {
         check_eval("CHR(97)", Value::Char('a'));
         check_eval("ASC('A')", Value::Int(65));
+    }
+
+    #[test]
+    fn eval_type_casts() {
+        check_eval("str(345)", Value::String("345".into()));
+        check_eval("int(\"3\")", Value::Int(3));
+        check_eval("float(\"4.52\")", Value::Float(4.52));
+        check_eval("real(\"4.52\")", Value::Float(4.52));
+        check_eval("bool(\"True\")", Value::Bool(true));
     }
 
     #[test]
