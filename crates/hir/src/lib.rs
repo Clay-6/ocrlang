@@ -23,7 +23,6 @@ pub enum Stmt {
         value: Expr,
     },
     SubprogramDef {
-        kind: SubprogramKind,
         name: SmolStr,
         params: Vec<SmolStr>,
         body: Vec<Stmt>,

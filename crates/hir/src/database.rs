@@ -1,3 +1,5 @@
+use std::iter;
+
 use la_arena::Arena;
 use syntax::SyntaxKind;
 
@@ -179,15 +181,23 @@ impl Database {
     }
 
     fn lower_subprogram_def(&mut self, ast: ast::SubprogDef) -> Option<Stmt> {
-        Some(Stmt::SubprogramDef {
-            kind: match ast.kind()?.kind() {
-                SyntaxKind::Function => SubprogramKind::Function,
-                SyntaxKind::Procedure => SubprogramKind::Procedure,
+        let body = {
+            match ast.kind()?.kind() {
+                SyntaxKind::Function => ast.body().filter_map(|ast| self.lower_stmt(ast)).collect(),
+                SyntaxKind::Procedure => ast
+                    .body()
+                    .filter_map(|ast| self.lower_stmt(ast))
+                    .chain(iter::once(Stmt::ReturnStmt {
+                        value: Expr::Missing,
+                    }))
+                    .collect(),
                 _ => unreachable!(),
-            },
+            }
+        };
+        Some(Stmt::SubprogramDef {
             name: ast.name()?.text().into(),
             params: ast.params().map(|ast| ast.text().into()).collect(),
-            body: ast.body().filter_map(|ast| self.lower_stmt(ast)).collect(),
+            body,
         })
     }
 
@@ -737,7 +747,6 @@ mod tests {
         check_stmt(
             "function id(x) return x endfunction",
             Stmt::SubprogramDef {
-                kind: SubprogramKind::Function,
                 name: "id".into(),
                 params: vec!["x".into()],
                 body: vec![Stmt::ReturnStmt { value }],
@@ -754,13 +763,17 @@ mod tests {
         check_stmt(
             r#"procedure thing() print("something") endprocedure"#,
             Stmt::SubprogramDef {
-                kind: SubprogramKind::Procedure,
                 name: "thing".into(),
                 params: vec![],
-                body: vec![Stmt::Expr(Expr::Call {
-                    callee: "print".into(),
-                    args: arg,
-                })],
+                body: vec![
+                    Stmt::Expr(Expr::Call {
+                        callee: "print".into(),
+                        args: arg,
+                    }),
+                    Stmt::ReturnStmt {
+                        value: Expr::Missing,
+                    },
+                ],
             },
         );
     }
