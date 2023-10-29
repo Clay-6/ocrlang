@@ -770,6 +770,7 @@ where
                 }
                 Ok(Value::String(String::from_utf8_lossy(&line).into()))
             }
+            // "endOfFile" =>
             _ => Err(InterpretError::InvalidDotTarget {
                 name: callee.into(),
             }),
@@ -1680,14 +1681,17 @@ mod tests {
         use io::Write;
         let mut f = File::create("file_read_line.txt").unwrap();
         writeln!(f, "Some line").unwrap();
+        writeln!(f, "Some other line").unwrap();
         check_output(
             r#"
             f = open("file_read_line.txt")
             line = f.readLine()
             print(line)
+            line2 = f.readLine()
+            print(line2)
             f.close()
             "#,
-            "Some line\n\n",
+            "Some line\n\nSome other line\n\n",
         );
         drop(f);
         fs::remove_file("file_read_line.txt").unwrap();
