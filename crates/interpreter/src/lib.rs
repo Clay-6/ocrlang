@@ -4,7 +4,7 @@ mod eval;
 use core::fmt;
 use std::{
     fs::{self, File},
-    io::{self, BufRead, BufReader, Seek, SeekFrom},
+    io::{self, BufRead, BufReader, Seek, SeekFrom, Write},
     ops::Range,
 };
 
@@ -740,7 +740,6 @@ where
                 found: lhs.type_str(),
             }));
         };
-
         let args = match db
             .get_range(args)
             .iter()
@@ -750,6 +749,12 @@ where
             Ok(args) => args,
             Err(e) => return Some(Err(e)),
         };
+        if !args.is_empty() && callee != "writeLine" {
+            return Some(Err(InterpretError::InvalidArgumentCount {
+                expected: 0,
+                got: args.len(),
+            }));
+        }
 
         use io::Read;
         Some(match callee {
@@ -789,6 +794,25 @@ where
                     Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => Value::Bool(true),
                     Err(e) => return Some(Err(e.into())),
                 })
+            }
+            "writeLine" => {
+                if args.len() != 1 {
+                    return Some(Err(InterpretError::InvalidArgumentCount {
+                        expected: 1,
+                        got: args.len(),
+                    }));
+                }
+                let Value::String(ref line) = args[0] else {
+                    return Some(Err(InterpretError::MismatchedTypes {
+                        expected: vec!["string"],
+                        found: args[0].type_str(),
+                    }));
+                };
+                if let Err(e) = writeln!(file, "{line}") {
+                    return Some(Err(e.into()));
+                };
+
+                Ok(Value::Unit)
             }
             _ => Err(InterpretError::InvalidDotTarget {
                 name: callee.into(),
@@ -947,7 +971,10 @@ where
             },
             "open" => {
                 if let Value::String(ref path) = args[0] {
-                    let file = fs::File::open(path.as_str())?;
+                    let file = fs::OpenOptions::new()
+                        .read(true)
+                        .append(true)
+                        .open(path.as_str())?;
                     Ok(Value::File(file.into()))
                 } else {
                     Err(InterpretError::MismatchedTypes {
@@ -1728,5 +1755,22 @@ mod tests {
         );
         drop(f);
         fs::remove_file("file_end_of_file.txt").unwrap();
+    }
+
+    #[test]
+    fn file_write_line() {
+        check_output(
+            r#"
+            newFile("file_write_line.txt")
+            f = open("file_write_line.txt")
+            f.writeLine("Some line")
+            f.close()
+
+            f = open("file_write_line.txt")
+            line = f.readLine()
+            print(line)"#,
+            "Some line\n\n",
+        );
+        fs::remove_file("file_write_line.txt").unwrap();
     }
 }
