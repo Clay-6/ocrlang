@@ -46,6 +46,14 @@ impl<'t, 'input> Source<'t, 'input> {
         self.tokens.last().map(|Token { range, .. }| range.clone())
     }
 
+    pub(crate) fn at_newline(&mut self) -> bool {
+        while !matches!(self.peek_kind_raw(), Some(TokenKind::Newline)) && self.at_trivia() {
+            self.cursor += 1;
+        }
+        self.peek_kind_raw()
+            .is_some_and(|kind| matches!(kind, TokenKind::Newline))
+    }
+
     fn skip_trivia(&mut self) {
         while self.at_trivia() {
             self.cursor += 1;

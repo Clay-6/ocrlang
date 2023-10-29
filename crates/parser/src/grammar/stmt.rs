@@ -179,7 +179,9 @@ fn ret(p: &mut Parser) -> CompletedMarker {
     assert!(p.at(TokenKind::Return));
     let m = p.start();
     p.bump(); // `return` kw
-    expr::expr(p);
+    if !p.at_newline() {
+        expr::expr(p);
+    }
 
     m.complete(p, SyntaxKind::RetStmt)
 }
@@ -281,13 +283,7 @@ fn subprog_def(p: &mut Parser) -> CompletedMarker {
     p.expect(TokenKind::RParen);
 
     while !p.at_end() && !p.at_set(&SUBPROG_END) {
-        if matches!(kind, FuncKind::Proc) && p.at(TokenKind::Return) {
-            let early_ret = p.start();
-            p.bump(); // Consume `return` with no value
-            early_ret.complete(p, SyntaxKind::RetStmt);
-        } else {
-            stmt(p);
-        }
+        stmt(p);
     }
 
     match kind {

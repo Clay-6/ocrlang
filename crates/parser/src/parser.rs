@@ -57,6 +57,12 @@ impl<'t, 'input> Parser<'t, 'input> {
         self.peek().is_none()
     }
 
+    pub(crate) fn at_newline(&mut self) -> bool {
+        self.expected_kinds.push(TokenKind::Newline);
+
+        self.source.at_newline()
+    }
+
     pub(crate) fn error(&mut self) {
         let curr_tok = self.source.peek_token();
 
