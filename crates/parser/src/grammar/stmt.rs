@@ -281,7 +281,13 @@ fn subprog_def(p: &mut Parser) -> CompletedMarker {
     p.expect(TokenKind::RParen);
 
     while !p.at_end() && !p.at_set(&SUBPROG_END) {
-        stmt(p);
+        if matches!(kind, FuncKind::Proc) && p.at(TokenKind::Return) {
+            let early_ret = p.start();
+            p.bump(); // Consume `return` with no value
+            early_ret.complete(p, SyntaxKind::RetStmt);
+        } else {
+            stmt(p);
+        }
     }
 
     match kind {
@@ -626,6 +632,26 @@ endfunction",
                     Number@24..25 "2"
                     Newline@25..26 "\n"
                 Endprocedure@26..38 "endprocedure""#]],
+        );
+    }
+
+    #[test]
+    fn parse_proc_early_return() {
+        check(
+            "procedure p()\nreturn\nendprocedure",
+            expect![[r#"
+            Root@0..33
+              SubProgramDef@0..33
+                Procedure@0..9 "procedure"
+                Whitespace@9..10 " "
+                Ident@10..11 "p"
+                LParen@11..12 "("
+                RParen@12..13 ")"
+                Newline@13..14 "\n"
+                RetStmt@14..21
+                  Return@14..20 "return"
+                  Newline@20..21 "\n"
+                Endprocedure@21..33 "endprocedure""#]],
         );
     }
 
