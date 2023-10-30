@@ -342,8 +342,9 @@ impl ForLoop {
     pub fn step(&self) -> Option<Expr> {
         self.0
             .children()
-            .skip_while(|t| t.kind() != SyntaxKind::Step)
-            .find_map(Expr::cast)
+            // .skip_while(|t| t.kind() != SyntaxKind::Step)
+            .filter_map(Expr::cast)
+            .nth(2)
     }
 }
 

@@ -1665,6 +1665,10 @@ mod tests {
         next i"#,
             "2\n4\n6\n8\n10\n",
         );
+    }
+
+    #[test]
+    fn exec_for_loop_with_negative_step() {
         check_output(
             r#"
             for i=10 to 0 step -1
