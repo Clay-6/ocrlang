@@ -2,6 +2,8 @@
 name = "ocrlang_syntax"
 version = "0.1.0"
 edition = "2021"
+description = "Crate bridging OCRLang's lexer token types to rowan"
+readme.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true

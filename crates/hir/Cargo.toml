@@ -2,6 +2,8 @@
 name = "ocrlang_hir"
 version = "0.1.0"
 edition = "2021"
+description = "Crate which defines OCRLang's High Level Intermediate Representation, lowered fom the AST"
+readme.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true

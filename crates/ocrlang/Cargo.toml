@@ -2,6 +2,8 @@
 name = "ocrlang"
 version = "0.1.0"
 edition = "2021"
+description = "CLI to interpret OCR's Exam Reference Language"
+readme.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
