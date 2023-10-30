@@ -19,6 +19,8 @@ for your platform, then extract it wherever you like.
 You'll need an up to date [Rust toolchain](https://rustup.rs). Development happens on the latest
 stable version, so no guarantees that older versions will work.
 
+#### Locally
+
 Clone the repo, `cd` into its root directory & run
 
 ```shell
@@ -44,6 +46,16 @@ cargo install --path crates/ocrlang
 ```
 
 will install it to `~/.cargo/bin`
+
+#### With Just `cargo install`
+
+Run the command
+
+```shell
+cargo install --git https://github.com/Clay-6/ocrlang.git
+```
+
+to install from the main branch.
 
 ## Usage
 
