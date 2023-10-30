@@ -236,7 +236,7 @@ where
             .insert(loop_var.clone(), Binding::Var(Value::Int(start)));
         let mut loop_idx = start;
         loop {
-            if loop_idx > end {
+            if (step.is_positive() && loop_idx > end) || (step.is_negative() && loop_idx < end) {
                 break Ok(Value::Unit);
             }
             self.execute(body, db)?;
