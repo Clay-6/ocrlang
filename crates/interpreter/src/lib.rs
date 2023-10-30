@@ -1670,7 +1670,7 @@ mod tests {
             for i=10 to 0 step -1
                 print(i)
             next i"#,
-            "10\n9\n8\n7\n6\n5\n4\n3\n2\n1\n",
+            "10\n9\n8\n7\n6\n5\n4\n3\n2\n1\n0\n",
         );
     }
 
