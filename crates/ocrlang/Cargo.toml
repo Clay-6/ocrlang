@@ -9,7 +9,7 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-parser = { path = "../parser" }
-ast = { path = "../ast" }
-hir = { path = "../hir" }
-interpreter = { version = "0.1.0", path = "../interpreter" }
+hir = { path = "../hir", package = "ocrlang_hir" }
+parser = { path = "../parser", package = "ocrlang_parser" }
+ast = { path = "../ast", package = "ocrlang_ast" }
+interpreter = { version = "0.1.0", path = "../interpreter", package = "ocrlang_interpreter" }

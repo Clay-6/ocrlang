@@ -1,5 +1,5 @@
 [package]
-name = "interpreter"
+name = "ocrlang_interpreter"
 version = "0.1.0"
 edition = "2021"
 authors.workspace = true
@@ -9,9 +9,9 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ast = { version = "0.1.0", path = "../ast" }
-hir = { version = "0.1.0", path = "../hir" }
-parser = { version = "0.1.0", path = "../parser" }
+ast = { version = "0.1.0", path = "../ast", package = "ocrlang_ast" }
+hir = { version = "0.1.0", path = "../hir", package = "ocrlang_hir" }
+parser = { version = "0.1.0", path = "../parser", package = "ocrlang_parser" }
 rand = "0.8.5"
 smol_str.workspace = true
 thiserror.workspace = true

@@ -1,5 +1,5 @@
 [package]
-name = "hir"
+name = "ocrlang_hir"
 version = "0.1.0"
 edition = "2021"
 authors.workspace = true
@@ -9,11 +9,11 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ast = { version = "0.1.0", path = "../ast" }
+ast = { version = "0.1.0", path = "../ast", package = "ocrlang_ast" }
 la-arena = "0.3.1"
 smol_str.workspace = true
-syntax = { version = "0.1.0", path = "../syntax" }
+syntax = { version = "0.1.0", path = "../syntax", package = "ocrlang_syntax" }
 
 [dev-dependencies]
-parser = { path = "../parser" }
+parser = { path = "../parser", package = "ocrlang_parser" }
 pretty_assertions.workspace = true

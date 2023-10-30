@@ -3,14 +3,6 @@
 version = 3
 
 [[package]]
-name = "ast"
-version = "0.1.0"
-dependencies = [
- "parser",
- "syntax",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -80,42 +72,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
-name = "hir"
-version = "0.1.0"
-dependencies = [
- "ast",
- "la-arena",
- "parser",
- "pretty_assertions",
- "smol_str",
- "syntax",
-]
-
-[[package]]
-name = "interpreter"
-version = "0.1.0"
-dependencies = [
- "ast",
- "hir",
- "parser",
- "pretty_assertions",
- "rand",
- "smol_str",
- "thiserror",
-]
-
-[[package]]
 name = "la-arena"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3752f229dcc5a481d60f385fa479ff46818033d881d2d801aa27dffcfb5e8306"
-
-[[package]]
-name = "lexer"
-version = "0.1.0"
-dependencies = [
- "logos",
-]
 
 [[package]]
 name = "libc"
@@ -188,10 +148,71 @@ dependencies = [
 name = "ocrlang"
 version = "0.1.0"
 dependencies = [
- "ast",
- "hir",
- "interpreter",
- "parser",
+ "ocrlang_ast",
+ "ocrlang_hir",
+ "ocrlang_interpreter",
+ "ocrlang_parser",
+]
+
+[[package]]
+name = "ocrlang_ast"
+version = "0.1.0"
+dependencies = [
+ "ocrlang_parser",
+ "ocrlang_syntax",
+]
+
+[[package]]
+name = "ocrlang_hir"
+version = "0.1.0"
+dependencies = [
+ "la-arena",
+ "ocrlang_ast",
+ "ocrlang_parser",
+ "ocrlang_syntax",
+ "pretty_assertions",
+ "smol_str",
+]
+
+[[package]]
+name = "ocrlang_interpreter"
+version = "0.1.0"
+dependencies = [
+ "ocrlang_ast",
+ "ocrlang_hir",
+ "ocrlang_parser",
+ "pretty_assertions",
+ "rand",
+ "smol_str",
+ "thiserror",
+]
+
+[[package]]
+name = "ocrlang_lexer"
+version = "0.1.0"
+dependencies = [
+ "logos",
+]
+
+[[package]]
+name = "ocrlang_parser"
+version = "0.1.0"
+dependencies = [
+ "expect-test",
+ "ocrlang_lexer",
+ "ocrlang_syntax",
+ "rowan",
+ "thiserror",
+]
+
+[[package]]
+name = "ocrlang_syntax"
+version = "0.1.0"
+dependencies = [
+ "num-derive",
+ "num-traits",
+ "ocrlang_lexer",
+ "rowan",
 ]
 
 [[package]]
@@ -199,17 +220,6 @@ name = "once_cell"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
-
-[[package]]
-name = "parser"
-version = "0.1.0"
-dependencies = [
- "expect-test",
- "lexer",
- "rowan",
- "syntax",
- "thiserror",
-]
 
 [[package]]
 name = "ppv-lite86"
@@ -338,16 +348,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "syntax"
-version = "0.1.0"
-dependencies = [
- "lexer",
- "num-derive",
- "num-traits",
- "rowan",
 ]
 
 [[package]]
