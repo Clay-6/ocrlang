@@ -12,6 +12,9 @@ authors = ["Clay66 <clayw@clay66.dev>"]
 license = "MIT"
 repository = "https://github.com/Clay-6/ocrlang"
 
+[workspace.metadata.release]
+publish = false
+
 # Config for 'cargo dist'
 [workspace.metadata.dist]
 # The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
