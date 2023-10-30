@@ -200,64 +200,50 @@ where
         step: ExprIdx,
         body: &[Stmt],
     ) -> InterpretResult<Value> {
-        if loop_var.is_none() {
+        let Some(loop_var) = loop_var.as_ref() else {
             return Err(InterpretError::ForLoopWithoutVariable);
-        }
-        let loop_var = loop_var.as_ref().unwrap();
-        self.push_env();
+        };
+
         let start = self.eval(db.get(start), db)?;
-        if !matches!(start, Value::Int(_)) {
+        let end = self.eval(db.get(end), db)?;
+        let step = self.eval(db.get(step), db)?;
+
+        let Value::Int(start) = start else {
             return Err(InterpretError::MismatchedTypes {
                 expected: vec!["int"],
                 found: start.type_str(),
             });
-        }
-        self.env_mut().insert(loop_var.clone(), Binding::Var(start));
-        let end = self.eval(db.get(end), db)?;
-        if !matches!(end, Value::Int(_)) {
+        };
+        let Value::Int(end) = end else {
             return Err(InterpretError::MismatchedTypes {
                 expected: vec!["int"],
                 found: end.type_str(),
             });
-        }
-        let step = {
-            let e = db.get(step);
-            if let hir::Expr::Missing = e {
-                1
-            } else {
-                let val = self.eval(e, db)?;
-                if let Value::Int(v) = val {
-                    v
-                } else {
-                    return Err(InterpretError::MismatchedTypes {
-                        expected: vec!["int"],
-                        found: val.type_str(),
-                    });
-                }
-            }
         };
-        loop {
-            let current_i = self
-                .env()
-                .get_var(loop_var)
-                .expect("There's definitely a loop var by now");
-            let Value::Int(i) = current_i else {
-                unreachable!()
-            };
-            let Value::Int(fin) = end else { unreachable!() };
-            if (step.is_positive() && i >= fin) || (step.is_negative() && i <= fin) {
-                break;
-            }
+        let step = if let Value::Int(i) = step {
+            i
+        } else if let Value::Unit = step {
+            1
+        } else {
+            return Err(InterpretError::MismatchedTypes {
+                expected: vec!["int"],
+                found: step.type_str(),
+            });
+        };
 
+        self.push_env();
+        self.env_mut()
+            .insert(loop_var.clone(), Binding::Var(Value::Int(start)));
+        let mut loop_idx = start;
+        loop {
+            if loop_idx > end {
+                break Ok(Value::Unit);
+            }
             self.execute(body, db)?;
-            let Some(Value::Int(old)) = self.get_var(loop_var) else {
-                unreachable!()
-            };
+            loop_idx += step;
             self.env_mut()
-                .insert(loop_var.clone(), Binding::Var(Value::Int(old + step)));
+                .insert(loop_var.clone(), Binding::Var(Value::Int(loop_idx)));
         }
-        self.pop_env();
-        Ok(Value::Unit)
     }
 
     fn exec_switch_case(
@@ -598,6 +584,7 @@ where
             }
             hir::Expr::Unary { op, opand } => eval_unary_op(self.eval(db.get(*opand), db)?, *op),
             hir::Expr::NameRef { name } => self
+                .env()
                 .get_var(name)
                 .ok_or_else(|| InterpretError::UnresolvedVariable { name: name.clone() }),
             hir::Expr::Call { callee, args } => {
@@ -850,7 +837,7 @@ where
                 Ok(Value::Float(rng.gen_range(*lower..=*upper)))
             } else {
                 Err(InterpretError::MismatchedTypes {
-                    expected: vec!["float", "integer"],
+                    expected: vec!["float", "int"],
                     found: args[0].type_str(),
                 })
             };
@@ -911,7 +898,7 @@ where
                 Value::String(ref s) => Ok(Value::Int(s.trim().parse().map_err(|_| {
                     InterpretError::CastFailure {
                         value: args[0].clone(),
-                        target: "integer",
+                        target: "int",
                     }
                 })?)),
                 Value::Int(_) => Ok(args[0].clone()),
@@ -1662,10 +1649,28 @@ mod tests {
     fn exec_for_loop() {
         check_output(
             r#"
-            for i = 0 to 10
-                print("Ran")
+            for i = 0 to 9
+                print("Loop")
             next i"#,
-            &"Ran\n".repeat(10),
+            &"Loop\n".repeat(10),
+        );
+    }
+
+    #[test]
+    fn exec_for_loop_with_step() {
+        check_output(
+            r#"
+        for i = 2 to 10 step 2
+            print(i)
+        next i"#,
+            "2\n4\n6\n8\n10\n",
+        );
+        check_output(
+            r#"
+            for i=10 to 0 step -1
+                print(i)
+            next i"#,
+            "10\n9\n8\n7\n6\n5\n4\n3\n2\n1\n",
         );
     }
 
