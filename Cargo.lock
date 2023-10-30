@@ -146,14 +146,14 @@ dependencies = [
 
 [[package]]
 name = "ocrlang"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "ocrlang_interpreter",
 ]
 
 [[package]]
 name = "ocrlang_ast"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "ocrlang_parser",
  "ocrlang_syntax",
@@ -161,7 +161,7 @@ dependencies = [
 
 [[package]]
 name = "ocrlang_hir"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "la-arena",
  "ocrlang_ast",
@@ -173,7 +173,7 @@ dependencies = [
 
 [[package]]
 name = "ocrlang_interpreter"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "ocrlang_ast",
  "ocrlang_hir",
@@ -186,14 +186,14 @@ dependencies = [
 
 [[package]]
 name = "ocrlang_lexer"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "logos",
 ]
 
 [[package]]
 name = "ocrlang_parser"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "expect-test",
  "ocrlang_lexer",
@@ -204,7 +204,7 @@ dependencies = [
 
 [[package]]
 name = "ocrlang_syntax"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "num-derive",
  "num-traits",

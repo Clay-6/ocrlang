@@ -1,6 +1,6 @@
 [package]
 name = "ocrlang"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 description = "CLI to interpret OCR's Exam Reference Language"
 readme.workspace = true
@@ -11,4 +11,4 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-interpreter = { version = "0.1.0", path = "../interpreter", package = "ocrlang_interpreter" }
+interpreter = { version = "1.0.0", path = "../interpreter", package = "ocrlang_interpreter" }
