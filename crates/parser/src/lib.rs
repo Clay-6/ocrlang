@@ -66,6 +66,12 @@ impl Parse {
     }
 }
 
+impl core::fmt::Debug for Parse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.debug_tree())
+    }
+}
+
 #[cfg(test)]
 fn check(input: &str, expected_tree: expect_test::Expect) {
     let tree = parse(input).unwrap().debug_tree();
