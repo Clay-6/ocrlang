@@ -148,10 +148,7 @@ dependencies = [
 name = "ocrlang"
 version = "0.1.0"
 dependencies = [
- "ocrlang_ast",
- "ocrlang_hir",
  "ocrlang_interpreter",
- "ocrlang_parser",
 ]
 
 [[package]]

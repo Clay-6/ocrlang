@@ -15,5 +15,5 @@ smol_str.workspace = true
 syntax = { version = "0.1.0", path = "../syntax", package = "ocrlang_syntax" }
 
 [dev-dependencies]
-parser = { path = "../parser", package = "ocrlang_parser" }
+parser = { version = "0.1.0", path = "../parser", package = "ocrlang_parser" }
 pretty_assertions.workspace = true
