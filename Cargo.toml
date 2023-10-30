@@ -10,3 +10,4 @@ thiserror = "1.0.50"
 [workspace.package]
 authors = ["Clay66 <clayw@clay66.dev>"]
 license = "MIT"
+repository = "https://github.com/Clay-6/ocrlang"
