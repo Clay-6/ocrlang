@@ -237,13 +237,16 @@ where
         let mut loop_idx = start;
         loop {
             if (step.is_positive() && loop_idx > end) || (step.is_negative() && loop_idx < end) {
-                break Ok(Value::Unit);
+                break;
             }
             self.execute(body, db)?;
             loop_idx += step;
             self.env_mut()
                 .insert(loop_var.clone(), Binding::Var(Value::Int(loop_idx)));
         }
+        self.pop_env();
+
+        Ok(Value::Unit)
     }
 
     fn exec_switch_case(
