@@ -1,35 +1,31 @@
-use std::io::{self, Write};
-
 use interpreter::Interpreter;
 
-fn main() -> io::Result<()> {
-    let mut input = String::new();
-    let stdout = io::stdout();
-    let stdin = io::stdin();
-    let mut stderr = io::stderr();
-    let mut interpreter = Interpreter::new(stdin, stdout);
+use color_eyre::Result;
+use rustyline::{error::ReadlineError, DefaultEditor};
+
+fn main() -> Result<()> {
+    let mut interpreter = Interpreter::new(std::io::stdin(), std::io::stdout());
 
     if let Some(file) = std::env::args().nth(1) {
         if let Err(e) = interpreter.run(&std::fs::read_to_string(file)?) {
-            writeln!(stderr, "{e}").unwrap();
+            eprintln!("{e}");
             std::process::exit(65);
         }
         return Ok(());
     }
 
+    let mut rl = DefaultEditor::new()?;
     loop {
-        write!(stderr, "> ")?;
-        stderr.flush()?;
-        io::stdin().read_line(&mut input)?;
-
-        if input.is_empty() {
-            break Ok(());
+        let read_line = rl.readline("> ");
+        match read_line {
+            Ok(line) => {
+                rl.add_history_entry(line.as_str())?;
+                interpreter.run(&line)?;
+            }
+            Err(ReadlineError::Eof | ReadlineError::Interrupted) => break,
+            Err(e) => return Err(e.into()),
         }
-
-        if let Err(e) = interpreter.run(&input) {
-            writeln!(stderr, "{e}").unwrap();
-        }
-
-        input.clear();
     }
+
+    Ok(())
 }
