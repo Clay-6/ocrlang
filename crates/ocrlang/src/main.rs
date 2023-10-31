@@ -4,6 +4,8 @@ use color_eyre::Result;
 use rustyline::{error::ReadlineError, DefaultEditor};
 
 fn main() -> Result<()> {
+    color_eyre::install()?;
+
     let mut interpreter = Interpreter::default();
 
     if let Some(file) = std::env::args().nth(1) {
