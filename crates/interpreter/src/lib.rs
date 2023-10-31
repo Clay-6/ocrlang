@@ -37,7 +37,7 @@ where
         }
     }
 
-    pub fn run(&mut self, src: &str) -> InterpretResult<()> {
+    pub fn run(&mut self, src: &str) -> InterpretResult<Value> {
         let parse_tree = parser::parse(src)?;
         if parse_tree.errors().is_empty() {
             let (db, stmts) = hir::lower(&ast::Root::cast(parse_tree.syntax()).unwrap());
@@ -49,19 +49,7 @@ where
         }
     }
 
-    pub(crate) fn execute(&mut self, stmts: &[Stmt], db: &Database) -> InterpretResult<()> {
-        for stmt in stmts {
-            let prev_depth = self.call_depth;
-            self.exec_stmt(stmt, db)?;
-            if prev_depth > self.call_depth {
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn exec_block(&mut self, block: &[Stmt], db: &Database) -> InterpretResult<Value> {
+    fn execute(&mut self, block: &[Stmt], db: &Database) -> InterpretResult<Value> {
         let mut res = Value::Unit;
         for stmt in block {
             let prev_depth = self.call_depth;
@@ -267,10 +255,10 @@ where
         }
         for (i, case) in cases.iter().enumerate() {
             if &scrutinee == case {
-                return self.exec_block(&case_bodies[i], db);
+                return self.execute(&case_bodies[i], db);
             }
         }
-        self.exec_block(default_body, db)
+        self.execute(default_body, db)
     }
 
     fn exec_if_else(
@@ -282,14 +270,14 @@ where
         else_body: &[Stmt],
     ) -> InterpretResult<Value> {
         if self.eval(db.get(condition), db)? == Value::Bool(true) {
-            self.exec_block(body, db)
+            self.execute(body, db)
         } else {
             for (cond, body) in elseifs {
                 if self.eval(db.get(*cond), db)? == Value::Bool(true) {
-                    return self.exec_block(body, db);
+                    return self.execute(body, db);
                 }
             }
-            self.exec_block(else_body, db)
+            self.execute(else_body, db)
         }
     }
 
@@ -807,7 +795,7 @@ where
     }
 
     fn call_subprog(&mut self, body: &[Stmt], db: &Database) -> InterpretResult<Value> {
-        self.exec_block(body, db)
+        self.execute(body, db)
     }
 
     fn builtin_subprog_call(
