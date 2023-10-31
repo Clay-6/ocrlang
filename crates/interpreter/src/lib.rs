@@ -16,11 +16,7 @@ use smol_str::SmolStr;
 pub type InterpretResult<T> = Result<T, InterpretError>;
 
 #[derive(Debug)]
-pub struct Interpreter<I = io::Stdin, O = io::Stdout>
-where
-    I: io::Read,
-    O: io::Write,
-{
+pub struct Interpreter<I = io::Stdin, O = io::Stdout> {
     envs: (Env, Vec<Env>),
     output: O,
     input: BufReader<I>,
