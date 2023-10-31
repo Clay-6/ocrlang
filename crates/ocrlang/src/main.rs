@@ -13,6 +13,7 @@ fn main() -> Result<()> {
     if let Some(path) = args.file {
         return interpreter
             .run(&fs::read_to_string(path)?)
+            .map(|_| ())
             .map_err(|e| e.into());
     }
 
@@ -22,9 +23,11 @@ fn main() -> Result<()> {
         match read_line {
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
-                if let Err(e) = interpreter.run(&line) {
-                    eprintln!("{e}");
-                };
+                match interpreter.run(&line) {
+                    Ok(interpreter::Value::Unit) => {}
+                    Ok(v) => println!("{v}"),
+                    Err(e) => eprintln!("{e}"),
+                }
             }
             Err(ReadlineError::Eof | ReadlineError::Interrupted) => break,
             Err(e) => return Err(e.into()),
