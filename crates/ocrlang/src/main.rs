@@ -1,3 +1,5 @@
+use std::{fs, path::PathBuf};
+
 use interpreter::Interpreter;
 
 use color_eyre::Result;
@@ -5,12 +7,12 @@ use rustyline::{error::ReadlineError, DefaultEditor};
 
 fn main() -> Result<()> {
     color_eyre::install()?;
-
+    let args = argh::from_env::<Args>();
     let mut interpreter = Interpreter::default();
 
-    if let Some(file) = std::env::args().nth(1) {
+    if let Some(path) = args.file {
         return interpreter
-            .run(&std::fs::read_to_string(file)?)
+            .run(&fs::read_to_string(path)?)
             .map_err(|e| e.into());
     }
 
@@ -30,4 +32,13 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Execute OCR Exam Reference Language code from a file
+/// or in a REPL
+#[derive(argh::FromArgs)]
+struct Args {
+    /// A file to execute
+    #[argh(positional)]
+    file: Option<PathBuf>,
 }
