@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### Bug Fixes
+
+- Pop env after for-loop completes
+- Remove trait bounds directly on `Interpreter` struct
+
 ## [1.0.0] - 2023-10-30
 
 Initial release. Contains support for all fetures mentioned in the spec:
