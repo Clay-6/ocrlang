@@ -20,7 +20,9 @@ fn main() -> Result<()> {
         match read_line {
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
-                interpreter.run(&line)?;
+                if let Err(e) = interpreter.run(&line) {
+                    eprintln!("{e}");
+                };
             }
             Err(ReadlineError::Eof | ReadlineError::Interrupted) => break,
             Err(e) => return Err(e.into()),
