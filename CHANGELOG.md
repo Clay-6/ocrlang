@@ -8,6 +8,20 @@ All notable changes to this project will be documented in this file.
 
 - Pop env after for-loop completes
 - Remove trait bounds directly on `Interpreter` struct
+- Don't panic on interpreter errors in the REPL
+- Call `color_eyre::install` (yay colours!)
+
+### Features
+
+- Add `rustyline` for REPL
+- Add real CLI args parsing with `argh`
+- Return value from `Interpreter::run`
+- Print out non-unit evaluated values in REPL
+
+### Refactor
+
+- Use `Interpreter::default` in main binary
+- Just return result of `Interpreter::run`
 
 ## [1.0.0] - 2023-10-30
 
