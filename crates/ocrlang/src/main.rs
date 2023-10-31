@@ -4,7 +4,7 @@ use color_eyre::Result;
 use rustyline::{error::ReadlineError, DefaultEditor};
 
 fn main() -> Result<()> {
-    let mut interpreter = Interpreter::new(std::io::stdin(), std::io::stdout());
+    let mut interpreter = Interpreter::default();
 
     if let Some(file) = std::env::args().nth(1) {
         if let Err(e) = interpreter.run(&std::fs::read_to_string(file)?) {
