@@ -7,11 +7,9 @@ fn main() -> Result<()> {
     let mut interpreter = Interpreter::default();
 
     if let Some(file) = std::env::args().nth(1) {
-        if let Err(e) = interpreter.run(&std::fs::read_to_string(file)?) {
-            eprintln!("{e}");
-            std::process::exit(65);
-        }
-        return Ok(());
+        return interpreter
+            .run(&std::fs::read_to_string(file)?)
+            .map_err(|e| e.into());
     }
 
     let mut rl = DefaultEditor::new()?;
