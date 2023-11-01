@@ -14,6 +14,8 @@ repository = "https://github.com/Clay-6/ocrlang"
 
 [workspace.metadata.release]
 publish = false
+shared-version = true
+tag-name = "v{{version}}"
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
