@@ -61,10 +61,6 @@ where
         Ok(res)
     }
 
-    fn env(&self) -> &Env {
-        self.envs.1.last().unwrap_or(&self.envs.0)
-    }
-
     fn env_mut(&mut self) -> &mut Env {
         self.envs.1.last_mut().unwrap_or(&mut self.envs.0)
     }
@@ -571,7 +567,6 @@ where
             }
             hir::Expr::Unary { op, opand } => eval_unary_op(self.eval(db.get(*opand), db)?, *op),
             hir::Expr::NameRef { name } => self
-                .env()
                 .get_var(name)
                 .ok_or_else(|| InterpretError::UnresolvedVariable { name: name.clone() }),
             hir::Expr::Call { callee, args } => {
@@ -1230,7 +1225,7 @@ mod tests {
         let mut interpreter = Interpreter::new(empty(), empty());
         interpreter.run(code).unwrap();
 
-        assert_eq!(interpreter.env(), &expected);
+        assert_eq!(&interpreter.envs.0, &expected);
     }
 
     #[test]
