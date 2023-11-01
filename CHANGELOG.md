@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file.
 
 - Use `Interpreter::default` in main binary
 - Just return result of `Interpreter::run`
+- Remove unused `Interpreter::env()`
 
 ## [1.0.0] - 2023-10-30
 
