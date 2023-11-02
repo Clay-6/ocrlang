@@ -12,7 +12,32 @@ pub(crate) use parse_error::ParseError;
 
 use self::marker::Marker;
 
-const RECOVERY_SET: [TokenKind; 3] = [TokenKind::Const, TokenKind::Global, TokenKind::Array];
+const RECOVERY_SET: [TokenKind; 24] = [
+    TokenKind::Const,
+    TokenKind::Global,
+    TokenKind::Array,
+    TokenKind::Function,
+    TokenKind::Endfunction,
+    TokenKind::Procedure,
+    TokenKind::Endprocedure,
+    TokenKind::If,
+    TokenKind::Then,
+    TokenKind::Elseif,
+    TokenKind::Else,
+    TokenKind::Endif,
+    TokenKind::Switch,
+    TokenKind::Case,
+    TokenKind::Default,
+    TokenKind::Endswitch,
+    TokenKind::For,
+    TokenKind::To,
+    TokenKind::Step,
+    TokenKind::Next,
+    TokenKind::While,
+    TokenKind::Endwhile,
+    TokenKind::Do,
+    TokenKind::Return,
+];
 
 pub(crate) struct Parser<'t, 'input> {
     source: Source<'t, 'input>,
