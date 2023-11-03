@@ -215,14 +215,10 @@ impl ArrayDef {
             .skip(1)
             .take_while(|t| t.kind() != SyntaxKind::RBracket)
             .filter(|t| t.kind() == SyntaxKind::Number)
-            .map(|t| {
-                Expr::Literal(Literal::Token(
-                    t.as_token()
-                        .expect(
-                            "Everything that's `SyntaxKind::Number` is a token",
-                        )
-                        .clone(),
-                ))
+            .filter_map(|t| {
+                t.as_token()
+                    .cloned()
+                    .map(|tok| Expr::Literal(Literal::Token(tok)))
             })
     }
 
@@ -461,7 +457,7 @@ impl Literal {
                     SyntaxKind::False => Some(Val::Bool(false)),
                     SyntaxKind::String => Some(Val::String(tok.text().into())),
                     SyntaxKind::Char => Some(Val::Char(
-                        tok.text().chars().find(|&c| c != '\'').unwrap(),
+                        tok.text().chars().find(|&c| c != '\'')?,
                     )),
                     SyntaxKind::Number => {
                         let txt = tok.text();
@@ -478,9 +474,9 @@ impl Literal {
                 SyntaxKind::True => Some(Val::Bool(true)),
                 SyntaxKind::False => Some(Val::Bool(false)),
                 SyntaxKind::String => Some(Val::String(tok.text().into())),
-                SyntaxKind::Char => Some(Val::Char(
-                    tok.text().chars().find(|&c| c != '\'').unwrap(),
-                )),
+                SyntaxKind::Char => {
+                    Some(Val::Char(tok.text().chars().find(|&c| c != '\'')?))
+                }
                 SyntaxKind::Number => {
                     let txt = tok.text();
                     if txt.contains('.') {
