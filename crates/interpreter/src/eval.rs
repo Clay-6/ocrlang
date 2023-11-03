@@ -103,6 +103,10 @@ pub(crate) fn eval_unary_op(
 fn eval_eq(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if lhs.same_type(rhs) {
         Ok(Value::Bool(lhs == rhs))
+    } else if let (Value::Int(i), Value::Float(f)) = (lhs, rhs) {
+        Ok(Value::Bool((*i as f64 - *f).abs() < f64::EPSILON))
+    } else if let (Value::Float(f), Value::Int(i)) = (lhs, rhs) {
+        Ok(Value::Bool((f - *i as f64).abs() < f64::EPSILON))
     } else {
         Err(InterpretError::MismatchedTypes {
             expected: vec![lhs.type_str()],
