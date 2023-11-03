@@ -12,10 +12,17 @@ fn main() -> Result<()> {
     let mut interpreter = Interpreter::default();
 
     if let Some(path) = args.file {
-        return interpreter
-            .run(&fs::read_to_string(path)?)
-            .map(|_| ())
-            .map_err(Into::into);
+        if !path.exists() {
+            eprintln!("Error: file {} does not exist", path.display());
+            std::process::exit(1);
+        }
+        return match interpreter.run(&fs::read_to_string(path)?).map(|_| ()) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                eprintln!("Error: {e:#}");
+                std::process::exit(2)
+            }
+        };
     }
 
     let mut rl = DefaultEditor::new()?;
