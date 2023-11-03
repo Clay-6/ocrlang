@@ -12,8 +12,13 @@ pub(crate) fn eval_binary_op(op: hir::BinaryOp, lhs: Value, rhs: Value) -> Inter
         hir::BinaryOp::Pow => eval_pow(&lhs, &rhs),
         hir::BinaryOp::And => eval_logic_and(&lhs, &rhs),
         hir::BinaryOp::Or => eval_logic_or(&lhs, &rhs),
-        hir::BinaryOp::Equals => Ok(Value::Bool(lhs == rhs)),
-        hir::BinaryOp::NotEquals => Ok(Value::Bool(lhs != rhs)),
+        hir::BinaryOp::Equals => eval_eq(lhs, rhs),
+        hir::BinaryOp::NotEquals => eval_eq(lhs, rhs).map(|res| {
+            let Value::Bool(res) = res else {
+                unreachable!()
+            };
+            Value::Bool(!res)
+        }),
         hir::BinaryOp::LessThan => eval_lt(&lhs, &rhs),
         hir::BinaryOp::LessEquals => eval_le(&lhs, &rhs),
         hir::BinaryOp::GreaterThan => eval_gt(&lhs, &rhs),
@@ -80,6 +85,17 @@ pub(crate) fn eval_unary_op(operand: Value, op: hir::UnaryOp) -> InterpretResult
                 })
             }
         }
+    }
+}
+
+fn eval_eq(lhs: Value, rhs: Value) -> InterpretResult<Value> {
+    if !lhs.same_type(&rhs) {
+        Err(InterpretError::MismatchedTypes {
+            expected: vec![lhs.type_str()],
+            found: rhs.type_str(),
+        })
+    } else {
+        Ok(Value::Bool(lhs == rhs))
     }
 }
 
