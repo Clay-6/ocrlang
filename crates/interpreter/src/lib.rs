@@ -1119,7 +1119,7 @@ impl fmt::Display for InterpretError {
                 "return statement outside of function".to_string()
             }
             InterpretError::LexError { text, range } => {
-                format!("lex error at '{text}' ({range:?})")
+                format!("unrecognised token '{text}' at range {range:?}")
             }
             InterpretError::InvalidCast { from, to } => {
                 format!("casting {from} to {to} is invalid")

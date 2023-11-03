@@ -26,7 +26,7 @@ pub fn parse(input: &str) -> Result<Parse, LexError> {
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
-#[error("Error at {text} ({range:?})")]
+#[error("unrecognised token '{text}' at range {range:?}")]
 pub struct LexError<'i> {
     pub text: &'i str,
     pub range: Range<usize>,
