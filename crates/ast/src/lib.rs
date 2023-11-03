@@ -432,9 +432,7 @@ impl Literal {
     pub fn parse(&self) -> Option<Val> {
         match self {
             Literal::Node(node) => {
-                let tok = node
-                    .first_token()
-                    .expect("This definitely has at least one token");
+                let tok = node.first_token()?;
 
                 match tok.kind() {
                     SyntaxKind::True => Some(Val::Bool(true)),

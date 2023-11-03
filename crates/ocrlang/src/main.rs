@@ -14,7 +14,7 @@ fn main() -> Result<()> {
         return interpreter
             .run(&fs::read_to_string(path)?)
             .map(|_| ())
-            .map_err(|e| e.into());
+            .map_err(Into::into);
     }
 
     let mut rl = DefaultEditor::new()?;

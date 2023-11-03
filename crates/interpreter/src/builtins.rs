@@ -5,6 +5,7 @@ use crate::{InterpretError, Interpreter, Value};
 pub(crate) fn int_cast(val: &Value) -> Result<Value, InterpretError> {
     match *val {
         Value::Bool(b) => Ok(Value::Int(b.into())),
+        #[allow(clippy::cast_possible_truncation)]
         Value::Float(f) => Ok(Value::Int(f as i64)),
         Value::Char(c) => Ok(Value::Int(u32::from(c).into())),
         Value::String(ref s) => Ok(Value::Int(s.trim().parse().map_err(|_| {
@@ -63,6 +64,7 @@ pub(crate) fn bool_cast(val: &Value) -> Result<Value, InterpretError> {
 
 pub(crate) fn float_cast(val: &Value) -> Result<Value, InterpretError> {
     match *val {
+        #[allow(clippy::cast_precision_loss)]
         Value::Int(i) => Ok(Value::Float(i as f64)),
         Value::Float(_) => Ok(val.clone()),
         Value::Char(c) => Ok(Value::Float(u32::from(c).into())),

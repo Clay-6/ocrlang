@@ -4,8 +4,8 @@ mod eval;
 
 use core::fmt;
 use std::{
-    fs::{self, File},
-    io::{self, BufRead, BufReader, Seek, SeekFrom, Write},
+    fs::File,
+    io::{self, BufReader, Seek, SeekFrom, Write},
     ops::Range,
 };
 
@@ -41,7 +41,9 @@ where
     pub fn run(&mut self, src: &str) -> InterpretResult<Value> {
         let parse_tree = parser::parse(src)?;
         if parse_tree.errors().is_empty() {
-            let (db, stmts) = hir::lower(&ast::Root::cast(parse_tree.syntax()).unwrap());
+            let (db, stmts) = hir::lower(&ast::Root::cast(parse_tree.syntax()).expect(
+                "`parer::parse` tree contains a `Root` so conversion should always succeed",
+            ));
             self.execute(&stmts, &db)
         } else {
             Err(InterpretError::ParseErrors {
@@ -564,9 +566,9 @@ where
                     });
                 }
 
-                eval_binary_op(*op, lhs, rhs)
+                eval_binary_op(*op, &lhs, &rhs)
             }
-            hir::Expr::Unary { op, opand } => eval_unary_op(self.eval(db.get(*opand), db)?, *op),
+            hir::Expr::Unary { op, opand } => eval_unary_op(&self.eval(db.get(*opand), db)?, *op),
             hir::Expr::NameRef { name } => self
                 .get_var(name)
                 .ok_or_else(|| InterpretError::UnresolvedVariable { name: name.clone() }),
@@ -700,6 +702,8 @@ where
         args: ExprRange,
         db: &Database,
     ) -> Option<InterpretResult<Value>> {
+        use io::Read;
+
         if !matches!(op, hir::BinaryOp::Dot) {
             return None;
         }
@@ -726,7 +730,6 @@ where
             }));
         }
 
-        use io::Read;
         Some(match callee {
             "close" => {
                 // Reassign to drop the `File` & close it in its `Drop` impl
@@ -760,7 +763,7 @@ where
                     Err(e) => return Some(Err(e.into())),
                 }
                 Ok(match res {
-                    Ok(_) => Value::Bool(false),
+                    Ok(()) => Value::Bool(false),
                     Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => Value::Bool(true),
                     Err(e) => return Some(Err(e.into())),
                 })
@@ -1067,6 +1070,7 @@ mod tests {
     use super::*;
 
     use std::collections::HashMap;
+    use std::fs;
     use std::io::{empty, BufReader};
 
     use hir::{Expr, Literal};
@@ -1158,7 +1162,7 @@ mod tests {
             let evaled = Interpreter {
                 input: BufReader::new(std::io::empty()),
                 output: vec![],
-                envs: (Default::default(), Default::default()),
+                envs: (Env::default(), Vec::default()),
                 call_depth: 1, // Pretend we're actually inside a function
             }
             .exec_stmt(&stmts[0], &db)
@@ -1288,7 +1292,7 @@ mod tests {
             let InterpretError::InvalidDotTarget { name } = err else {
                 panic!("Wrong error type")
             };
-            assert_eq!(name, "ballsack")
+            assert_eq!(name, "ballsack");
         };
     }
 
@@ -1567,7 +1571,7 @@ mod tests {
             print("opened")"#,
             "created\nopened\n",
         );
-        fs::remove_file("file_create_open.txt").unwrap()
+        fs::remove_file("file_create_open.txt").unwrap();
     }
 
     #[test]

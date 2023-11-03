@@ -14,11 +14,9 @@ use rowan::GreenNode;
 use syntax::SyntaxNode;
 
 pub fn parse(input: &str) -> Result<Parse, LexError> {
-    let tokens = Lexer::new(input).collect::<Result<Vec<_>, _>>();
-    if let Err((text, range)) = tokens {
-        return Err(LexError { text, range });
-    }
-    let tokens = tokens.unwrap();
+    let tokens = Lexer::new(input)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|(text, range)| LexError { text, range })?;
     let source = Source::new(&tokens);
     let parser = Parser::new(source);
     let events = parser.parse();
@@ -61,6 +59,7 @@ impl Parse {
         SyntaxNode::new_root(self.green_node.clone())
     }
 
+    #[must_use]
     pub fn errors(&self) -> &[ParseError] {
         &self.errors
     }
