@@ -1076,11 +1076,10 @@ impl fmt::Display for InterpretError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             InterpretError::ParseErrors { errors } => {
-                errors.iter().fold(String::new(), |mut output, e| {
+                errors.iter().try_fold(String::new(), |mut output, e| {
                     use std::fmt::Write;
-                    let _ = writeln!(output, "{e}");
-                    output
-                })
+                    writeln!(output, "{e}").map(|()| output)
+                })?
             }
             InterpretError::ReassignedConstant => "reassigned constant".into(),
             InterpretError::MismatchedTypes { expected, found } => {
