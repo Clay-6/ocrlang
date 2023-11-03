@@ -11,8 +11,8 @@ pub(crate) fn eval_binary_op(op: hir::BinaryOp, lhs: Value, rhs: Value) -> Inter
         hir::BinaryOp::Pow => eval_pow(&lhs, &rhs),
         hir::BinaryOp::And => eval_logic_and(&lhs, &rhs),
         hir::BinaryOp::Or => eval_logic_or(&lhs, &rhs),
-        hir::BinaryOp::Equals => eval_eq(lhs, rhs),
-        hir::BinaryOp::NotEquals => eval_eq(lhs, rhs).map(|res| {
+        hir::BinaryOp::Equals => eval_eq(&lhs, &rhs),
+        hir::BinaryOp::NotEquals => eval_eq(&lhs, &rhs).map(|res| {
             let Value::Bool(res) = res else {
                 unreachable!()
             };
@@ -87,14 +87,14 @@ pub(crate) fn eval_unary_op(operand: Value, op: hir::UnaryOp) -> InterpretResult
     }
 }
 
-fn eval_eq(lhs: Value, rhs: Value) -> InterpretResult<Value> {
-    if !lhs.same_type(&rhs) {
+fn eval_eq(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
+    if lhs.same_type(rhs) {
+        Ok(Value::Bool(lhs == rhs))
+    } else {
         Err(InterpretError::MismatchedTypes {
             expected: vec![lhs.type_str()],
             found: rhs.type_str(),
         })
-    } else {
-        Ok(Value::Bool(lhs == rhs))
     }
 }
 

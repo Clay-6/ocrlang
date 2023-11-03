@@ -1,3 +1,4 @@
+mod builtins;
 mod env;
 mod eval;
 
@@ -805,22 +806,12 @@ where
             .map(|e| self.eval(e, db))
             .collect::<InterpretResult<Vec<_>>>()?;
         if callee == "random" {
-            if args.len() != 2 {
-                return Err(InterpretError::InvalidArgumentCount {
+            return if args.len() == 2 {
+                builtins::random(&args[0], &args[1])
+            } else {
+                Err(InterpretError::InvalidArgumentCount {
                     expected: 2,
                     got: args.len(),
-                });
-            }
-            use rand::Rng;
-            let mut rng = rand::thread_rng();
-            return if let (Value::Int(lower), Value::Int(upper)) = (&args[0], &args[1]) {
-                Ok(Value::Int(rng.gen_range(*lower..=*upper)))
-            } else if let (Value::Float(lower), Value::Float(upper)) = (&args[0], &args[1]) {
-                Ok(Value::Float(rng.gen_range(*lower..=*upper)))
-            } else {
-                Err(InterpretError::MismatchedTypes {
-                    expected: vec!["float", "int"],
-                    found: args[0].type_str(),
                 })
             };
         }
@@ -833,136 +824,16 @@ where
         }
 
         match callee {
-            "print" => {
-                writeln!(self.output, "{}", args[0]).unwrap();
-                Ok(Value::Unit)
-            }
-            "input" => {
-                if let Value::String(ref prompt) = args[0] {
-                    write!(self.output, "{prompt}").unwrap();
-                    self.output.flush().unwrap();
-                    let mut buf = String::new();
-                    self.input.read_line(&mut buf).unwrap();
-                    Ok(Value::String(buf.into()))
-                } else {
-                    Err(InterpretError::MismatchedTypes {
-                        expected: vec!["string"],
-                        found: args[0].type_str(),
-                    })
-                }
-            }
-            "ASC" => {
-                let Value::Char(ref c) = args[0] else {
-                    return Err(InterpretError::MismatchedTypes {
-                        expected: vec!["char"],
-                        found: args[0].type_str(),
-                    });
-                };
-                Ok(Value::Int(u32::from(*c).into()))
-            }
-            "CHR" => {
-                let Value::Int(ref n) = args[0] else {
-                    return Err(InterpretError::MismatchedTypes {
-                        expected: vec!["int"],
-                        found: args[0].type_str(),
-                    });
-                };
-                let Ok(n) = u8::try_from(*n) else {
-                    return Err(InterpretError::IntegerTooLarge);
-                };
-                Ok(Value::Char(n.into()))
-            }
-            "str" => Ok(Value::String(args[0].to_string().into())),
-            "int" => match args[0] {
-                Value::Bool(b) => Ok(Value::Int(b.into())),
-                Value::Float(f) => Ok(Value::Int(f as i64)),
-                Value::Char(c) => Ok(Value::Int(u32::from(c).into())),
-                Value::String(ref s) => Ok(Value::Int(s.trim().parse().map_err(|_| {
-                    InterpretError::CastFailure {
-                        value: args[0].clone(),
-                        target: "int",
-                    }
-                })?)),
-                Value::Int(_) => Ok(args[0].clone()),
-                _ => Err(InterpretError::InvalidCast {
-                    from: args[0].type_str(),
-                    to: "int",
-                }),
-            },
-            "float" | "real" => match args[0] {
-                Value::Int(i) => Ok(Value::Float(i as f64)),
-                Value::Float(_) => Ok(args[0].clone()),
-                Value::Char(c) => Ok(Value::Float(u32::from(c).into())),
-                Value::String(ref s) => Ok(Value::Float(s.trim().parse().map_err(|_| {
-                    InterpretError::CastFailure {
-                        value: args[0].clone(),
-                        target: "float",
-                    }
-                })?)),
-                Value::Bool(b) => Ok(Value::Float(b.into())),
-                _ => Err(InterpretError::InvalidCast {
-                    from: args[0].type_str(),
-                    to: "float",
-                }),
-            },
-            "bool" => match args[0] {
-                Value::Int(i) => Ok(Value::Bool(match i {
-                    1 => true,
-                    0 => false,
-                    _ => Err(InterpretError::CastFailure {
-                        value: args[0].clone(),
-                        target: "boolean",
-                    })?,
-                })),
-                Value::Float(f) => Ok(Value::Bool(if f == 1.0 {
-                    true
-                } else if f == 0.0 {
-                    false
-                } else {
-                    Err(InterpretError::CastFailure {
-                        value: args[0].clone(),
-                        target: "boolean",
-                    })?
-                })),
-                Value::String(ref s) => Ok(Value::Bool(match s.to_lowercase().trim() {
-                    "true" => true,
-                    "false" => false,
-                    _ => Err(InterpretError::CastFailure {
-                        value: args[0].clone(),
-                        target: "boolean",
-                    })?,
-                })),
-                Value::Bool(_) => Ok(args[0].clone()),
-                _ => Err(InterpretError::InvalidCast {
-                    from: args[0].type_str(),
-                    to: "boolean",
-                }),
-            },
-            "open" => {
-                if let Value::String(ref path) = args[0] {
-                    let file = fs::OpenOptions::new()
-                        .read(true)
-                        .append(true)
-                        .open(path.as_str())?;
-                    Ok(Value::File(file.into()))
-                } else {
-                    Err(InterpretError::MismatchedTypes {
-                        expected: vec!["string"],
-                        found: args[0].type_str(),
-                    })
-                }
-            }
-            "newFile" => {
-                if let Value::String(ref path) = args[0] {
-                    File::create(path.as_str())?;
-                    Ok(Value::Unit)
-                } else {
-                    Err(InterpretError::MismatchedTypes {
-                        expected: vec!["string"],
-                        found: args[0].type_str(),
-                    })
-                }
-            }
+            "print" => builtins::print(self, &args[0]),
+            "input" => builtins::input(self, &args[0]),
+            "ASC" => builtins::asc(&args[0]),
+            "CHR" => builtins::chr(&args[0]),
+            "str" => Ok(builtins::str_cast(&args[0])),
+            "int" => builtins::int_cast(&args[0]),
+            "float" | "real" => builtins::float_cast(&args[0]),
+            "bool" => builtins::bool_cast(&args[0]),
+            "open" => builtins::open(&args[0]),
+            "newFile" => builtins::new_file(&args[0]),
             _ => Err(InterpretError::UnresolvedSubprogram {
                 name: callee.into(),
             }),
