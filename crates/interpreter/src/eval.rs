@@ -1,6 +1,5 @@
 use crate::{InterpretError, InterpretResult, Value};
 
-#[allow(clippy::too_many_lines)]
 pub(crate) fn eval_binary_op(op: hir::BinaryOp, lhs: Value, rhs: Value) -> InterpretResult<Value> {
     match op {
         hir::BinaryOp::Add => eval_add(&lhs, &rhs),
