@@ -21,7 +21,11 @@ impl Marker {
         }
     }
 
-    pub(crate) fn complete(mut self, p: &mut Parser, kind: SyntaxKind) -> CompletedMarker {
+    pub(crate) fn complete(
+        mut self,
+        p: &mut Parser,
+        kind: SyntaxKind,
+    ) -> CompletedMarker {
         self.completed = true;
 
         let event_at_pos = &mut p.events[self.pos];

@@ -6,9 +6,12 @@ const VAR_DEF_START: [TokenKind; 4] = [
     TokenKind::Global,
     TokenKind::Array,
 ];
-const SUBPROG_START: [TokenKind; 2] = [TokenKind::Function, TokenKind::Procedure];
-const SUBPROG_END: [TokenKind; 2] = [TokenKind::Endfunction, TokenKind::Endprocedure];
-const CASE_ENDINGS: [TokenKind; 3] = [TokenKind::Case, TokenKind::Default, TokenKind::Endswitch];
+const SUBPROG_START: [TokenKind; 2] =
+    [TokenKind::Function, TokenKind::Procedure];
+const SUBPROG_END: [TokenKind; 2] =
+    [TokenKind::Endfunction, TokenKind::Endprocedure];
+const CASE_ENDINGS: [TokenKind; 3] =
+    [TokenKind::Case, TokenKind::Default, TokenKind::Endswitch];
 
 pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
     if p.at_set(&VAR_DEF_START) {
@@ -40,7 +43,8 @@ fn switch_stmt(p: &mut Parser) -> CompletedMarker {
     expr::expr(p);
     p.expect(TokenKind::Colon);
 
-    while !p.at_end() && !p.at_set(&[TokenKind::Endswitch, TokenKind::Default]) {
+    while !p.at_end() && !p.at_set(&[TokenKind::Endswitch, TokenKind::Default])
+    {
         if p.at(TokenKind::Case) {
             p.bump();
             let cond = p.start();
@@ -138,7 +142,9 @@ fn if_else(p: &mut Parser) -> CompletedMarker {
     p.expect(TokenKind::Then);
 
     let main_body = p.start();
-    while !p.at_end() && !p.at_set(&[TokenKind::Elseif, TokenKind::Else, TokenKind::Endif]) {
+    while !p.at_end()
+        && !p.at_set(&[TokenKind::Elseif, TokenKind::Else, TokenKind::Endif])
+    {
         stmt(p); // The body
     }
     main_body.complete(p, SyntaxKind::PrimaryBody);
@@ -152,7 +158,12 @@ fn if_else(p: &mut Parser) -> CompletedMarker {
             cond.complete(p, SyntaxKind::ConditionExpr);
             p.expect(TokenKind::Then);
             let inner_body = p.start();
-            while !p.at_end() && !p.at_set(&[TokenKind::Elseif, TokenKind::Else, TokenKind::Endif])
+            while !p.at_end()
+                && !p.at_set(&[
+                    TokenKind::Elseif,
+                    TokenKind::Else,
+                    TokenKind::Endif,
+                ])
             {
                 stmt(p); // The body
             }
@@ -189,9 +200,13 @@ fn ret(p: &mut Parser) -> CompletedMarker {
 fn var_def(p: &mut Parser) -> CompletedMarker {
     assert!(p.at_set(&VAR_DEF_START));
 
-    if p.at(TokenKind::Ident) && !matches!(p.peek_next(), Some(TokenKind::Equal)) {
+    if p.at(TokenKind::Ident)
+        && !matches!(p.peek_next(), Some(TokenKind::Equal))
+    {
         // No attrs for you, young one
-        return expr::expr(p).expect("This'll never be none, the ident we're at is a valid lhs");
+        return expr::expr(p).expect(
+            "This'll never be none, the ident we're at is a valid lhs",
+        );
     }
 
     let m = p.start();
@@ -248,7 +263,10 @@ fn array_decl(p: &mut Parser) {
     }
 }
 
-pub(crate) fn array_assigment_fallback(p: &mut Parser, cm: CompletedMarker) -> CompletedMarker {
+pub(crate) fn array_assigment_fallback(
+    p: &mut Parser,
+    cm: CompletedMarker,
+) -> CompletedMarker {
     let m = cm.precede(p);
     p.expect(TokenKind::Equal);
     expr::expr(p);

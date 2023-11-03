@@ -44,9 +44,10 @@ impl<'t, 'input> Sink<'t, 'input> {
                         forward_parent = if let Event::StartNode {
                             kind,
                             forward_parent,
-                        } =
-                            mem::replace(&mut self.events[idx], Event::Placeholder)
-                        {
+                        } = mem::replace(
+                            &mut self.events[idx],
+                            Event::Placeholder,
+                        ) {
                             kinds.push(kind);
                             forward_parent
                         } else {

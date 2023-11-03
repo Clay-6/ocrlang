@@ -3,7 +3,9 @@ use std::iter;
 use la_arena::Arena;
 use syntax::SyntaxKind;
 
-use crate::{BinaryOp, Expr, ExprIdx, ExprRange, Literal, Stmt, UnaryOp, VarDefKind};
+use crate::{
+    BinaryOp, Expr, ExprIdx, ExprRange, Literal, Stmt, UnaryOp, VarDefKind,
+};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Database {
@@ -126,7 +128,9 @@ impl Database {
             .collect();
         let default_body = ast
             .default_body()
-            .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect::<Vec<_>>())
+            .map(|b| {
+                b.filter_map(|ast| self.lower_stmt(ast)).collect::<Vec<_>>()
+            })
             .unwrap_or_default();
         Stmt::SwitchCase {
             scrutinee,
@@ -152,7 +156,9 @@ impl Database {
                 .collect::<Vec<_>>();
             let elseif_bodies = ast
                 .elseif_bodies()
-                .map(|body| body.filter_map(|ast| self.lower_stmt(ast)).collect())
+                .map(|body| {
+                    body.filter_map(|ast| self.lower_stmt(ast)).collect()
+                })
                 .collect::<Vec<Vec<_>>>();
             elseif_conds
                 .into_iter()
@@ -181,7 +187,9 @@ impl Database {
     fn lower_subprogram_def(&mut self, ast: ast::SubprogDef) -> Option<Stmt> {
         let body = {
             match ast.kind()?.kind() {
-                SyntaxKind::Function => ast.body().filter_map(|ast| self.lower_stmt(ast)).collect(),
+                SyntaxKind::Function => {
+                    ast.body().filter_map(|ast| self.lower_stmt(ast)).collect()
+                }
                 SyntaxKind::Procedure => ast
                     .body()
                     .filter_map(|ast| self.lower_stmt(ast))
@@ -366,7 +374,11 @@ mod tests {
         assert_eq!(hir, expected_hir);
     }
 
-    fn check_expr(input: &str, expected_hir: Expr, expected_database: Database) {
+    fn check_expr(
+        input: &str,
+        expected_hir: Expr,
+        expected_database: Database,
+    ) {
         let root = parse(input);
         let first_stmt = root.stmts().next().unwrap();
         let ast::Stmt::Expr(ast) = first_stmt else {
@@ -722,7 +734,11 @@ mod tests {
 
     #[test]
     fn lower_name_ref() {
-        check_expr("x", Expr::NameRef { name: "x".into() }, Database::default());
+        check_expr(
+            "x",
+            Expr::NameRef { name: "x".into() },
+            Database::default(),
+        );
     }
 
     #[test]

@@ -142,14 +142,21 @@ impl VarDef {
         self.0
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
-            .find(|token| matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::IdentSubscript))
+            .find(|token| {
+                matches!(
+                    token.kind(),
+                    SyntaxKind::Ident | SyntaxKind::IdentSubscript
+                )
+            })
     }
 
     pub fn kind(&self) -> Option<SyntaxToken> {
         self.0
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
-            .find(|token| matches!(token.kind(), SyntaxKind::Const | SyntaxKind::Global))
+            .find(|token| {
+                matches!(token.kind(), SyntaxKind::Const | SyntaxKind::Global)
+            })
     }
 
     pub fn value(&self) -> Option<Expr> {
@@ -162,7 +169,9 @@ impl ArrayDef {
         self.0
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
-            .find(|t| matches!(t.kind(), SyntaxKind::Const | SyntaxKind::Global))
+            .find(|t| {
+                matches!(t.kind(), SyntaxKind::Const | SyntaxKind::Global)
+            })
     }
 
     pub fn name(&self) -> Option<SyntaxToken> {
@@ -209,7 +218,9 @@ impl ArrayDef {
             .map(|t| {
                 Expr::Literal(Literal::Token(
                     t.as_token()
-                        .expect("Everything that's `SyntaxKind::Number` is a token")
+                        .expect(
+                            "Everything that's `SyntaxKind::Number` is a token",
+                        )
                         .clone(),
                 ))
             })
@@ -225,7 +236,12 @@ impl SubprogDef {
         self.0
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
-            .find(|tok| matches!(tok.kind(), SyntaxKind::Function | SyntaxKind::Procedure))
+            .find(|tok| {
+                matches!(
+                    tok.kind(),
+                    SyntaxKind::Function | SyntaxKind::Procedure
+                )
+            })
     }
 
     pub fn name(&self) -> Option<SyntaxToken> {
@@ -274,7 +290,9 @@ impl IfElse {
             .filter_map(|b| b.first_child().map(Expr::cast))
     }
 
-    pub fn elseif_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
+    pub fn elseif_bodies(
+        &self,
+    ) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
         self.0
             .children()
             .filter(|t| t.kind() == SyntaxKind::ConditionalBody)
@@ -302,7 +320,9 @@ impl SwitchCase {
             .filter_map(|b| b.first_child().map(Expr::cast))
     }
 
-    pub fn case_bodies(&self) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
+    pub fn case_bodies(
+        &self,
+    ) -> impl Iterator<Item = impl Iterator<Item = Stmt>> {
         self.0
             .children()
             .filter(|t| t.kind() == SyntaxKind::ConditionalBody)
@@ -423,7 +443,9 @@ impl UnaryExpr {
         self.0
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
-            .find(|token| matches!(token.kind(), SyntaxKind::Minus | SyntaxKind::Not))
+            .find(|token| {
+                matches!(token.kind(), SyntaxKind::Minus | SyntaxKind::Not)
+            })
     }
 }
 
@@ -438,9 +460,9 @@ impl Literal {
                     SyntaxKind::True => Some(Val::Bool(true)),
                     SyntaxKind::False => Some(Val::Bool(false)),
                     SyntaxKind::String => Some(Val::String(tok.text().into())),
-                    SyntaxKind::Char => {
-                        Some(Val::Char(tok.text().chars().find(|&c| c != '\'').unwrap()))
-                    }
+                    SyntaxKind::Char => Some(Val::Char(
+                        tok.text().chars().find(|&c| c != '\'').unwrap(),
+                    )),
                     SyntaxKind::Number => {
                         let txt = tok.text();
                         if txt.contains('.') {
@@ -456,9 +478,9 @@ impl Literal {
                 SyntaxKind::True => Some(Val::Bool(true)),
                 SyntaxKind::False => Some(Val::Bool(false)),
                 SyntaxKind::String => Some(Val::String(tok.text().into())),
-                SyntaxKind::Char => {
-                    Some(Val::Char(tok.text().chars().find(|&c| c != '\'').unwrap()))
-                }
+                SyntaxKind::Char => Some(Val::Char(
+                    tok.text().chars().find(|&c| c != '\'').unwrap(),
+                )),
                 SyntaxKind::Number => {
                     let txt = tok.text();
                     if txt.contains('.') {

@@ -47,7 +47,9 @@ impl<'t, 'input> Source<'t, 'input> {
     }
 
     pub(crate) fn at_newline(&mut self) -> bool {
-        while !matches!(self.peek_kind_raw(), Some(TokenKind::Newline)) && self.at_trivia() {
+        while !matches!(self.peek_kind_raw(), Some(TokenKind::Newline))
+            && self.at_trivia()
+        {
             self.cursor += 1;
         }
         self.peek_kind_raw()

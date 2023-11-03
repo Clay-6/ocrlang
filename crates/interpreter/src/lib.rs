@@ -52,7 +52,11 @@ where
         }
     }
 
-    fn execute(&mut self, block: &[Stmt], db: &Database) -> InterpretResult<Value> {
+    fn execute(
+        &mut self,
+        block: &[Stmt],
+        db: &Database,
+    ) -> InterpretResult<Value> {
         let mut res = Value::Unit;
         for stmt in block {
             let prev_depth = self.call_depth;
@@ -98,17 +102,24 @@ where
         self.envs.1.pop();
     }
 
-    fn exec_stmt(&mut self, stmt: &Stmt, db: &Database) -> InterpretResult<Value> {
+    fn exec_stmt(
+        &mut self,
+        stmt: &Stmt,
+        db: &Database,
+    ) -> InterpretResult<Value> {
         match stmt {
             Stmt::Expr(e) => self.eval(e, db),
-            Stmt::VarDef { name, kind, value } => self.exec_var_def(value, db, *kind, name),
+            Stmt::VarDef { name, kind, value } => {
+                self.exec_var_def(value, db, *kind, name)
+            }
             Stmt::ArrayDef {
                 name,
                 kind,
                 subscript,
                 dimensions,
                 value,
-            } => self.exec_array_def(subscript, dimensions, value, db, *kind, name),
+            } => self
+                .exec_array_def(subscript, dimensions, value, db, *kind, name),
             Stmt::SubprogramDef { name, params, body } => {
                 Ok(self.exec_subprogram_def(name, params, body))
             }
@@ -132,7 +143,13 @@ where
                 cases,
                 case_bodies,
                 default_body,
-            } => self.exec_switch_case(db, *scrutinee, cases, case_bodies, default_body),
+            } => self.exec_switch_case(
+                db,
+                *scrutinee,
+                cases,
+                case_bodies,
+                default_body,
+            ),
             Stmt::ForLoop {
                 loop_var,
                 start,
@@ -140,8 +157,12 @@ where
                 step,
                 body,
             } => self.exec_for_loop(loop_var, db, *start, *end, *step, body),
-            Stmt::WhileLoop { condition, body } => self.exec_while_loop(db, *condition, body),
-            Stmt::DoUntilLoop { condition, body } => self.exec_do_until(db, *condition, body),
+            Stmt::WhileLoop { condition, body } => {
+                self.exec_while_loop(db, *condition, body)
+            }
+            Stmt::DoUntilLoop { condition, body } => {
+                self.exec_do_until(db, *condition, body)
+            }
         }
     }
 
@@ -219,7 +240,9 @@ where
             .insert(loop_var.clone(), Binding::Var(Value::Int(start)));
         let mut loop_idx = start;
         loop {
-            if (step.is_positive() && loop_idx > end) || (step.is_negative() && loop_idx < end) {
+            if (step.is_positive() && loop_idx > end)
+                || (step.is_negative() && loop_idx < end)
+            {
                 break;
             }
             self.execute(body, db)?;
@@ -280,7 +303,12 @@ where
         }
     }
 
-    fn exec_subprogram_def(&mut self, name: &SmolStr, params: &[SmolStr], body: &[Stmt]) -> Value {
+    fn exec_subprogram_def(
+        &mut self,
+        name: &SmolStr,
+        params: &[SmolStr],
+        body: &[Stmt],
+    ) -> Value {
         self.env_mut().insert(
             name.clone(),
             Binding::Func(Subprogram {
@@ -351,7 +379,8 @@ where
         kind: hir::VarDefKind,
         name: &SmolStr,
     ) -> InterpretResult<Value> {
-        let (i, j) = (self.eval(&dimensions.0, db)?, self.eval(&dimensions.1, db)?);
+        let (i, j) =
+            (self.eval(&dimensions.0, db)?, self.eval(&dimensions.1, db)?);
         if !matches!(i, Value::Int(_) | Value::Unit) {
             return Err(InterpretError::MismatchedTypes {
                 expected: vec!["int"],
@@ -462,7 +491,9 @@ where
 
         let i2 = self.eval(&subscript.1, db)?;
         let Some(arr) = self.get_var(name) else {
-            return Err(InterpretError::UnresolvedVariable { name: name.clone() });
+            return Err(InterpretError::UnresolvedVariable {
+                name: name.clone(),
+            });
         };
         let Value::Array(mut arr) = arr else {
             return Err(InterpretError::MismatchedTypes {
@@ -472,7 +503,8 @@ where
         };
         let value = self.eval(value, db)?;
         if matches!(i2, Value::Unit) {
-            arr[usize::try_from(i1).map_err(|_| InterpretError::IntegerTooLarge)?] = value;
+            arr[usize::try_from(i1)
+                .map_err(|_| InterpretError::IntegerTooLarge)?] = value;
         } else {
             let Value::Int(i2) = i2 else {
                 return Err(InterpretError::MismatchedTypes {
@@ -480,16 +512,18 @@ where
                     found: i2.type_str(),
                 });
             };
-            let Value::Array(subarr) =
-                &mut arr[usize::try_from(i1).map_err(|_| InterpretError::IntegerTooLarge)?]
+            let Value::Array(subarr) = &mut arr[usize::try_from(i1)
+                .map_err(|_| InterpretError::IntegerTooLarge)?]
             else {
                 return Err(InterpretError::MismatchedTypes {
                     expected: vec!["array"],
-                    found: arr[usize::try_from(i1).map_err(|_| InterpretError::IntegerTooLarge)?]
-                        .type_str(),
+                    found: arr[usize::try_from(i1)
+                        .map_err(|_| InterpretError::IntegerTooLarge)?]
+                    .type_str(),
                 });
             };
-            subarr[usize::try_from(i2).map_err(|_| InterpretError::IntegerTooLarge)?] = value;
+            subarr[usize::try_from(i2)
+                .map_err(|_| InterpretError::IntegerTooLarge)?] = value;
         }
         self.env_mut()
             .insert(name.clone(), Binding::Var(Value::Array(arr)));
@@ -521,7 +555,11 @@ where
         }
     }
 
-    fn eval(&mut self, expr: &hir::Expr, db: &Database) -> InterpretResult<Value> {
+    fn eval(
+        &mut self,
+        expr: &hir::Expr,
+        db: &Database,
+    ) -> InterpretResult<Value> {
         match expr {
             hir::Expr::Literal { value } => Ok(match value {
                 hir::Literal::Int(i) => Value::Int(*i),
@@ -547,7 +585,13 @@ where
                         return value;
                     }
                 } else if let hir::Expr::Call { callee, args } = rhs {
-                    if let Some(value) = self.eval_method(*op, &mut lhs, callee, args.clone(), db) {
+                    if let Some(value) = self.eval_method(
+                        *op,
+                        &mut lhs,
+                        callee,
+                        args.clone(),
+                        db,
+                    ) {
                         return value;
                     }
                 }
@@ -568,10 +612,14 @@ where
 
                 eval_binary_op(*op, &lhs, &rhs)
             }
-            hir::Expr::Unary { op, opand } => eval_unary_op(&self.eval(db.get(*opand), db)?, *op),
-            hir::Expr::NameRef { name } => self
-                .get_var(name)
-                .ok_or_else(|| InterpretError::UnresolvedVariable { name: name.clone() }),
+            hir::Expr::Unary { op, opand } => {
+                eval_unary_op(&self.eval(db.get(*opand), db)?, *op)
+            }
+            hir::Expr::NameRef { name } => {
+                self.get_var(name).ok_or_else(|| {
+                    InterpretError::UnresolvedVariable { name: name.clone() }
+                })
+            }
             hir::Expr::Call { callee, args } => {
                 let Some(subprog) = self.get_subprogram(callee) else {
                     return self.builtin_subprog_call(callee, args, db);
@@ -629,7 +677,8 @@ where
                 Ok(args) => args,
                 Err(e) => return Some(Err(e)),
             };
-            if let Some(a) = args.iter().find(|a| !matches!(a, &&Value::Int(_))) {
+            if let Some(a) = args.iter().find(|a| !matches!(a, &&Value::Int(_)))
+            {
                 return Some(Err(InterpretError::MismatchedTypes {
                     expected: vec!["int"],
                     found: a.type_str(),
@@ -639,10 +688,12 @@ where
             return match callee {
                 f @ ("left" | "right") => {
                     if args.len() != 1 {
-                        return Some(Err(InterpretError::InvalidArgumentCount {
-                            expected: 1,
-                            got: args.len(),
-                        }));
+                        return Some(Err(
+                            InterpretError::InvalidArgumentCount {
+                                expected: 1,
+                                got: args.len(),
+                            },
+                        ));
                     }
                     let Value::Int(n) = args[0] else {
                         unreachable!();
@@ -654,29 +705,38 @@ where
                     if f == "left" {
                         Some(Ok(Value::String(lhs.chars().take(n).collect())))
                     } else {
-                        Some(Ok(Value::String(lhs.chars().skip(lhs.len() - n).collect())))
+                        Some(Ok(Value::String(
+                            lhs.chars().skip(lhs.len() - n).collect(),
+                        )))
                     }
                 }
                 "substring" => {
                     if args.len() != 2 {
-                        return Some(Err(InterpretError::InvalidArgumentCount {
-                            expected: 2,
-                            got: args.len(),
-                        }));
+                        return Some(Err(
+                            InterpretError::InvalidArgumentCount {
+                                expected: 2,
+                                got: args.len(),
+                            },
+                        ));
                     }
-                    if let Some(a) = args.iter().find(|a| !matches!(a, Value::Int(_))) {
+                    if let Some(a) =
+                        args.iter().find(|a| !matches!(a, Value::Int(_)))
+                    {
                         return Some(Err(InterpretError::MismatchedTypes {
                             expected: vec!["int"],
                             found: a.type_str(),
                         }));
                     }
-                    let (Value::Int(skip), Value::Int(len)) = (&args[0], &args[1]) else {
+                    let (Value::Int(skip), Value::Int(len)) =
+                        (&args[0], &args[1])
+                    else {
                         unreachable!()
                     };
                     if *skip < 0 || *len < 0 {
                         return Some(Err(InterpretError::IllegalNegative));
                     }
-                    let (Ok(skip), Ok(len)) = (usize::try_from(*skip), usize::try_from(*len))
+                    let (Ok(skip), Ok(len)) =
+                        (usize::try_from(*skip), usize::try_from(*len))
                     else {
                         return Some(Err(InterpretError::IntegerTooLarge));
                     };
@@ -764,7 +824,9 @@ where
                 }
                 Ok(match res {
                     Ok(()) => Value::Bool(false),
-                    Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => Value::Bool(true),
+                    Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+                        Value::Bool(true)
+                    }
                     Err(e) => return Some(Err(e.into())),
                 })
             }
@@ -793,7 +855,11 @@ where
         })
     }
 
-    fn call_subprog(&mut self, body: &[Stmt], db: &Database) -> InterpretResult<Value> {
+    fn call_subprog(
+        &mut self,
+        body: &[Stmt],
+        db: &Database,
+    ) -> InterpretResult<Value> {
         self.execute(body, db)
     }
 
@@ -852,7 +918,9 @@ where
         db: &Database,
     ) -> Option<Result<Value, InterpretError>> {
         match lhs {
-            Value::String(_) => self.eval_string_methods(op, lhs, callee, args, db),
+            Value::String(_) => {
+                self.eval_string_methods(op, lhs, callee, args, db)
+            }
             Value::File(_) => self.eval_file_methods(op, lhs, callee, args, db),
             _ => None,
         }
@@ -1018,7 +1086,9 @@ impl fmt::Display for InterpretError {
             InterpretError::MismatchedTypes { expected, found } => {
                 format!("mismatched types. Expected one of {expected:?}, but found {found}")
             }
-            InterpretError::UnresolvedVariable { name } => format!("unresolved variable '{name}'"),
+            InterpretError::UnresolvedVariable { name } => {
+                format!("unresolved variable '{name}'")
+            }
             InterpretError::UnresolvedSubprogram { name } => {
                 format!("unresolved subprogram '{name}'")
             }
@@ -1026,10 +1096,18 @@ impl fmt::Display for InterpretError {
                 format!("invalid argument count. Expected {expected}, but found {got}")
             }
             InterpretError::IndexOutOfRange => "index out of range".to_string(),
-            InterpretError::ForLoopWithoutVariable => "for loop without variable".to_string(),
-            InterpretError::DisallowedVariableQualifier => "disallowed variable qualifier".into(),
-            InterpretError::InvalidArrayDeclaration => "invalid array declaration".to_string(),
-            InterpretError::IllegalNegative => "negative value not allowed".to_string(),
+            InterpretError::ForLoopWithoutVariable => {
+                "for loop without variable".to_string()
+            }
+            InterpretError::DisallowedVariableQualifier => {
+                "disallowed variable qualifier".into()
+            }
+            InterpretError::InvalidArrayDeclaration => {
+                "invalid array declaration".to_string()
+            }
+            InterpretError::IllegalNegative => {
+                "negative value not allowed".to_string()
+            }
             InterpretError::IncorrectArrayLength { expected, found } => {
                 format!("incorrect array length; expected {expected}, but found {found}")
             }
@@ -1077,7 +1155,9 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     fn lower(src: &str) -> (Database, Vec<Stmt>) {
-        hir::lower(&ast::Root::cast(parser::parse(src).unwrap().syntax()).unwrap())
+        hir::lower(
+            &ast::Root::cast(parser::parse(src).unwrap().syntax()).unwrap(),
+        )
     }
 
     fn check_eval(expr: &str, expected: Value) {
@@ -1173,7 +1253,8 @@ mod tests {
 
     #[test]
     fn eval_func_call() {
-        let (db, stmts) = lower("function neg(x)\nreturn -x\nendfunction\nneg(3)");
+        let (db, stmts) =
+            lower("function neg(x)\nreturn -x\nendfunction\nneg(3)");
         let mut interpreter = Interpreter::new(empty(), empty());
         interpreter.exec_stmt(&stmts[0], &db).unwrap();
         let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
@@ -1274,8 +1355,14 @@ mod tests {
 
     #[test]
     fn eval_string_methods() {
-        check_eval(r#""ComputerScience".left(4)"#, Value::String("Comp".into()));
-        check_eval(r#""ComputerScience".right(3)"#, Value::String("nce".into()));
+        check_eval(
+            r#""ComputerScience".left(4)"#,
+            Value::String("Comp".into()),
+        );
+        check_eval(
+            r#""ComputerScience".right(3)"#,
+            Value::String("nce".into()),
+        );
         check_eval(
             r#""ComputerScience".substring(3, 5)"#,
             Value::String("puter".into()),
@@ -1286,7 +1373,8 @@ mod tests {
     fn invalid_dot_target_errors() {
         {
             let (db, stmts) = lower(r#""string".ballsack"#);
-            let res = Interpreter::new(std::io::empty(), vec![]).exec_stmt(&stmts[0], &db);
+            let res = Interpreter::new(std::io::empty(), vec![])
+                .exec_stmt(&stmts[0], &db);
 
             let err = res.unwrap_err();
             let InterpretError::InvalidDotTarget { name } = err else {
@@ -1344,7 +1432,12 @@ mod tests {
             Env {
                 bindings: HashMap::from([(
                     "nums".into(),
-                    Binding::Var(Value::Array(vec![Value::Array(vec![Value::Unit; 3]); 5])),
+                    Binding::Var(Value::Array(vec![
+                        Value::Array(
+                            vec![Value::Unit; 3]
+                        );
+                        5
+                    ])),
                 )]),
             },
         );

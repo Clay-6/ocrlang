@@ -28,7 +28,11 @@ impl Env {
         self.bindings.insert(name, binding);
     }
 
-    pub fn insert_constant(&mut self, name: SmolStr, value: Value) -> Result<(), ()> {
+    pub fn insert_constant(
+        &mut self,
+        name: SmolStr,
+        value: Value,
+    ) -> Result<(), ()> {
         if let Entry::Vacant(e) = self.bindings.entry(name) {
             e.insert(Binding::Const(value));
             Ok(())

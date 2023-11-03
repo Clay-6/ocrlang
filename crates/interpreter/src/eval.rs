@@ -55,16 +55,25 @@ pub(crate) fn eval_string_attrs(
                 };
                 Some(Ok(Value::Int(len)))
             }
-            "lower" => Some(Ok(Value::String(s.to_string().to_lowercase().into()))),
-            "upper" => Some(Ok(Value::String(s.to_string().to_uppercase().into()))),
-            _ => Some(Err(InterpretError::InvalidDotTarget { name: name.into() })),
+            "lower" => {
+                Some(Ok(Value::String(s.to_string().to_lowercase().into())))
+            }
+            "upper" => {
+                Some(Ok(Value::String(s.to_string().to_uppercase().into())))
+            }
+            _ => Some(Err(InterpretError::InvalidDotTarget {
+                name: name.into(),
+            })),
         };
     }
 
     None
 }
 
-pub(crate) fn eval_unary_op(operand: &Value, op: hir::UnaryOp) -> InterpretResult<Value> {
+pub(crate) fn eval_unary_op(
+    operand: &Value,
+    op: hir::UnaryOp,
+) -> InterpretResult<Value> {
     match op {
         hir::UnaryOp::Neg => {
             if let Value::Int(i) = operand {
@@ -105,7 +114,10 @@ fn eval_eq(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
 fn eval_subscript(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
     if let (Value::Array(arr), Value::Int(i)) = (lhs, rhs) {
         Ok(arr
-            .get(usize::try_from(*i).map_err(|_| InterpretError::IntegerTooLarge)?)
+            .get(
+                usize::try_from(*i)
+                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+            )
             .cloned()
             .ok_or(InterpretError::IndexOutOfRange)?)
     } else if !matches!(lhs, Value::Array(_)) {
