@@ -2,12 +2,13 @@ use std::{fs, path::PathBuf};
 
 use interpreter::Interpreter;
 
+use clap::Parser;
 use color_eyre::Result;
 use rustyline::{error::ReadlineError, DefaultEditor};
 
 fn main() -> Result<()> {
     color_eyre::install()?;
-    let args = argh::from_env::<Args>();
+    let args = Args::parse();
     let mut interpreter = Interpreter::default();
 
     if let Some(path) = args.file {
@@ -39,9 +40,8 @@ fn main() -> Result<()> {
 
 /// Execute OCR Exam Reference Language code from a file
 /// or in a REPL
-#[derive(argh::FromArgs)]
-struct Args {
+#[derive(Debug, Clone, Parser)]
+pub struct Args {
     /// A file to execute
-    #[argh(positional)]
     file: Option<PathBuf>,
 }
