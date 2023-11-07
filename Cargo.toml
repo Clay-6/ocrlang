@@ -6,6 +6,7 @@ resolver = "2"
 pretty_assertions = "1.4.0"
 smol_str = "0.2.0"
 thiserror = "1.0.50"
+text-size = "1.1.1"
 
 [workspace.package]
 authors = ["Clay66 <clayw@clay66.dev>"]

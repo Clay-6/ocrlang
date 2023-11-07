@@ -12,6 +12,7 @@ repository.workspace = true
 
 [dependencies]
 syntax = { version = "1.1.0", path = "../syntax", package = "ocrlang_syntax" }
+text-size.workspace = true
 
 [dev-dependencies]
 parser = { version = "1.1.0", path = "../parser", package = "ocrlang_parser" }

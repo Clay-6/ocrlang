@@ -1,4 +1,5 @@
 use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
+use text_size::TextRange;
 
 pub struct Root(SyntaxNode);
 
@@ -58,6 +59,21 @@ impl Stmt {
             _ => Self::Expr(Expr::cast(node)?),
         })
     }
+
+    pub fn text_range(&self) -> TextRange {
+        match self {
+            Stmt::VarDef(vd) => vd.0.text_range(),
+            Stmt::ArrayDef(ad) => ad.0.text_range(),
+            Stmt::SubprogDef(sd) => sd.0.text_range(),
+            Stmt::RetStmt(rs) => rs.0.text_range(),
+            Stmt::IfElse(ie) => ie.0.text_range(),
+            Stmt::SwitchCase(sc) => sc.0.text_range(),
+            Stmt::ForLoop(fl) => fl.0.text_range(),
+            Stmt::WhileLoop(wl) => wl.0.text_range(),
+            Stmt::DoUntil(du) => du.0.text_range(),
+            Stmt::Expr(e) => e.text_range(),
+        }
+    }
 }
 
 impl Expr {
@@ -75,6 +91,18 @@ impl Expr {
         };
 
         Some(result)
+    }
+
+    pub fn text_range(&self) -> TextRange {
+        match self {
+            Expr::Binary(b) => b.0.text_range(),
+            Expr::Unary(u) => u.0.text_range(),
+            Expr::Literal(l) => l.text_range(),
+            Expr::ArrayLiteral(al) => al.0.text_range(),
+            Expr::Paren(p) => p.0.text_range(),
+            Expr::NameRef(nr) => nr.0.text_range(),
+            Expr::Call(c) => c.0.text_range(),
+        }
     }
 }
 
@@ -487,6 +515,13 @@ impl Literal {
                 }
                 _ => None,
             },
+        }
+    }
+
+    fn text_range(&self) -> TextRange {
+        match self {
+            Literal::Node(n) => n.text_range(),
+            Literal::Token(t) => t.text_range(),
         }
     }
 }
