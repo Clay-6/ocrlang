@@ -1,9 +1,10 @@
 use std::{fs, path::PathBuf};
 
-use interpreter::Interpreter;
+use interpreter::{InterpretError, Interpreter};
 
 use clap::Parser;
 use color_eyre::Result;
+use line_index::{LineIndex, TextSize};
 use rustyline::{error::ReadlineError, DefaultEditor};
 
 fn main() -> Result<()> {
@@ -16,11 +17,14 @@ fn main() -> Result<()> {
             eprintln!("Error: file {} does not exist", path.display());
             std::process::exit(1);
         }
-        return match interpreter.run(&fs::read_to_string(path)?).map(|_| ()) {
+        let text = fs::read_to_string(path)?;
+        let line_index = LineIndex::new(&text);
+        return match interpreter.run(&text).map(|_| ()) {
             Ok(()) => Ok(()),
+
             Err(e) => {
-                eprintln!("Error: {e:#}");
-                std::process::exit(2)
+                interpret_err(e, line_index);
+                std::process::exit(2);
             }
         };
     }
@@ -30,11 +34,12 @@ fn main() -> Result<()> {
         let read_line = rl.readline("> ");
         match read_line {
             Ok(line) => {
+                let lineindex = LineIndex::new(&line);
                 rl.add_history_entry(line.as_str())?;
                 match interpreter.run(&line) {
                     Ok(interpreter::Value::Unit) => {}
                     Ok(v) => println!("{v}"),
-                    Err(e) => eprintln!("{e}"),
+                    Err(e) => interpret_err(e, lineindex),
                 }
             }
             Err(ReadlineError::Eof | ReadlineError::Interrupted) => break,
@@ -43,6 +48,22 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn interpret_err(e: InterpretError, line_index: LineIndex) {
+    match e {
+        InterpretError::LexError { text, range } => {
+            let linecol =
+                line_index.line_col(TextSize::new(range.start as u32));
+            eprintln!(
+                "Invalid token '{}' on line {}, column {}",
+                text,
+                linecol.line + 1,
+                linecol.col + 1
+            );
+        }
+        _ => eprintln!("Error: {e}"),
+    };
 }
 
 /// Execute OCR Exam Reference Language code from a file
