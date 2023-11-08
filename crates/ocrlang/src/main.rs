@@ -62,6 +62,22 @@ fn interpret_err(e: InterpretError, line_index: LineIndex) {
                 linecol.col + 1
             );
         }
+        InterpretError::ParseErrors { errors } => {
+            let mut last_linecol = None;
+            for err in errors {
+                let linecol =
+                    line_index.line_col(err.text_range().unwrap().start());
+                if !last_linecol.is_some_and(|lc| linecol == lc) {
+                    eprintln!(
+                        "Error on line {} column {}: {}",
+                        linecol.line,
+                        linecol.col,
+                        err.context()
+                    );
+                }
+                last_linecol = Some(linecol)
+            }
+        }
         _ => eprintln!("Error: {e}"),
     };
 }
