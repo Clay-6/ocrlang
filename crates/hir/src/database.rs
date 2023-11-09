@@ -2,9 +2,11 @@ use std::iter;
 
 use la_arena::Arena;
 use syntax::SyntaxKind;
+use text_size::TextRange;
 
 use crate::{
-    BinaryOp, Expr, ExprIdx, ExprRange, Literal, Stmt, UnaryOp, VarDefKind,
+    BinaryOp, Expr, ExprIdx, ExprRange, Literal, Stmt, StmtKind, UnaryOp,
+    VarDefKind,
 };
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -14,17 +16,22 @@ pub struct Database {
 
 impl Database {
     pub(crate) fn lower_stmt(&mut self, ast: ast::Stmt) -> Option<Stmt> {
-        Some(match ast {
-            ast::Stmt::VarDef(ast) => self.lower_var_def(ast)?,
-            ast::Stmt::ArrayDef(ast) => self.lower_array_def(ast)?,
-            ast::Stmt::SubprogDef(ast) => self.lower_subprogram_def(ast)?,
-            ast::Stmt::RetStmt(ast) => self.lower_return_stmt(ast),
-            ast::Stmt::IfElse(ast) => self.lower_if_else(ast),
-            ast::Stmt::SwitchCase(ast) => self.lower_switch_case(ast),
-            ast::Stmt::ForLoop(ast) => self.lower_for_loop(ast),
-            ast::Stmt::WhileLoop(ast) => self.lower_while_loop(ast),
-            ast::Stmt::DoUntil(ast) => self.lower_do_until(ast),
-            ast::Stmt::Expr(ast) => Stmt::Expr(self.lower_expr(Some(ast))),
+        Some(Stmt {
+            range: ast.text_range(),
+            kind: match ast {
+                ast::Stmt::VarDef(ast) => self.lower_var_def(ast)?,
+                ast::Stmt::ArrayDef(ast) => self.lower_array_def(ast)?,
+                ast::Stmt::SubprogDef(ast) => self.lower_subprogram_def(ast)?,
+                ast::Stmt::RetStmt(ast) => self.lower_return_stmt(ast),
+                ast::Stmt::IfElse(ast) => self.lower_if_else(ast),
+                ast::Stmt::SwitchCase(ast) => self.lower_switch_case(ast),
+                ast::Stmt::ForLoop(ast) => self.lower_for_loop(ast),
+                ast::Stmt::WhileLoop(ast) => self.lower_while_loop(ast),
+                ast::Stmt::DoUntil(ast) => self.lower_do_until(ast),
+                ast::Stmt::Expr(ast) => {
+                    StmtKind::Expr(self.lower_expr(Some(ast)))
+                }
+            },
         })
     }
 
@@ -54,19 +61,19 @@ impl Database {
         &self.exprs[range]
     }
 
-    fn lower_do_until(&mut self, ast: ast::DoUntil) -> Stmt {
+    fn lower_do_until(&mut self, ast: ast::DoUntil) -> StmtKind {
         let body = ast
             .body()
             .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
             .unwrap_or_default();
         let condition = self.lower_expr(ast.condition());
-        Stmt::DoUntilLoop {
+        StmtKind::DoUntilLoop {
             condition: self.exprs.alloc(condition),
             body,
         }
     }
 
-    fn lower_while_loop(&mut self, ast: ast::WhileLoop) -> Stmt {
+    fn lower_while_loop(&mut self, ast: ast::WhileLoop) -> StmtKind {
         let condition = {
             let expr = self.lower_expr(ast.condition());
             self.exprs.alloc(expr)
@@ -75,10 +82,10 @@ impl Database {
             .body()
             .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
             .unwrap_or_default();
-        Stmt::WhileLoop { condition, body }
+        StmtKind::WhileLoop { condition, body }
     }
 
-    fn lower_for_loop(&mut self, ast: ast::ForLoop) -> Stmt {
+    fn lower_for_loop(&mut self, ast: ast::ForLoop) -> StmtKind {
         let loop_var = ast.loop_var().map(|i| i.text().into());
         let (start, end) = {
             let tmp = ast
@@ -98,7 +105,7 @@ impl Database {
             .body()
             .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
             .unwrap_or_default();
-        Stmt::ForLoop {
+        StmtKind::ForLoop {
             loop_var,
             start,
             end,
@@ -107,7 +114,7 @@ impl Database {
         }
     }
 
-    fn lower_switch_case(&mut self, ast: ast::SwitchCase) -> Stmt {
+    fn lower_switch_case(&mut self, ast: ast::SwitchCase) -> StmtKind {
         let scrutinee = {
             let e = self.lower_expr(ast.scrutinee());
             self.exprs.alloc(e)
@@ -132,7 +139,7 @@ impl Database {
                 b.filter_map(|ast| self.lower_stmt(ast)).collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        Stmt::SwitchCase {
+        StmtKind::SwitchCase {
             scrutinee,
             cases,
             case_bodies,
@@ -140,7 +147,7 @@ impl Database {
         }
     }
 
-    fn lower_if_else(&mut self, ast: ast::IfElse) -> Stmt {
+    fn lower_if_else(&mut self, ast: ast::IfElse) -> StmtKind {
         let condition = {
             let e = self.lower_expr(ast.condition());
             self.exprs.alloc(e)
@@ -171,7 +178,7 @@ impl Database {
             .map(|b| b.filter_map(|ast| self.lower_stmt(ast)).collect())
             .unwrap_or_default();
 
-        Stmt::IfElse {
+        StmtKind::IfElse {
             condition,
             body,
             elseifs,
@@ -179,12 +186,15 @@ impl Database {
         }
     }
 
-    fn lower_return_stmt(&mut self, ast: ast::RetStmt) -> Stmt {
+    fn lower_return_stmt(&mut self, ast: ast::RetStmt) -> StmtKind {
         let val = self.lower_expr(ast.value());
-        Stmt::ReturnStmt { value: val }
+        StmtKind::ReturnStmt { value: val }
     }
 
-    fn lower_subprogram_def(&mut self, ast: ast::SubprogDef) -> Option<Stmt> {
+    fn lower_subprogram_def(
+        &mut self,
+        ast: ast::SubprogDef,
+    ) -> Option<StmtKind> {
         let body = {
             match ast.kind()?.kind() {
                 SyntaxKind::Function => {
@@ -193,22 +203,25 @@ impl Database {
                 SyntaxKind::Procedure => ast
                     .body()
                     .filter_map(|ast| self.lower_stmt(ast))
-                    .chain(iter::once(Stmt::ReturnStmt {
-                        value: Expr::Missing,
+                    .chain(iter::once(Stmt {
+                        range: TextRange::default(),
+                        kind: StmtKind::ReturnStmt {
+                            value: Expr::Missing,
+                        },
                     }))
                     .collect(),
                 _ => unreachable!(),
             }
         };
-        Some(Stmt::SubprogramDef {
+        Some(StmtKind::SubprogramDef {
             name: ast.name()?.text().into(),
             params: ast.params().map(|ast| ast.text().into()).collect(),
             body,
         })
     }
 
-    fn lower_var_def(&mut self, ast: ast::VarDef) -> Option<Stmt> {
-        Some(Stmt::VarDef {
+    fn lower_var_def(&mut self, ast: ast::VarDef) -> Option<StmtKind> {
+        Some(StmtKind::VarDef {
             name: ast.name()?.text().into(),
             kind: ast.kind().map_or(VarDefKind::Standard, |k| match k.kind() {
                 SyntaxKind::Const => VarDefKind::Constant,
@@ -219,7 +232,7 @@ impl Database {
         })
     }
 
-    fn lower_array_def(&mut self, ast: ast::ArrayDef) -> Option<Stmt> {
+    fn lower_array_def(&mut self, ast: ast::ArrayDef) -> Option<StmtKind> {
         let subscript = {
             if let Some(mut subs) = ast.subscript() {
                 let first = self.lower_expr(subs.next());
@@ -237,7 +250,7 @@ impl Database {
             (outer, inner)
         };
 
-        Some(Stmt::ArrayDef {
+        Some(StmtKind::ArrayDef {
             name: ast.name()?.text().into(),
             kind: ast.kind().map_or(VarDefKind::Standard, |k| match k.kind() {
                 SyntaxKind::Const => VarDefKind::Constant,
@@ -361,17 +374,18 @@ impl Database {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use text_size::TextSize;
 
     fn parse(input: &str) -> ast::Root {
         ast::Root::cast(parser::parse(input).unwrap().syntax()).unwrap()
     }
 
-    fn check_stmt(input: &str, expected_hir: Stmt) {
+    fn check_stmt(input: &str, expected_hir: StmtKind) {
         let root = parse(input);
         let ast = root.stmts().next().unwrap();
         let hir = Database::default().lower_stmt(ast).unwrap();
 
-        assert_eq!(hir, expected_hir);
+        assert_eq!(hir.kind, expected_hir);
     }
 
     fn check_expr(
@@ -395,7 +409,7 @@ mod tests {
     fn lower_variable_def() {
         check_stmt(
             "foo = bar",
-            Stmt::VarDef {
+            StmtKind::VarDef {
                 name: "foo".into(),
                 kind: VarDefKind::Standard,
                 value: Expr::NameRef { name: "bar".into() },
@@ -407,7 +421,7 @@ mod tests {
     fn lower_variable_def_without_value() {
         check_stmt(
             "a = ",
-            Stmt::VarDef {
+            StmtKind::VarDef {
                 name: "a".into(),
                 kind: VarDefKind::Standard,
                 value: Expr::Missing,
@@ -419,7 +433,7 @@ mod tests {
     fn lower_const_variable_def() {
         check_stmt(
             "const a = 15",
-            Stmt::VarDef {
+            StmtKind::VarDef {
                 name: "a".into(),
                 kind: VarDefKind::Constant,
                 value: Expr::Literal {
@@ -433,7 +447,7 @@ mod tests {
     fn lower_global_variable_def() {
         check_stmt(
             "global COUNTER = 0",
-            Stmt::VarDef {
+            StmtKind::VarDef {
                 name: "COUNTER".into(),
                 kind: VarDefKind::Global,
                 value: Expr::Literal {
@@ -447,7 +461,7 @@ mod tests {
     fn lower_array_decl() {
         check_stmt(
             "const array nums[5]",
-            Stmt::ArrayDef {
+            StmtKind::ArrayDef {
                 name: "nums".into(),
                 kind: VarDefKind::Constant,
                 subscript: (Expr::Missing, Expr::Missing),
@@ -478,7 +492,7 @@ mod tests {
         ]);
         check_stmt(
             "array nums = [1, 2, 3]",
-            Stmt::ArrayDef {
+            StmtKind::ArrayDef {
                 name: "nums".into(),
                 kind: VarDefKind::Standard,
                 subscript: (Expr::Missing, Expr::Missing),
@@ -494,7 +508,7 @@ mod tests {
     fn lower_2d_array_decl() {
         check_stmt(
             "global array board[8,8]",
-            Stmt::ArrayDef {
+            StmtKind::ArrayDef {
                 name: "board".into(),
                 kind: VarDefKind::Global,
                 subscript: (Expr::Missing, Expr::Missing),
@@ -515,7 +529,7 @@ mod tests {
     fn lower_array_subscript_assign() {
         check_stmt(
             "arr[5] = 5",
-            Stmt::ArrayDef {
+            StmtKind::ArrayDef {
                 name: "arr".into(),
                 kind: VarDefKind::Standard,
                 subscript: (
@@ -536,7 +550,7 @@ mod tests {
     fn lower_2d_array_subscript_assign() {
         check_stmt(
             "arr[3,4] = 5",
-            Stmt::ArrayDef {
+            StmtKind::ArrayDef {
                 name: "arr".into(),
                 kind: VarDefKind::Standard,
                 subscript: (
@@ -559,7 +573,7 @@ mod tests {
     fn lower_expr_stmt() {
         check_stmt(
             "123",
-            Stmt::Expr(Expr::Literal {
+            StmtKind::Expr(Expr::Literal {
                 value: Literal::Int(123),
             }),
         );
@@ -760,10 +774,13 @@ mod tests {
         let value = Expr::NameRef { name: "x".into() };
         check_stmt(
             "function id(x) return x endfunction",
-            Stmt::SubprogramDef {
+            StmtKind::SubprogramDef {
                 name: "id".into(),
                 params: vec!["x".into()],
-                body: vec![Stmt::ReturnStmt { value }],
+                body: vec![Stmt {
+                    range: TextRange::new(TextSize::new(15), TextSize::new(24)),
+                    kind: StmtKind::ReturnStmt { value },
+                }],
             },
         );
     }
@@ -776,16 +793,25 @@ mod tests {
         }]);
         check_stmt(
             r#"procedure thing() print("something") endprocedure"#,
-            Stmt::SubprogramDef {
+            StmtKind::SubprogramDef {
                 name: "thing".into(),
                 params: vec![],
                 body: vec![
-                    Stmt::Expr(Expr::Call {
-                        callee: "print".into(),
-                        args: arg,
-                    }),
-                    Stmt::ReturnStmt {
-                        value: Expr::Missing,
+                    Stmt {
+                        range: TextRange::new(
+                            TextSize::new(18),
+                            TextSize::new(37),
+                        ),
+                        kind: StmtKind::Expr(Expr::Call {
+                            callee: "print".into(),
+                            args: arg,
+                        }),
+                    },
+                    Stmt {
+                        range: TextRange::empty(TextSize::new(0)),
+                        kind: StmtKind::ReturnStmt {
+                            value: Expr::Missing,
+                        },
                     },
                 ],
             },
@@ -807,15 +833,18 @@ mod tests {
         let print_arg = exprs.alloc_many([Expr::NameRef { name: "i".into() }]);
         check_stmt(
             "for i = 1 to 10 print(i) next i",
-            Stmt::ForLoop {
+            StmtKind::ForLoop {
                 loop_var: Some("i".into()),
                 start,
                 end,
                 step,
-                body: vec![Stmt::Expr(Expr::Call {
-                    callee: "print".into(),
-                    args: print_arg,
-                })],
+                body: vec![Stmt {
+                    range: TextRange::new(TextSize::new(16), TextSize::new(25)),
+                    kind: StmtKind::Expr(Expr::Call {
+                        callee: "print".into(),
+                        args: print_arg,
+                    }),
+                }],
             },
         );
     }
@@ -837,15 +866,18 @@ mod tests {
         let print_arg = exprs.alloc_many([Expr::NameRef { name: "i".into() }]);
         check_stmt(
             "for i = 1 to 10 step 2 print(i) next i",
-            Stmt::ForLoop {
+            StmtKind::ForLoop {
                 loop_var: Some("i".into()),
                 start,
                 end,
                 step,
-                body: vec![Stmt::Expr(Expr::Call {
-                    callee: "print".into(),
-                    args: print_arg,
-                })],
+                body: vec![Stmt {
+                    range: TextRange::new(TextSize::new(23), TextSize::new(32)),
+                    kind: StmtKind::Expr(Expr::Call {
+                        callee: "print".into(),
+                        args: print_arg,
+                    }),
+                }],
             },
         );
     }
@@ -867,30 +899,36 @@ mod tests {
             })
         };
         let body = {
-            vec![Stmt::Expr(Expr::Call {
-                callee: "x".into(),
-                args: exprs.alloc_many([]),
-            })]
+            vec![Stmt {
+                range: TextRange::new(TextSize::new(26), TextSize::new(30)),
+                kind: StmtKind::Expr(Expr::Call {
+                    callee: "x".into(),
+                    args: exprs.alloc_many([]),
+                }),
+            }]
         };
         check_stmt(
             r#"while answer != "Correct" x() endwhile"#,
-            Stmt::WhileLoop { condition, body },
+            StmtKind::WhileLoop { condition, body },
         );
     }
 
     #[test]
     fn lower_do_until() {
         let mut exprs = Arena::new();
-        let body = vec![Stmt::Expr(Expr::Call {
-            callee: "thing".into(),
-            args: exprs.alloc_many([]),
-        })];
+        let body = vec![Stmt {
+            range: TextRange::new(TextSize::new(3), TextSize::new(11)),
+            kind: StmtKind::Expr(Expr::Call {
+                callee: "thing".into(),
+                args: exprs.alloc_many([]),
+            }),
+        }];
         let condition = exprs.alloc(Expr::NameRef {
             name: "condition".into(),
         });
         check_stmt(
             "do thing() until condition",
-            Stmt::DoUntilLoop { condition, body },
+            StmtKind::DoUntilLoop { condition, body },
         );
     }
 
@@ -921,9 +959,12 @@ mod tests {
                 lhs,
                 rhs,
             }];
-            let bodies = vec![vec![Stmt::Expr(Expr::Literal {
-                value: Literal::Int(2),
-            })]];
+            let bodies = vec![vec![Stmt {
+                range: TextRange::new(TextSize::new(41), TextSize::new(43)),
+                kind: StmtKind::Expr(Expr::Literal {
+                    value: Literal::Int(2),
+                }),
+            }]];
 
             conditions
                 .into_iter()
@@ -931,15 +972,21 @@ mod tests {
                 .zip(bodies)
                 .collect()
         };
-        let body = vec![Stmt::Expr(Expr::Literal {
-            value: Literal::Int(5),
-        })];
-        let else_body = vec![Stmt::Expr(Expr::Literal {
-            value: Literal::Int(7),
-        })];
+        let body = vec![Stmt {
+            range: TextRange::new(TextSize::new(16), TextSize::new(18)),
+            kind: StmtKind::Expr(Expr::Literal {
+                value: Literal::Int(5),
+            }),
+        }];
+        let else_body = vec![Stmt {
+            range: TextRange::new(TextSize::new(48), TextSize::new(50)),
+            kind: StmtKind::Expr(Expr::Literal {
+                value: Literal::Int(7),
+            }),
+        }];
         check_stmt(
             "if 2.5 < n then 5 elseif 2.5 >= 2.5 then 2 else 7 endif",
-            Stmt::IfElse {
+            StmtKind::IfElse {
                 condition,
                 body,
                 elseifs,
@@ -961,25 +1008,34 @@ mod tests {
             },
         ]);
         let case_bodies = vec![
-            vec![Stmt::Expr(Expr::Call {
-                callee: "a".into(),
-                args: exprs.alloc_many(std::iter::empty()),
-            })],
-            vec![Stmt::Expr(Expr::Call {
-                callee: "b".into(),
-                args: exprs.alloc_many(std::iter::empty()),
-            })],
+            vec![Stmt {
+                range: TextRange::new(TextSize::new(20), TextSize::new(24)),
+                kind: StmtKind::Expr(Expr::Call {
+                    callee: "a".into(),
+                    args: exprs.alloc_many(std::iter::empty()),
+                }),
+            }],
+            vec![Stmt {
+                range: TextRange::new(TextSize::new(34), TextSize::new(38)),
+                kind: StmtKind::Expr(Expr::Call {
+                    callee: "b".into(),
+                    args: exprs.alloc_many(std::iter::empty()),
+                }),
+            }],
         ];
         check_stmt(
             "switch c: case 'a': a() case 'b': b() default: d() endswitch",
-            Stmt::SwitchCase {
+            StmtKind::SwitchCase {
                 scrutinee,
                 cases,
                 case_bodies,
-                default_body: vec![Stmt::Expr(Expr::Call {
-                    callee: "d".into(),
-                    args: exprs.alloc_many([]),
-                })],
+                default_body: vec![Stmt {
+                    range: TextRange::new(TextSize::new(47), TextSize::new(51)),
+                    kind: StmtKind::Expr(Expr::Call {
+                        callee: "d".into(),
+                        args: exprs.alloc_many([]),
+                    }),
+                }],
             },
         );
     }

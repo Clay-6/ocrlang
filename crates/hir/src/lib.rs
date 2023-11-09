@@ -4,12 +4,19 @@ pub use database::Database;
 
 use la_arena::{Idx, IdxRange};
 use smol_str::SmolStr;
+use text_size::TextRange;
 
 pub type ExprIdx = Idx<Expr>;
 pub type ExprRange = IdxRange<Expr>;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Stmt {
+pub struct Stmt {
+    pub range: TextRange,
+    pub kind: StmtKind,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum StmtKind {
     VarDef {
         name: SmolStr,
         kind: VarDefKind,

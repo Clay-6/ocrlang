@@ -11,7 +11,7 @@ use std::{
 
 use env::{Binding, Env, Subprogram};
 use eval::{eval_binary_op, eval_string_attrs, eval_unary_op};
-use hir::{Database, ExprIdx, ExprRange, Stmt};
+use hir::{Database, ExprIdx, ExprRange, Stmt, StmtKind};
 use smol_str::SmolStr;
 
 pub type InterpretResult<T> = Result<T, InterpretError>;
@@ -107,12 +107,12 @@ where
         stmt: &Stmt,
         db: &Database,
     ) -> InterpretResult<Value> {
-        match stmt {
-            Stmt::Expr(e) => self.eval(e, db),
-            Stmt::VarDef { name, kind, value } => {
+        match &stmt.kind {
+            StmtKind::Expr(e) => self.eval(e, db),
+            StmtKind::VarDef { name, kind, value } => {
                 self.exec_var_def(value, db, *kind, name)
             }
-            Stmt::ArrayDef {
+            StmtKind::ArrayDef {
                 name,
                 kind,
                 subscript,
@@ -120,10 +120,10 @@ where
                 value,
             } => self
                 .exec_array_def(subscript, dimensions, value, db, *kind, name),
-            Stmt::SubprogramDef { name, params, body } => {
+            StmtKind::SubprogramDef { name, params, body } => {
                 Ok(self.exec_subprogram_def(name, params, body))
             }
-            Stmt::ReturnStmt { value } => {
+            StmtKind::ReturnStmt { value } => {
                 if self.call_depth > 0 {
                     let res = self.eval(value, db);
                     self.call_depth -= 1;
@@ -132,13 +132,13 @@ where
                     Err(InterpretError::ReturnOutsideFunction)
                 }
             }
-            Stmt::IfElse {
+            StmtKind::IfElse {
                 condition,
                 body,
                 elseifs,
                 else_body,
             } => self.exec_if_else(db, *condition, body, elseifs, else_body),
-            Stmt::SwitchCase {
+            StmtKind::SwitchCase {
                 scrutinee,
                 cases,
                 case_bodies,
@@ -150,17 +150,17 @@ where
                 case_bodies,
                 default_body,
             ),
-            Stmt::ForLoop {
+            StmtKind::ForLoop {
                 loop_var,
                 start,
                 end,
                 step,
                 body,
             } => self.exec_for_loop(loop_var, db, *start, *end, *step, body),
-            Stmt::WhileLoop { condition, body } => {
+            StmtKind::WhileLoop { condition, body } => {
                 self.exec_while_loop(db, *condition, body)
             }
-            Stmt::DoUntilLoop { condition, body } => {
+            StmtKind::DoUntilLoop { condition, body } => {
                 self.exec_do_until(db, *condition, body)
             }
         }
@@ -1150,8 +1150,9 @@ mod tests {
     use std::fs;
     use std::io::{empty, BufReader};
 
-    use hir::{Expr, Literal};
+    use hir::{Expr, Literal, StmtKind};
     use pretty_assertions::assert_eq;
+    use text_size::{TextRange, TextSize};
 
     fn lower(src: &str) -> (Database, Vec<Stmt>) {
         hir::lower(
@@ -1486,9 +1487,15 @@ mod tests {
                     "f".into(),
                     Binding::Func(Subprogram {
                         params: vec![],
-                        body: vec![Stmt::ReturnStmt {
-                            value: Expr::Literal {
-                                value: Literal::Int(0),
+                        body: vec![Stmt {
+                            range: TextRange::new(
+                                TextSize::new(42),
+                                TextSize::new(63),
+                            ),
+                            kind: StmtKind::ReturnStmt {
+                                value: Expr::Literal {
+                                    value: Literal::Int(0),
+                                },
                             },
                         }],
                     }),
@@ -1504,8 +1511,11 @@ mod tests {
                     "p".into(),
                     Binding::Func(Subprogram {
                         params: vec![],
-                        body: vec![Stmt::ReturnStmt {
-                            value: Expr::Missing,
+                        body: vec![Stmt {
+                            range: TextRange::default(),
+                            kind: StmtKind::ReturnStmt {
+                                value: Expr::Missing,
+                            },
                         }],
                     }),
                 )]),

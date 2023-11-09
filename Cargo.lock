@@ -509,6 +509,7 @@ dependencies = [
  "ocrlang_syntax",
  "pretty_assertions",
  "smol_str",
+ "text-size",
 ]
 
 [[package]]
@@ -521,6 +522,7 @@ dependencies = [
  "pretty_assertions",
  "rand",
  "smol_str",
+ "text-size",
  "thiserror",
 ]
 
