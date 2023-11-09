@@ -13,6 +13,7 @@ use env::{Binding, Env, Subprogram};
 use eval::{eval_binary_op, eval_string_attrs, eval_unary_op};
 use hir::{Database, ExprIdx, ExprRange, Stmt, StmtKind};
 use smol_str::SmolStr;
+use text_size::{TextRange, TextSize};
 
 pub type InterpretResult<T> = Result<T, InterpretError>;
 
@@ -38,17 +39,31 @@ where
         }
     }
 
-    pub fn run(&mut self, src: &str) -> InterpretResult<Value> {
-        let parse_tree = parser::parse(src)?;
+    pub fn run(
+        &mut self,
+        src: &str,
+    ) -> Result<Value, (TextRange, InterpretError)> {
+        let parse_tree = parser::parse(src).map_err(|e| {
+            (
+                TextRange::new(
+                    TextSize::new(e.range.start as u32),
+                    TextSize::new(e.range.end as u32),
+                ),
+                InterpretError::from(e),
+            )
+        })?;
         if parse_tree.errors().is_empty() {
             let (db, stmts) = hir::lower(&ast::Root::cast(parse_tree.syntax()).expect(
                 "`parer::parse` tree contains a `Root` so conversion should always succeed",
             ));
             self.execute(&stmts, &db)
         } else {
-            Err(InterpretError::ParseErrors {
-                errors: parse_tree.errors().to_owned(),
-            })
+            Err((
+                TextRange::default(),
+                InterpretError::ParseErrors {
+                    errors: parse_tree.errors().to_owned(),
+                },
+            ))
         }
     }
 
@@ -56,7 +71,7 @@ where
         &mut self,
         block: &[Stmt],
         db: &Database,
-    ) -> InterpretResult<Value> {
+    ) -> Result<Value, (TextRange, InterpretError)> {
         let mut res = Value::Unit;
         for stmt in block {
             let prev_depth = self.call_depth;
@@ -106,12 +121,12 @@ where
         &mut self,
         stmt: &Stmt,
         db: &Database,
-    ) -> InterpretResult<Value> {
+    ) -> Result<Value, (TextRange, InterpretError)> {
         match &stmt.kind {
-            StmtKind::Expr(e) => self.eval(e, db),
-            StmtKind::VarDef { name, kind, value } => {
-                self.exec_var_def(value, db, *kind, name)
-            }
+            StmtKind::Expr(e) => self.eval(e, db).map_err(|e| (stmt.range, e)),
+            StmtKind::VarDef { name, kind, value } => self
+                .exec_var_def(value, db, *kind, name)
+                .map_err(|e| (stmt.range, e)),
             StmtKind::ArrayDef {
                 name,
                 kind,
@@ -119,17 +134,18 @@ where
                 dimensions,
                 value,
             } => self
-                .exec_array_def(subscript, dimensions, value, db, *kind, name),
+                .exec_array_def(subscript, dimensions, value, db, *kind, name)
+                .map_err(|e| (stmt.range, e)),
             StmtKind::SubprogramDef { name, params, body } => {
                 Ok(self.exec_subprogram_def(name, params, body))
             }
             StmtKind::ReturnStmt { value } => {
                 if self.call_depth > 0 {
-                    let res = self.eval(value, db);
+                    let res = self.eval(value, db).map_err(|e| (stmt.range, e));
                     self.call_depth -= 1;
                     res
                 } else {
-                    Err(InterpretError::ReturnOutsideFunction)
+                    Err((stmt.range, InterpretError::ReturnOutsideFunction))
                 }
             }
             StmtKind::IfElse {
@@ -137,7 +153,9 @@ where
                 body,
                 elseifs,
                 else_body,
-            } => self.exec_if_else(db, *condition, body, elseifs, else_body),
+            } => self.exec_if_else(
+                db, *condition, body, elseifs, else_body, stmt.range,
+            ),
             StmtKind::SwitchCase {
                 scrutinee,
                 cases,
@@ -149,6 +167,7 @@ where
                 cases,
                 case_bodies,
                 default_body,
+                stmt.range,
             ),
             StmtKind::ForLoop {
                 loop_var,
@@ -156,12 +175,14 @@ where
                 end,
                 step,
                 body,
-            } => self.exec_for_loop(loop_var, db, *start, *end, *step, body),
+            } => self.exec_for_loop(
+                loop_var, db, *start, *end, *step, body, stmt.range,
+            ),
             StmtKind::WhileLoop { condition, body } => {
-                self.exec_while_loop(db, *condition, body)
+                self.exec_while_loop(db, *condition, body, stmt.range)
             }
             StmtKind::DoUntilLoop { condition, body } => {
-                self.exec_do_until(db, *condition, body)
+                self.exec_do_until(db, *condition, body, stmt.range)
             }
         }
     }
@@ -171,11 +192,13 @@ where
         db: &Database,
         condition: ExprIdx,
         body: &[Stmt],
-    ) -> InterpretResult<Value> {
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
         let cond = db.get(condition);
         loop {
             self.execute(body, db)?;
-            if self.eval(cond, db)? == Value::Bool(true) {
+            if self.eval(cond, db).map_err(|e| (range, e))? == Value::Bool(true)
+            {
                 break;
             }
         }
@@ -187,9 +210,11 @@ where
         db: &Database,
         condition: ExprIdx,
         body: &[Stmt],
-    ) -> InterpretResult<Value> {
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
         let cond = db.get(condition);
-        while self.eval(cond, db)? == Value::Bool(true) {
+        while self.eval(cond, db).map_err(|e| (range, e))? == Value::Bool(true)
+        {
             self.execute(body, db)?;
         }
         Ok(Value::Unit)
@@ -203,36 +228,46 @@ where
         end: ExprIdx,
         step: ExprIdx,
         body: &[Stmt],
-    ) -> InterpretResult<Value> {
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
         let Some(loop_var) = loop_var.as_ref() else {
-            return Err(InterpretError::ForLoopWithoutVariable);
+            return Err((range, InterpretError::ForLoopWithoutVariable));
         };
 
-        let start = self.eval(db.get(start), db)?;
-        let end = self.eval(db.get(end), db)?;
-        let step = self.eval(db.get(step), db)?;
+        let start = self.eval(db.get(start), db).map_err(|e| (range, e))?;
+        let end = self.eval(db.get(end), db).map_err(|e| (range, e))?;
+        let step = self.eval(db.get(step), db).map_err(|e| (range, e))?;
 
         let Value::Int(start) = start else {
-            return Err(InterpretError::MismatchedTypes {
-                expected: vec!["int"],
-                found: start.type_str(),
-            });
+            return Err((
+                range,
+                InterpretError::MismatchedTypes {
+                    expected: vec!["int"],
+                    found: start.type_str(),
+                },
+            ));
         };
         let Value::Int(end) = end else {
-            return Err(InterpretError::MismatchedTypes {
-                expected: vec!["int"],
-                found: end.type_str(),
-            });
+            return Err((
+                range,
+                InterpretError::MismatchedTypes {
+                    expected: vec!["int"],
+                    found: end.type_str(),
+                },
+            ));
         };
         let step = if let Value::Int(i) = step {
             i
         } else if let Value::Unit = step {
             1
         } else {
-            return Err(InterpretError::MismatchedTypes {
-                expected: vec!["int"],
-                found: step.type_str(),
-            });
+            return Err((
+                range,
+                InterpretError::MismatchedTypes {
+                    expected: vec!["int"],
+                    found: step.type_str(),
+                },
+            ));
         };
 
         self.push_env();
@@ -262,18 +297,24 @@ where
         cases: &ExprRange,
         case_bodies: &[Vec<Stmt>],
         default_body: &[Stmt],
-    ) -> InterpretResult<Value> {
-        let scrutinee = self.eval(db.get(scrutinee), db)?;
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
+        let scrutinee =
+            self.eval(db.get(scrutinee), db).map_err(|e| (range, e))?;
         let cases = db
             .get_range(cases.clone())
             .iter()
             .map(|i| self.eval(i, db))
-            .collect::<InterpretResult<Vec<_>>>()?;
+            .collect::<InterpretResult<Vec<_>>>()
+            .map_err(|e| (range, e))?;
         if let Some(case) = cases.iter().find(|c| !c.same_type(&scrutinee)) {
-            return Err(InterpretError::MismatchedTypes {
-                expected: vec![scrutinee.type_str()],
-                found: case.type_str(),
-            });
+            return Err((
+                range,
+                InterpretError::MismatchedTypes {
+                    expected: vec![scrutinee.type_str()],
+                    found: case.type_str(),
+                },
+            ));
         }
         for (i, case) in cases.iter().enumerate() {
             if &scrutinee == case {
@@ -290,12 +331,17 @@ where
         body: &[Stmt],
         elseifs: &[(ExprIdx, Vec<Stmt>)],
         else_body: &[Stmt],
-    ) -> InterpretResult<Value> {
-        if self.eval(db.get(condition), db)? == Value::Bool(true) {
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
+        if self.eval(db.get(condition), db).map_err(|e| (range, e))?
+            == Value::Bool(true)
+        {
             self.execute(body, db)
         } else {
             for (cond, body) in elseifs {
-                if self.eval(db.get(*cond), db)? == Value::Bool(true) {
+                if self.eval(db.get(*cond), db).map_err(|e| (range, e))?
+                    == Value::Bool(true)
+                {
                     return self.execute(body, db);
                 }
             }
@@ -646,7 +692,8 @@ where
                 let result = self.call_subprog(&subprog.body, db);
                 self.pop_env();
 
-                result
+                // FIXME: Don't cheat like that do something real
+                result.map_err(|e| e.1)
             }
             hir::Expr::Missing => Ok(Value::Unit),
         }
@@ -859,7 +906,7 @@ where
         &mut self,
         body: &[Stmt],
         db: &Database,
-    ) -> InterpretResult<Value> {
+    ) -> Result<Value, (TextRange, InterpretError)> {
         self.execute(body, db)
     }
 
@@ -1377,7 +1424,7 @@ mod tests {
                 .exec_stmt(&stmts[0], &db);
 
             let err = res.unwrap_err();
-            let InterpretError::InvalidDotTarget { name } = err else {
+            let InterpretError::InvalidDotTarget { name } = err.1 else {
                 panic!("Wrong error type")
             };
             assert_eq!(name, "ballsack");

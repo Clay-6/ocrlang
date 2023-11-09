@@ -4,7 +4,7 @@ use interpreter::{InterpretError, Interpreter};
 
 use clap::Parser;
 use color_eyre::Result;
-use line_index::{LineIndex, TextSize};
+use line_index::{LineIndex, TextRange, TextSize};
 use rustyline::{error::ReadlineError, DefaultEditor};
 
 fn main() -> Result<()> {
@@ -50,7 +50,10 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn interpret_err(e: InterpretError, line_index: LineIndex) {
+fn interpret_err(
+    (range, e): (TextRange, InterpretError),
+    line_index: LineIndex,
+) {
     match e {
         InterpretError::LexError { text, range } => {
             let linecol =
@@ -78,7 +81,13 @@ fn interpret_err(e: InterpretError, line_index: LineIndex) {
                 last_linecol = Some(linecol)
             }
         }
-        _ => eprintln!("Error: {e}"),
+        _ => {
+            let linecol = line_index.line_col(range.start());
+            eprintln!(
+                "Error at line {}, column {}: {}",
+                linecol.line, linecol.col, e
+            )
+        }
     };
 }
 
