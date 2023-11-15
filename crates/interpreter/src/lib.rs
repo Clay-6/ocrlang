@@ -176,7 +176,11 @@ where
                 step,
                 body,
             } => self.exec_for_loop(
-                loop_var, db, *start, *end, *step, body, stmt.range,
+                db,
+                loop_var,
+                (*start, *end, *step),
+                body,
+                stmt.range,
             ),
             StmtKind::WhileLoop { condition, body } => {
                 self.exec_while_loop(db, *condition, body, stmt.range)
@@ -222,11 +226,9 @@ where
 
     fn exec_for_loop(
         &mut self,
-        loop_var: &Option<SmolStr>,
         db: &Database,
-        start: ExprIdx,
-        end: ExprIdx,
-        step: ExprIdx,
+        loop_var: &Option<SmolStr>,
+        (start, end, step): (ExprIdx, ExprIdx, ExprIdx),
         body: &[Stmt],
         range: TextRange,
     ) -> Result<Value, (TextRange, InterpretError)> {
