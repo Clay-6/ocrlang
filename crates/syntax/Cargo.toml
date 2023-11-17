@@ -1,6 +1,6 @@
 [package]
 name = "ocrlang_syntax"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 description = "Crate bridging OCRLang's lexer token types to rowan"
 readme.workspace = true
@@ -11,7 +11,7 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lexer = { version = "1.1.0", path = "../lexer", package = "ocrlang_lexer" }
+lexer = { version = "1.2.0", path = "../lexer", package = "ocrlang_lexer" }
 rowan = "0.15.11"
 num-traits = "0.2.16"
 num-derive = "0.4.0"
