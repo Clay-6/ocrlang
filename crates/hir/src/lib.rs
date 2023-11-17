@@ -68,7 +68,13 @@ pub enum StmtKind {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expr {
+pub struct Expr {
+    pub range: TextRange,
+    pub kind: ExprKind,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ExprKind {
     Missing,
     Binary {
         op: BinaryOp,
@@ -84,7 +90,7 @@ pub enum Expr {
     },
     Call {
         callee: SmolStr,
-        args: IdxRange<Expr>,
+        args: ExprRange,
     },
     Literal {
         value: Literal,
@@ -132,7 +138,7 @@ pub enum Literal {
     Char(char),
     String(SmolStr),
     Bool(bool),
-    Array(IdxRange<Expr>),
+    Array(ExprRange),
 }
 
 #[must_use]
@@ -141,4 +147,13 @@ pub fn lower(ast: &ast::Root) -> (Database, Vec<Stmt>) {
     let stmts = ast.stmts().filter_map(|stmt| db.lower_stmt(stmt)).collect();
 
     (db, stmts)
+}
+
+impl Default for Expr {
+    fn default() -> Self {
+        Self {
+            range: Default::default(),
+            kind: ExprKind::Missing,
+        }
+    }
 }

@@ -5,8 +5,8 @@ use syntax::SyntaxKind;
 use text_size::TextRange;
 
 use crate::{
-    BinaryOp, Expr, ExprIdx, ExprRange, Literal, Stmt, StmtKind, UnaryOp,
-    VarDefKind,
+    BinaryOp, Expr, ExprIdx, ExprKind, ExprRange, Literal, Stmt, StmtKind,
+    UnaryOp, VarDefKind,
 };
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -36,19 +36,18 @@ impl Database {
     }
 
     pub(crate) fn lower_expr(&mut self, ast: Option<ast::Expr>) -> Expr {
-        if let Some(ast) = ast {
-            match ast {
+        ast.map_or_else(Expr::default, |ast| Expr {
+            range: ast.text_range(),
+            kind: match ast {
                 ast::Expr::Binary(ast) => self.lower_binary(ast),
                 ast::Expr::Unary(ast) => self.lower_unary(ast),
                 ast::Expr::Literal(ast) => Self::lower_literal(ast),
                 ast::Expr::ArrayLiteral(ast) => self.lower_array_literal(ast),
-                ast::Expr::Paren(ast) => self.lower_expr(ast.expr()),
+                ast::Expr::Paren(ast) => return self.lower_expr(ast.expr()),
                 ast::Expr::NameRef(ast) => Self::lower_name_ref(ast),
                 ast::Expr::Call(ast) => self.lower_call(ast),
-            }
-        } else {
-            Expr::Missing
-        }
+            },
+        })
     }
 
     #[must_use]
@@ -88,17 +87,15 @@ impl Database {
     fn lower_for_loop(&mut self, ast: ast::ForLoop) -> StmtKind {
         let loop_var = ast.loop_var().map(|i| i.text().into());
         let (start, end) = {
-            let tmp = ast
-                .bounds()
-                .map_or((Expr::Missing, Expr::Missing), |(s, e)| {
-                    (self.lower_expr(Some(s)), self.lower_expr(Some(e)))
-                });
+            let tmp = ast.bounds().map_or(Default::default(), |(s, e)| {
+                (self.lower_expr(Some(s)), self.lower_expr(Some(e)))
+            });
             (self.exprs.alloc(tmp.0), self.exprs.alloc(tmp.1))
         };
         let step = {
             let tmp = ast
                 .step()
-                .map_or(Expr::Missing, |ast| self.lower_expr(Some(ast)));
+                .map_or(Expr::default(), |ast| self.lower_expr(Some(ast)));
             self.exprs.alloc(tmp)
         };
         let body = ast
@@ -187,8 +184,8 @@ impl Database {
     }
 
     fn lower_return_stmt(&mut self, ast: ast::RetStmt) -> StmtKind {
-        let val = self.lower_expr(ast.value());
-        StmtKind::ReturnStmt { value: val }
+        let value = self.lower_expr(ast.value());
+        StmtKind::ReturnStmt { value }
     }
 
     fn lower_subprogram_def(
@@ -206,7 +203,7 @@ impl Database {
                     .chain(iter::once(Stmt {
                         range: TextRange::default(),
                         kind: StmtKind::ReturnStmt {
-                            value: Expr::Missing,
+                            value: Expr::default(),
                         },
                     }))
                     .collect(),
@@ -239,7 +236,7 @@ impl Database {
                 let last = self.lower_expr(subs.next());
                 (first, last)
             } else {
-                (Expr::Missing, Expr::Missing)
+                (Expr::default(), Expr::default())
             }
         };
         let dimensions = {
@@ -263,7 +260,7 @@ impl Database {
         })
     }
 
-    fn lower_binary(&mut self, ast: ast::BinaryExpr) -> Expr {
+    fn lower_binary(&mut self, ast: ast::BinaryExpr) -> ExprKind {
         let op = match ast.op().unwrap().kind() {
             SyntaxKind::Plus => BinaryOp::Add,
             SyntaxKind::Minus => BinaryOp::Sub,
@@ -294,10 +291,10 @@ impl Database {
             self.exprs.alloc(e)
         };
 
-        Expr::Binary { lhs, rhs, op }
+        ExprKind::Binary { lhs, rhs, op }
     }
 
-    fn lower_unary(&mut self, ast: ast::UnaryExpr) -> Expr {
+    fn lower_unary(&mut self, ast: ast::UnaryExpr) -> ExprKind {
         let op = match ast.op().unwrap().kind() {
             SyntaxKind::Not => UnaryOp::Not,
             SyntaxKind::Minus => UnaryOp::Neg,
@@ -306,64 +303,64 @@ impl Database {
 
         let opand = self.lower_expr(ast.expr());
 
-        Expr::Unary {
+        ExprKind::Unary {
             op,
             opand: self.exprs.alloc(opand),
         }
     }
 
-    fn lower_literal(ast: ast::Literal) -> Expr {
+    fn lower_literal(ast: ast::Literal) -> ExprKind {
         match ast.parse() {
             Some(v) => match v {
-                ast::Val::Int(i) => Expr::Literal {
+                ast::Val::Int(i) => ExprKind::Literal {
                     value: Literal::Int(i),
                 },
-                ast::Val::Float(f) => Expr::Literal {
+                ast::Val::Float(f) => ExprKind::Literal {
                     value: Literal::Float(f),
                 },
-                ast::Val::Char(c) => Expr::Literal {
+                ast::Val::Char(c) => ExprKind::Literal {
                     value: Literal::Char(c),
                 },
-                ast::Val::String(s) => Expr::Literal {
+                ast::Val::String(s) => ExprKind::Literal {
                     value: Literal::String(s.trim_matches('"').into()),
                 },
-                ast::Val::Bool(b) => Expr::Literal {
+                ast::Val::Bool(b) => ExprKind::Literal {
                     value: Literal::Bool(b),
                 },
             },
-            None => Expr::Missing,
+            None => ExprKind::Missing,
         }
     }
 
-    fn lower_array_literal(&mut self, ast: ast::ArrayLiteral) -> Expr {
+    fn lower_array_literal(&mut self, ast: ast::ArrayLiteral) -> ExprKind {
         match ast.items() {
             Some(v) => {
                 let vals = v
                     .into_iter()
                     .map(|i| self.lower_expr(Some(i)))
                     .collect::<Vec<_>>();
-                Expr::Literal {
+                ExprKind::Literal {
                     value: Literal::Array(self.exprs.alloc_many(vals)),
                 }
             }
-            None => Expr::Missing,
+            None => ExprKind::Missing,
         }
     }
 
-    fn lower_name_ref(ast: ast::NameRef) -> Expr {
-        Expr::NameRef {
+    fn lower_name_ref(ast: ast::NameRef) -> ExprKind {
+        ExprKind::NameRef {
             name: ast.name().unwrap().text().into(),
         }
     }
 
-    fn lower_call(&mut self, ast: ast::SubprogCall) -> Expr {
+    fn lower_call(&mut self, ast: ast::SubprogCall) -> ExprKind {
         let callee = ast.callee().unwrap().text().into();
         let args = ast
             .args()
             .map(|e| self.lower_expr(Some(e)))
             .collect::<Vec<_>>();
 
-        Expr::Call {
+        ExprKind::Call {
             callee,
             args: self.exprs.alloc_many(args),
         }
@@ -390,7 +387,7 @@ mod tests {
 
     fn check_expr(
         input: &str,
-        expected_hir: Expr,
+        expected_hir: ExprKind,
         expected_database: Database,
     ) {
         let root = parse(input);
@@ -401,7 +398,7 @@ mod tests {
         let mut database = Database::default();
         let hir = database.lower_expr(Some(ast));
 
-        assert_eq!(hir, expected_hir);
+        assert_eq!(hir.kind, expected_hir);
         assert_eq!(database, expected_database);
     }
 
@@ -412,7 +409,10 @@ mod tests {
             StmtKind::VarDef {
                 name: "foo".into(),
                 kind: VarDefKind::Standard,
-                value: Expr::NameRef { name: "bar".into() },
+                value: Expr {
+                    kind: ExprKind::NameRef { name: "bar".into() },
+                    range: TextRange::new(TextSize::new(6), TextSize::new(9)),
+                },
             },
         );
     }
@@ -424,7 +424,10 @@ mod tests {
             StmtKind::VarDef {
                 name: "a".into(),
                 kind: VarDefKind::Standard,
-                value: Expr::Missing,
+                value: Expr {
+                    kind: ExprKind::Missing,
+                    range: TextRange::default(),
+                },
             },
         );
     }
@@ -436,8 +439,11 @@ mod tests {
             StmtKind::VarDef {
                 name: "a".into(),
                 kind: VarDefKind::Constant,
-                value: Expr::Literal {
-                    value: Literal::Int(15),
+                value: Expr {
+                    kind: ExprKind::Literal {
+                        value: Literal::Int(15),
+                    },
+                    range: TextRange::new(TextSize::new(10), TextSize::new(12)),
                 },
             },
         );
@@ -450,8 +456,11 @@ mod tests {
             StmtKind::VarDef {
                 name: "COUNTER".into(),
                 kind: VarDefKind::Global,
-                value: Expr::Literal {
-                    value: Literal::Int(0),
+                value: Expr {
+                    kind: ExprKind::Literal {
+                        value: Literal::Int(0),
+                    },
+                    range: TextRange::new(TextSize::new(17), TextSize::new(18)),
                 },
             },
         );
@@ -464,14 +473,20 @@ mod tests {
             StmtKind::ArrayDef {
                 name: "nums".into(),
                 kind: VarDefKind::Constant,
-                subscript: (Expr::Missing, Expr::Missing),
+                subscript: (Expr::default(), Expr::default()),
                 dimensions: (
-                    Expr::Literal {
-                        value: Literal::Int(5),
+                    Expr {
+                        kind: ExprKind::Literal {
+                            value: Literal::Int(5),
+                        },
+                        range: TextRange::new(
+                            TextSize::new(17),
+                            TextSize::new(18),
+                        ),
                     },
-                    Expr::Missing,
+                    Expr::default(),
                 ),
-                value: Expr::Missing,
+                value: Expr::default(),
             },
         );
     }
@@ -480,14 +495,23 @@ mod tests {
     fn lower_array_def() {
         let mut exprs = Arena::new();
         let nums = exprs.alloc_many([
-            Expr::Literal {
-                value: Literal::Int(1),
+            Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(1),
+                },
+                range: TextRange::default(),
             },
-            Expr::Literal {
-                value: Literal::Int(2),
+            Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(2),
+                },
+                range: TextRange::default(),
             },
-            Expr::Literal {
-                value: Literal::Int(3),
+            Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(3),
+                },
+                range: TextRange::default(),
             },
         ]);
         check_stmt(
@@ -495,10 +519,13 @@ mod tests {
             StmtKind::ArrayDef {
                 name: "nums".into(),
                 kind: VarDefKind::Standard,
-                subscript: (Expr::Missing, Expr::Missing),
-                dimensions: (Expr::Missing, Expr::Missing),
-                value: Expr::Literal {
-                    value: Literal::Array(nums),
+                subscript: (Expr::default(), Expr::default()),
+                dimensions: (Expr::default(), Expr::default()),
+                value: Expr {
+                    kind: ExprKind::Literal {
+                        value: Literal::Array(nums),
+                    },
+                    range: TextRange::new(TextSize::new(13), TextSize::new(22)),
                 },
             },
         );
@@ -511,16 +538,28 @@ mod tests {
             StmtKind::ArrayDef {
                 name: "board".into(),
                 kind: VarDefKind::Global,
-                subscript: (Expr::Missing, Expr::Missing),
+                subscript: (Expr::default(), Expr::default()),
                 dimensions: (
-                    Expr::Literal {
-                        value: Literal::Int(8),
+                    Expr {
+                        kind: ExprKind::Literal {
+                            value: Literal::Int(8),
+                        },
+                        range: TextRange::new(
+                            TextSize::new(19),
+                            TextSize::new(20),
+                        ),
                     },
-                    Expr::Literal {
-                        value: Literal::Int(8),
+                    Expr {
+                        kind: ExprKind::Literal {
+                            value: Literal::Int(8),
+                        },
+                        range: TextRange::new(
+                            TextSize::new(21),
+                            TextSize::new(22),
+                        ),
                     },
                 ),
-                value: Expr::Missing,
+                value: Expr::default(),
             },
         );
     }
@@ -533,14 +572,23 @@ mod tests {
                 name: "arr".into(),
                 kind: VarDefKind::Standard,
                 subscript: (
-                    Expr::Literal {
+                    Expr {
+                        kind: ExprKind::Literal {
+                            value: Literal::Int(5),
+                        },
+                        range: TextRange::new(
+                            TextSize::new(4),
+                            TextSize::new(5),
+                        ),
+                    },
+                    Expr::default(),
+                ),
+                dimensions: (Expr::default(), Expr::default()),
+                value: Expr {
+                    kind: ExprKind::Literal {
                         value: Literal::Int(5),
                     },
-                    Expr::Missing,
-                ),
-                dimensions: (Expr::Missing, Expr::Missing),
-                value: Expr::Literal {
-                    value: Literal::Int(5),
+                    range: TextRange::new(TextSize::new(9), TextSize::new(10)),
                 },
             },
         );
@@ -554,16 +602,31 @@ mod tests {
                 name: "arr".into(),
                 kind: VarDefKind::Standard,
                 subscript: (
-                    Expr::Literal {
-                        value: Literal::Int(3),
+                    Expr {
+                        kind: ExprKind::Literal {
+                            value: Literal::Int(3),
+                        },
+                        range: TextRange::new(
+                            TextSize::new(4),
+                            TextSize::new(5),
+                        ),
                     },
-                    Expr::Literal {
-                        value: Literal::Int(4),
+                    Expr {
+                        kind: ExprKind::Literal {
+                            value: Literal::Int(4),
+                        },
+                        range: TextRange::new(
+                            TextSize::new(6),
+                            TextSize::new(7),
+                        ),
                     },
                 ),
-                dimensions: (Expr::Missing, Expr::Missing),
-                value: Expr::Literal {
-                    value: Literal::Int(5),
+                dimensions: (Expr::default(), Expr::default()),
+                value: Expr {
+                    kind: ExprKind::Literal {
+                        value: Literal::Int(5),
+                    },
+                    range: TextRange::new(TextSize::new(11), TextSize::new(12)),
                 },
             },
         );
@@ -573,8 +636,11 @@ mod tests {
     fn lower_expr_stmt() {
         check_stmt(
             "123",
-            StmtKind::Expr(Expr::Literal {
-                value: Literal::Int(123),
+            StmtKind::Expr(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(123),
+                },
+                range: TextRange::new(TextSize::new(0), TextSize::new(3)),
             }),
         );
     }
@@ -582,16 +648,22 @@ mod tests {
     #[test]
     fn lower_binary_expr() {
         let mut exprs = Arena::new();
-        let lhs = exprs.alloc(Expr::Literal {
-            value: Literal::Int(5),
+        let lhs = exprs.alloc(Expr {
+            kind: ExprKind::Literal {
+                value: Literal::Int(5),
+            },
+            range: TextRange::new(TextSize::new(0), TextSize::new(2)),
         });
-        let rhs = exprs.alloc(Expr::Literal {
-            value: Literal::Int(10),
+        let rhs = exprs.alloc(Expr {
+            kind: ExprKind::Literal {
+                value: Literal::Int(10),
+            },
+            range: TextRange::new(TextSize::new(4), TextSize::new(6)),
         });
 
         check_expr(
             "5 + 10",
-            Expr::Binary {
+            ExprKind::Binary {
                 op: BinaryOp::Add,
                 lhs,
                 rhs,
@@ -603,14 +675,17 @@ mod tests {
     #[test]
     fn lower_binary_expr_without_rhs() {
         let mut exprs = Arena::new();
-        let lhs = exprs.alloc(Expr::Literal {
-            value: Literal::Float(17.0),
+        let lhs = exprs.alloc(Expr {
+            kind: ExprKind::Literal {
+                value: Literal::Float(17.0),
+            },
+            range: TextRange::new(TextSize::new(0), TextSize::new(5)),
         });
-        let rhs = exprs.alloc(Expr::Missing);
+        let rhs = exprs.alloc(Expr::default());
 
         check_expr(
             "17.0 * ",
-            Expr::Binary {
+            ExprKind::Binary {
                 op: BinaryOp::Mul,
                 lhs,
                 rhs,
@@ -623,14 +698,14 @@ mod tests {
     fn lower_num_literal() {
         check_expr(
             "99",
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Int(99),
             },
             Database::default(),
         );
         check_expr(
             "1.5",
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Float(1.5),
             },
             Database::default(),
@@ -641,7 +716,7 @@ mod tests {
     fn lower_string_literal() {
         check_expr(
             r#""hello""#,
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::String("hello".into()),
             },
             Database::default(),
@@ -652,7 +727,7 @@ mod tests {
     fn lower_char_literal() {
         check_expr(
             "'c'",
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Char('c'),
             },
             Database::default(),
@@ -663,14 +738,14 @@ mod tests {
     fn lower_bool_literal() {
         check_expr(
             "true",
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Bool(true),
             },
             Database::default(),
         );
         check_expr(
             "false",
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Bool(false),
             },
             Database::default(),
@@ -681,26 +756,34 @@ mod tests {
     fn lower_array_literal() {
         let mut exprs = Arena::new();
         let elems = [
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Int(1),
             },
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Int(2),
             },
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Int(3),
             },
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Int(4),
             },
-            Expr::Literal {
+            ExprKind::Literal {
                 value: Literal::Int(5),
             },
         ];
         check_expr(
             "[1, 2, 3, 4, 5]",
-            Expr::Literal {
-                value: Literal::Array(exprs.alloc_many(elems)),
+            ExprKind::Literal {
+                value: Literal::Array(exprs.alloc_many(
+                    elems.into_iter().enumerate().map(|(i, e)| Expr {
+                        kind: e,
+                        range: TextRange::new(
+                            TextSize::new(3 * i as u32 + 1),
+                            TextSize::new(3 * i as u32 + 2),
+                        ),
+                    }),
+                )),
             },
             Database { exprs },
         );
@@ -710,7 +793,7 @@ mod tests {
     fn lower_paren_expr() {
         check_expr(
             "(((((x)))))",
-            Expr::NameRef { name: "x".into() },
+            ExprKind::NameRef { name: "x".into() },
             Database::default(),
         );
     }
@@ -718,12 +801,15 @@ mod tests {
     #[test]
     fn lower_unary_expr() {
         let mut exprs = Arena::new();
-        let five = exprs.alloc(Expr::Literal {
-            value: Literal::Int(5),
+        let five = exprs.alloc(Expr {
+            kind: ExprKind::Literal {
+                value: Literal::Int(5),
+            },
+            range: TextRange::new(TextSize::new(1), TextSize::new(2)),
         });
         check_expr(
             "-5",
-            Expr::Unary {
+            ExprKind::Unary {
                 op: UnaryOp::Neg,
                 opand: five,
             },
@@ -734,11 +820,11 @@ mod tests {
     #[test]
     fn lower_unary_expr_without_expr() {
         let mut exprs = Arena::new();
-        let opand = exprs.alloc(Expr::Missing);
+        let opand = exprs.alloc(Expr::default());
 
         check_expr(
             "NOT ",
-            Expr::Unary {
+            ExprKind::Unary {
                 op: UnaryOp::Not,
                 opand,
             },
@@ -750,7 +836,7 @@ mod tests {
     fn lower_name_ref() {
         check_expr(
             "x",
-            Expr::NameRef { name: "x".into() },
+            ExprKind::NameRef { name: "x".into() },
             Database::default(),
         );
     }
@@ -758,10 +844,13 @@ mod tests {
     #[test]
     fn lower_subprog_call() {
         let mut exprs = Arena::default();
-        let arg = exprs.alloc_many([Expr::NameRef { name: "x".into() }]);
+        let arg = exprs.alloc_many([Expr {
+            kind: ExprKind::NameRef { name: "x".into() },
+            range: TextRange::new(TextSize::new(6), TextSize::new(7)),
+        }]);
         check_expr(
             "print(x)",
-            Expr::Call {
+            ExprKind::Call {
                 callee: "print".into(),
                 args: arg,
             },
@@ -771,7 +860,10 @@ mod tests {
 
     #[test]
     fn lower_func_def() {
-        let value = Expr::NameRef { name: "x".into() };
+        let value = Expr {
+            kind: ExprKind::NameRef { name: "x".into() },
+            range: TextRange::new(TextSize::new(22), TextSize::new(24)),
+        };
         check_stmt(
             "function id(x) return x endfunction",
             StmtKind::SubprogramDef {
@@ -788,8 +880,11 @@ mod tests {
     #[test]
     fn lower_proc_def() {
         let mut exprs = Arena::new();
-        let arg = exprs.alloc_many([Expr::Literal {
-            value: Literal::String("something".into()),
+        let arg = exprs.alloc_many([Expr {
+            kind: ExprKind::Literal {
+                value: Literal::String("something".into()),
+            },
+            range: TextRange::default(),
         }]);
         check_stmt(
             r#"procedure thing() print("something") endprocedure"#,
@@ -802,15 +897,21 @@ mod tests {
                             TextSize::new(18),
                             TextSize::new(37),
                         ),
-                        kind: StmtKind::Expr(Expr::Call {
-                            callee: "print".into(),
-                            args: arg,
+                        kind: StmtKind::Expr(Expr {
+                            kind: ExprKind::Call {
+                                callee: "print".into(),
+                                args: arg,
+                            },
+                            range: TextRange::new(
+                                TextSize::new(18),
+                                TextSize::new(37),
+                            ),
                         }),
                     },
                     Stmt {
                         range: TextRange::empty(TextSize::new(0)),
                         kind: StmtKind::ReturnStmt {
-                            value: Expr::Missing,
+                            value: Expr::default(),
                         },
                     },
                 ],
@@ -822,15 +923,24 @@ mod tests {
     fn lower_for_loop() {
         let mut exprs = Arena::new();
         let (start, end) = (
-            exprs.alloc(Expr::Literal {
-                value: Literal::Int(1),
+            exprs.alloc(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(1),
+                },
+                range: TextRange::default(),
             }),
-            exprs.alloc(Expr::Literal {
-                value: Literal::Int(10),
+            exprs.alloc(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(10),
+                },
+                range: TextRange::default(),
             }),
         );
-        let step = exprs.alloc(Expr::Missing);
-        let print_arg = exprs.alloc_many([Expr::NameRef { name: "i".into() }]);
+        let step = exprs.alloc(Expr::default());
+        let print_arg = exprs.alloc_many([Expr {
+            kind: ExprKind::NameRef { name: "i".into() },
+            range: TextRange::default(),
+        }]);
         check_stmt(
             "for i = 1 to 10 print(i) next i",
             StmtKind::ForLoop {
@@ -840,9 +950,15 @@ mod tests {
                 step,
                 body: vec![Stmt {
                     range: TextRange::new(TextSize::new(16), TextSize::new(25)),
-                    kind: StmtKind::Expr(Expr::Call {
-                        callee: "print".into(),
-                        args: print_arg,
+                    kind: StmtKind::Expr(Expr {
+                        kind: ExprKind::Call {
+                            callee: "print".into(),
+                            args: print_arg,
+                        },
+                        range: TextRange::new(
+                            TextSize::new(16),
+                            TextSize::new(25),
+                        ),
                     }),
                 }],
             },
@@ -853,17 +969,29 @@ mod tests {
     fn lower_for_loop_with_step() {
         let mut exprs = Arena::new();
         let (start, end) = (
-            exprs.alloc(Expr::Literal {
-                value: Literal::Int(1),
+            exprs.alloc(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(1),
+                },
+                range: TextRange::default(),
             }),
-            exprs.alloc(Expr::Literal {
-                value: Literal::Int(10),
+            exprs.alloc(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(10),
+                },
+                range: TextRange::default(),
             }),
         );
-        let step = exprs.alloc(Expr::Literal {
-            value: Literal::Int(2),
+        let step = exprs.alloc(Expr {
+            kind: ExprKind::Literal {
+                value: Literal::Int(2),
+            },
+            range: TextRange::default(),
         });
-        let print_arg = exprs.alloc_many([Expr::NameRef { name: "i".into() }]);
+        let print_arg = exprs.alloc_many([Expr {
+            kind: ExprKind::NameRef { name: "i".into() },
+            range: TextRange::default(),
+        }]);
         check_stmt(
             "for i = 1 to 10 step 2 print(i) next i",
             StmtKind::ForLoop {
@@ -873,9 +1001,15 @@ mod tests {
                 step,
                 body: vec![Stmt {
                     range: TextRange::new(TextSize::new(23), TextSize::new(32)),
-                    kind: StmtKind::Expr(Expr::Call {
-                        callee: "print".into(),
-                        args: print_arg,
+                    kind: StmtKind::Expr(Expr {
+                        kind: ExprKind::Call {
+                            callee: "print".into(),
+                            args: print_arg,
+                        },
+                        range: TextRange::new(
+                            TextSize::new(23),
+                            TextSize::new(32),
+                        ),
                     }),
                 }],
             },
@@ -886,24 +1020,36 @@ mod tests {
     fn lower_while_loop() {
         let mut exprs = Arena::new();
         let condition = {
-            let lhs = exprs.alloc(Expr::NameRef {
-                name: "answer".into(),
+            let lhs = exprs.alloc(Expr {
+                kind: ExprKind::NameRef {
+                    name: "answer".into(),
+                },
+                range: TextRange::default(),
             });
-            let rhs = exprs.alloc(Expr::Literal {
-                value: Literal::String("Correct".into()),
+            let rhs = exprs.alloc(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::String("Correct".into()),
+                },
+                range: TextRange::default(),
             });
-            exprs.alloc(Expr::Binary {
-                op: BinaryOp::NotEquals,
-                lhs,
-                rhs,
+            exprs.alloc(Expr {
+                kind: ExprKind::Binary {
+                    op: BinaryOp::NotEquals,
+                    lhs,
+                    rhs,
+                },
+                range: TextRange::default(),
             })
         };
         let body = {
             vec![Stmt {
                 range: TextRange::new(TextSize::new(26), TextSize::new(30)),
-                kind: StmtKind::Expr(Expr::Call {
-                    callee: "x".into(),
-                    args: exprs.alloc_many([]),
+                kind: StmtKind::Expr(Expr {
+                    kind: ExprKind::Call {
+                        callee: "x".into(),
+                        args: exprs.alloc_many([]),
+                    },
+                    range: TextRange::new(TextSize::new(26), TextSize::new(30)),
                 }),
             }]
         };
@@ -918,13 +1064,19 @@ mod tests {
         let mut exprs = Arena::new();
         let body = vec![Stmt {
             range: TextRange::new(TextSize::new(3), TextSize::new(11)),
-            kind: StmtKind::Expr(Expr::Call {
-                callee: "thing".into(),
-                args: exprs.alloc_many([]),
+            kind: StmtKind::Expr(Expr {
+                kind: ExprKind::Call {
+                    callee: "thing".into(),
+                    args: exprs.alloc_many([]),
+                },
+                range: TextRange::new(TextSize::new(3), TextSize::new(11)),
             }),
         }];
-        let condition = exprs.alloc(Expr::NameRef {
-            name: "condition".into(),
+        let condition = exprs.alloc(Expr {
+            kind: ExprKind::NameRef {
+                name: "condition".into(),
+            },
+            range: TextRange::default(),
         });
         check_stmt(
             "do thing() until condition",
@@ -936,33 +1088,54 @@ mod tests {
     fn lower_if_elseif_else() {
         let mut exprs = Arena::new();
         let condition = {
-            let lhs = exprs.alloc(Expr::Literal {
-                value: Literal::Float(2.5),
+            let lhs = exprs.alloc(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Float(2.5),
+                },
+                range: TextRange::default(),
             });
-            let rhs = exprs.alloc(Expr::NameRef { name: "n".into() });
+            let rhs = exprs.alloc(Expr {
+                kind: ExprKind::NameRef { name: "n".into() },
+                range: TextRange::default(),
+            });
 
-            exprs.alloc(Expr::Binary {
-                op: BinaryOp::LessThan,
-                lhs,
-                rhs,
+            exprs.alloc(Expr {
+                kind: ExprKind::Binary {
+                    op: BinaryOp::LessThan,
+                    lhs,
+                    rhs,
+                },
+                range: TextRange::default(),
             })
         };
         let elseifs = {
-            let lhs = exprs.alloc(Expr::Literal {
-                value: Literal::Float(2.5),
+            let lhs = exprs.alloc(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Float(2.5),
+                },
+                range: TextRange::default(),
             });
-            let rhs = exprs.alloc(Expr::Literal {
-                value: Literal::Float(2.5),
+            let rhs = exprs.alloc(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Float(2.5),
+                },
+                range: TextRange::default(),
             });
-            let conditions = vec![Expr::Binary {
-                op: BinaryOp::GreaterEquals,
-                lhs,
-                rhs,
+            let conditions = vec![Expr {
+                kind: ExprKind::Binary {
+                    op: BinaryOp::GreaterEquals,
+                    lhs,
+                    rhs,
+                },
+                range: TextRange::default(),
             }];
             let bodies = vec![vec![Stmt {
                 range: TextRange::new(TextSize::new(41), TextSize::new(43)),
-                kind: StmtKind::Expr(Expr::Literal {
-                    value: Literal::Int(2),
+                kind: StmtKind::Expr(Expr {
+                    kind: ExprKind::Literal {
+                        value: Literal::Int(2),
+                    },
+                    range: TextRange::new(TextSize::new(41), TextSize::new(43)),
                 }),
             }]];
 
@@ -974,14 +1147,20 @@ mod tests {
         };
         let body = vec![Stmt {
             range: TextRange::new(TextSize::new(16), TextSize::new(18)),
-            kind: StmtKind::Expr(Expr::Literal {
-                value: Literal::Int(5),
+            kind: StmtKind::Expr(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(5),
+                },
+                range: TextRange::new(TextSize::new(16), TextSize::new(18)),
             }),
         }];
         let else_body = vec![Stmt {
             range: TextRange::new(TextSize::new(48), TextSize::new(50)),
-            kind: StmtKind::Expr(Expr::Literal {
-                value: Literal::Int(7),
+            kind: StmtKind::Expr(Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Int(7),
+                },
+                range: TextRange::new(TextSize::new(48), TextSize::new(50)),
             }),
         }];
         check_stmt(
@@ -998,28 +1177,43 @@ mod tests {
     #[test]
     fn lower_switch_stmt() {
         let mut exprs = Arena::new();
-        let scrutinee = exprs.alloc(Expr::NameRef { name: "c".into() });
+        let scrutinee = exprs.alloc(Expr {
+            kind: ExprKind::NameRef { name: "c".into() },
+            range: TextRange::default(),
+        });
         let cases = exprs.alloc_many([
-            Expr::Literal {
-                value: Literal::Char('a'),
+            Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Char('a'),
+                },
+                range: TextRange::default(),
             },
-            Expr::Literal {
-                value: Literal::Char('b'),
+            Expr {
+                kind: ExprKind::Literal {
+                    value: Literal::Char('b'),
+                },
+                range: TextRange::default(),
             },
         ]);
         let case_bodies = vec![
             vec![Stmt {
                 range: TextRange::new(TextSize::new(20), TextSize::new(24)),
-                kind: StmtKind::Expr(Expr::Call {
-                    callee: "a".into(),
-                    args: exprs.alloc_many(std::iter::empty()),
+                kind: StmtKind::Expr(Expr {
+                    kind: ExprKind::Call {
+                        callee: "a".into(),
+                        args: exprs.alloc_many(std::iter::empty()),
+                    },
+                    range: TextRange::new(TextSize::new(20), TextSize::new(24)),
                 }),
             }],
             vec![Stmt {
                 range: TextRange::new(TextSize::new(34), TextSize::new(38)),
-                kind: StmtKind::Expr(Expr::Call {
-                    callee: "b".into(),
-                    args: exprs.alloc_many(std::iter::empty()),
+                kind: StmtKind::Expr(Expr {
+                    kind: ExprKind::Call {
+                        callee: "b".into(),
+                        args: exprs.alloc_many(std::iter::empty()),
+                    },
+                    range: TextRange::new(TextSize::new(34), TextSize::new(38)),
                 }),
             }],
         ];
@@ -1031,9 +1225,15 @@ mod tests {
                 case_bodies,
                 default_body: vec![Stmt {
                     range: TextRange::new(TextSize::new(47), TextSize::new(51)),
-                    kind: StmtKind::Expr(Expr::Call {
-                        callee: "d".into(),
-                        args: exprs.alloc_many([]),
+                    kind: StmtKind::Expr(Expr {
+                        kind: ExprKind::Call {
+                            callee: "d".into(),
+                            args: exprs.alloc_many([]),
+                        },
+                        range: TextRange::new(
+                            TextSize::new(47),
+                            TextSize::new(51),
+                        ),
                     }),
                 }],
             },
