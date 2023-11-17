@@ -123,25 +123,25 @@ where
         db: &Database,
     ) -> Result<Value, (TextRange, InterpretError)> {
         match &stmt.kind {
-            StmtKind::Expr(e) => self.eval(e, db).map_err(|e| (stmt.range, e)),
-            StmtKind::VarDef { name, kind, value } => self
-                .exec_var_def(value, db, *kind, name)
-                .map_err(|e| (stmt.range, e)),
+            StmtKind::Expr(e) => self.eval(e, db),
+            StmtKind::VarDef { name, kind, value } => {
+                self.exec_var_def(value, db, *kind, name, stmt.range)
+            }
             StmtKind::ArrayDef {
                 name,
                 kind,
                 subscript,
                 dimensions,
                 value,
-            } => self
-                .exec_array_def(subscript, dimensions, value, db, *kind, name)
-                .map_err(|e| (stmt.range, e)),
+            } => self.exec_array_def(
+                subscript, dimensions, value, db, *kind, name, stmt.range,
+            ),
             StmtKind::SubprogramDef { name, params, body } => {
                 Ok(self.exec_subprogram_def(name, params, body))
             }
             StmtKind::ReturnStmt { value } => {
                 if self.call_depth > 0 {
-                    let res = self.eval(value, db).map_err(|e| (stmt.range, e));
+                    let res = self.eval(value, db);
                     self.call_depth -= 1;
                     res
                 } else {
@@ -153,9 +153,7 @@ where
                 body,
                 elseifs,
                 else_body,
-            } => self.exec_if_else(
-                db, *condition, body, elseifs, else_body, stmt.range,
-            ),
+            } => self.exec_if_else(db, *condition, body, elseifs, else_body),
             StmtKind::SwitchCase {
                 scrutinee,
                 cases,
@@ -183,10 +181,10 @@ where
                 stmt.range,
             ),
             StmtKind::WhileLoop { condition, body } => {
-                self.exec_while_loop(db, *condition, body, stmt.range)
+                self.exec_while_loop(db, *condition, body)
             }
             StmtKind::DoUntilLoop { condition, body } => {
-                self.exec_do_until(db, *condition, body, stmt.range)
+                self.exec_do_until(db, *condition, body)
             }
         }
     }
@@ -196,13 +194,11 @@ where
         db: &Database,
         condition: ExprIdx,
         body: &[Stmt],
-        range: TextRange,
     ) -> Result<Value, (TextRange, InterpretError)> {
         let cond = db.get(condition);
         loop {
             self.execute(body, db)?;
-            if self.eval(cond, db).map_err(|e| (range, e))? == Value::Bool(true)
-            {
+            if self.eval(cond, db)? == Value::Bool(true) {
                 break;
             }
         }
@@ -214,11 +210,9 @@ where
         db: &Database,
         condition: ExprIdx,
         body: &[Stmt],
-        range: TextRange,
     ) -> Result<Value, (TextRange, InterpretError)> {
         let cond = db.get(condition);
-        while self.eval(cond, db).map_err(|e| (range, e))? == Value::Bool(true)
-        {
+        while self.eval(cond, db)? == Value::Bool(true) {
             self.execute(body, db)?;
         }
         Ok(Value::Unit)
@@ -236,9 +230,9 @@ where
             return Err((range, InterpretError::ForLoopWithoutVariable));
         };
 
-        let start = self.eval(db.get(start), db).map_err(|e| (range, e))?;
-        let end = self.eval(db.get(end), db).map_err(|e| (range, e))?;
-        let step = self.eval(db.get(step), db).map_err(|e| (range, e))?;
+        let start = self.eval(db.get(start), db)?;
+        let end = self.eval(db.get(end), db)?;
+        let step = self.eval(db.get(step), db)?;
 
         let Value::Int(start) = start else {
             return Err((
@@ -301,14 +295,12 @@ where
         default_body: &[Stmt],
         range: TextRange,
     ) -> Result<Value, (TextRange, InterpretError)> {
-        let scrutinee =
-            self.eval(db.get(scrutinee), db).map_err(|e| (range, e))?;
+        let scrutinee = self.eval(db.get(scrutinee), db)?;
         let cases = db
             .get_range(cases.clone())
             .iter()
             .map(|i| self.eval(i, db))
-            .collect::<InterpretResult<Vec<_>>>()
-            .map_err(|e| (range, e))?;
+            .collect::<Result<Vec<_>, (TextRange, InterpretError)>>()?;
         if let Some(case) = cases.iter().find(|c| !c.same_type(&scrutinee)) {
             return Err((
                 range,
@@ -333,17 +325,12 @@ where
         body: &[Stmt],
         elseifs: &[(ExprIdx, Vec<Stmt>)],
         else_body: &[Stmt],
-        range: TextRange,
     ) -> Result<Value, (TextRange, InterpretError)> {
-        if self.eval(db.get(condition), db).map_err(|e| (range, e))?
-            == Value::Bool(true)
-        {
+        if self.eval(db.get(condition), db)? == Value::Bool(true) {
             self.execute(body, db)
         } else {
             for (cond, body) in elseifs {
-                if self.eval(db.get(*cond), db).map_err(|e| (range, e))?
-                    == Value::Bool(true)
-                {
+                if self.eval(db.get(*cond), db)? == Value::Bool(true) {
                     return self.execute(body, db);
                 }
             }
@@ -376,40 +363,53 @@ where
         db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
-    ) -> InterpretResult<Value> {
-        if matches!(subscript, (hir::Expr::Missing, hir::Expr::Missing)) {
-            if matches!(dimensions, (hir::Expr::Missing, hir::Expr::Missing)) {
-                self.array_define(value, db, kind, name)
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
+        if matches!(
+            (&subscript.0.kind, &subscript.1.kind),
+            (&hir::ExprKind::Missing, &hir::ExprKind::Missing)
+        ) {
+            if matches!(
+                (&dimensions.0.kind, &dimensions.1.kind),
+                (&hir::ExprKind::Missing, &hir::ExprKind::Missing)
+            ) {
+                self.array_define(value, db, kind, name, range)
             } else {
-                self.array_decl(dimensions, db, kind, name)
+                self.array_decl(dimensions, db, kind, name, range)
             }
         } else {
-            self.array_subscript_assign(kind, subscript, db, name, value)
+            self.array_subscript_assign(kind, subscript, db, name, value, range)
         }
     }
 
     fn array_define(
         &mut self,
-        value: &hir::Expr,
+        expr: &hir::Expr,
         db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
-    ) -> InterpretResult<Value> {
-        if matches!(value, hir::Expr::Missing) {
-            return Err(InterpretError::InvalidArrayDeclaration);
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
+        if matches!(expr.kind, hir::ExprKind::Missing) {
+            return Err((range, InterpretError::InvalidArrayDeclaration));
         }
-        let value = self.eval(value, db)?;
+        let value = self.eval(expr, db)?;
         let Value::Array(arr) = value else {
-            return Err(InterpretError::MismatchedTypes {
-                expected: vec!["array"],
-                found: value.type_str(),
-            });
+            return Err((
+                expr.range,
+                InterpretError::MismatchedTypes {
+                    expected: vec!["array"],
+                    found: value.type_str(),
+                },
+            ));
         };
         match kind {
             hir::VarDefKind::Constant => self
                 .env_mut()
                 .insert_constant(name.clone(), Value::Array(arr))
-                .map_err(|()| InterpretError::ReassignedConstant)?,
+                .map_err(|()| {
+                    (expr.range, InterpretError::ReassignedConstant)
+                })?,
             hir::VarDefKind::Global => self
                 .root_env()
                 .insert(name.clone(), Binding::Var(Value::Array(arr))),
@@ -426,23 +426,27 @@ where
         db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
-    ) -> InterpretResult<Value> {
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
         let (i, j) =
             (self.eval(&dimensions.0, db)?, self.eval(&dimensions.1, db)?);
         if !matches!(i, Value::Int(_) | Value::Unit) {
-            return Err(InterpretError::MismatchedTypes {
-                expected: vec!["int"],
-                found: i.type_str(),
-            });
+            return Err((
+                range,
+                InterpretError::MismatchedTypes {
+                    expected: vec!["int"],
+                    found: i.type_str(),
+                },
+            ));
         }
         if let Value::Int(i) = i {
             if i < 0 {
-                return Err(InterpretError::IllegalNegative);
+                return Err((range, InterpretError::IllegalNegative));
             }
         }
         if let Value::Int(j) = j {
             if j < 0 {
-                return Err(InterpretError::IllegalNegative);
+                return Err((range, InterpretError::IllegalNegative));
             }
         }
 
@@ -454,31 +458,33 @@ where
             let mut arr = Vec::with_capacity(
                 outer_len
                     .try_into()
-                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
             );
 
             let mut inner = Vec::with_capacity(
                 inner_len
                     .try_into()
-                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
             );
             inner.resize(
                 inner_len
                     .try_into()
-                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
                 Value::Unit,
             );
             arr.resize(
                 outer_len
                     .try_into()
-                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
                 Value::Array(inner),
             );
             match kind {
                 hir::VarDefKind::Constant => {
                     self.env_mut()
                         .insert_constant(name.clone(), Value::Array(arr))
-                        .map_err(|()| InterpretError::ReassignedConstant)?;
+                        .map_err(|()| {
+                            (range, InterpretError::ReassignedConstant)
+                        })?;
                 }
                 hir::VarDefKind::Global => self
                     .root_env()
@@ -492,19 +498,21 @@ where
             let mut arr = Vec::with_capacity(
                 outer_len
                     .try_into()
-                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
             );
             arr.resize(
                 outer_len
                     .try_into()
-                    .map_err(|_| InterpretError::IntegerTooLarge)?,
+                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
                 Value::Unit,
             );
             match kind {
                 hir::VarDefKind::Constant => {
                     self.env_mut()
                         .insert_constant(name.clone(), Value::Array(arr))
-                        .map_err(|()| InterpretError::ReassignedConstant)?;
+                        .map_err(|()| {
+                            (range, InterpretError::ReassignedConstant)
+                        })?;
                 }
                 hir::VarDefKind::Global => self
                     .root_env()
@@ -524,54 +532,71 @@ where
         db: &Database,
         name: &SmolStr,
         value: &hir::Expr,
-    ) -> InterpretResult<Value> {
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
         if !matches!(kind, hir::VarDefKind::Standard) {
-            return Err(InterpretError::DisallowedVariableQualifier);
+            return Err((range, InterpretError::DisallowedVariableQualifier));
         }
         let i1 = self.eval(&subscript.0, db)?;
         if !matches!(i1, Value::Int(_)) {
-            return Err(InterpretError::MismatchedTypes {
-                expected: vec!["int"],
-                found: i1.type_str(),
-            });
+            return Err((
+                range,
+                InterpretError::MismatchedTypes {
+                    expected: vec!["int"],
+                    found: i1.type_str(),
+                },
+            ));
         }
         let Value::Int(i1) = i1 else { unreachable!() };
 
         let i2 = self.eval(&subscript.1, db)?;
         let Some(arr) = self.get_var(name) else {
-            return Err(InterpretError::UnresolvedVariable {
-                name: name.clone(),
-            });
+            return Err((
+                range,
+                InterpretError::UnresolvedVariable { name: name.clone() },
+            ));
         };
         let Value::Array(mut arr) = arr else {
-            return Err(InterpretError::MismatchedTypes {
-                expected: vec!["array"],
-                found: arr.type_str(),
-            });
+            return Err((
+                range,
+                InterpretError::MismatchedTypes {
+                    expected: vec!["array"],
+                    found: arr.type_str(),
+                },
+            ));
         };
         let value = self.eval(value, db)?;
         if matches!(i2, Value::Unit) {
             arr[usize::try_from(i1)
-                .map_err(|_| InterpretError::IntegerTooLarge)?] = value;
+                .map_err(|_| (range, InterpretError::IntegerTooLarge))?] =
+                value;
         } else {
             let Value::Int(i2) = i2 else {
-                return Err(InterpretError::MismatchedTypes {
-                    expected: vec!["int"],
-                    found: i2.type_str(),
-                });
+                return Err((
+                    range,
+                    InterpretError::MismatchedTypes {
+                        expected: vec!["int"],
+                        found: i2.type_str(),
+                    },
+                ));
             };
             let Value::Array(subarr) = &mut arr[usize::try_from(i1)
-                .map_err(|_| InterpretError::IntegerTooLarge)?]
+                .map_err(|_| (range, InterpretError::IntegerTooLarge))?]
             else {
-                return Err(InterpretError::MismatchedTypes {
-                    expected: vec!["array"],
-                    found: arr[usize::try_from(i1)
-                        .map_err(|_| InterpretError::IntegerTooLarge)?]
-                    .type_str(),
-                });
+                return Err((
+                    range,
+                    InterpretError::MismatchedTypes {
+                        expected: vec!["array"],
+                        found: arr[usize::try_from(i1).map_err(|_| {
+                            (range, InterpretError::IntegerTooLarge)
+                        })?]
+                        .type_str(),
+                    },
+                ));
             };
             subarr[usize::try_from(i2)
-                .map_err(|_| InterpretError::IntegerTooLarge)?] = value;
+                .map_err(|_| (range, InterpretError::IntegerTooLarge))?] =
+                value;
         }
         self.env_mut()
             .insert(name.clone(), Binding::Var(Value::Array(arr)));
@@ -584,13 +609,14 @@ where
         db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
-    ) -> InterpretResult<Value> {
+        range: TextRange,
+    ) -> Result<Value, (TextRange, InterpretError)> {
         let value = self.eval(value, db)?;
         match kind {
             hir::VarDefKind::Constant => self
                 .env_mut()
                 .insert_constant(name.clone(), value)
-                .map_err(|()| InterpretError::ReassignedConstant)
+                .map_err(|()| (range, InterpretError::ReassignedConstant))
                 .map(|()| Value::Unit),
             hir::VarDefKind::Global => {
                 self.root_env().insert(name.clone(), Binding::Var(value));
@@ -607,9 +633,9 @@ where
         &mut self,
         expr: &hir::Expr,
         db: &Database,
-    ) -> InterpretResult<Value> {
-        match expr {
-            hir::Expr::Literal { value } => Ok(match value {
+    ) -> Result<Value, (TextRange, InterpretError)> {
+        match &expr.kind {
+            hir::ExprKind::Literal { value } => Ok(match value {
                 hir::Literal::Int(i) => Value::Int(*i),
                 hir::Literal::Float(f) => Value::Float(*f),
                 hir::Literal::Char(c) => Value::Char(*c),
@@ -620,19 +646,24 @@ where
                         .get_range(range.clone())
                         .iter()
                         .map(|e| self.eval(e, db))
-                        .collect::<InterpretResult<Vec<_>>>()?;
+                        .collect::<Result<Vec<_>, (TextRange, InterpretError)>>(
+                        )?;
 
                     Value::Array(exprs)
                 }
             }),
-            hir::Expr::Binary { op, lhs, rhs } => {
-                let mut lhs = self.eval(db.get(*lhs), db)?;
-                let rhs = db.get(*rhs);
-                if let hir::Expr::NameRef { name, .. } = rhs {
+            hir::ExprKind::Binary {
+                op,
+                lhs: lhs_idx,
+                rhs: rhs_idx,
+            } => {
+                let mut lhs = self.eval(db.get(*lhs_idx), db)?;
+                let rhs = db.get(*rhs_idx);
+                if let hir::ExprKind::NameRef { name, .. } = &rhs.kind {
                     if let Some(value) = eval_string_attrs(*op, &lhs, name) {
-                        return value;
+                        return value.map_err(|e| (db.get(*lhs_idx).range, e));
                     }
-                } else if let hir::Expr::Call { callee, args } = rhs {
+                } else if let hir::ExprKind::Call { callee, args } = &rhs.kind {
                     if let Some(value) = self.eval_method(
                         *op,
                         &mut lhs,
@@ -640,7 +671,7 @@ where
                         args.clone(),
                         db,
                     ) {
-                        return value;
+                        return value.map_err(|e| (db.get(*lhs_idx).range, e));
                     }
                 }
                 let rhs = self.eval(rhs, db)?;
@@ -652,38 +683,53 @@ where
                             | (&Value::Array(_), Value::Int(_))
                     )
                 {
-                    return Err(InterpretError::MismatchedTypes {
-                        expected: vec![lhs.type_str()],
-                        found: rhs.type_str(),
-                    });
+                    return Err((
+                        db.get(*rhs_idx).range,
+                        InterpretError::MismatchedTypes {
+                            expected: vec![lhs.type_str()],
+                            found: rhs.type_str(),
+                        },
+                    ));
                 }
 
                 eval_binary_op(*op, &lhs, &rhs)
+                    .map_err(|e| (db.get(*lhs_idx).range, e))
             }
-            hir::Expr::Unary { op, opand } => {
+            hir::ExprKind::Unary { op, opand } => {
                 eval_unary_op(&self.eval(db.get(*opand), db)?, *op)
+                    .map_err(|e| (db.get(*opand).range, e))
             }
-            hir::Expr::NameRef { name } => {
+            hir::ExprKind::NameRef { name } => {
                 self.get_var(name).ok_or_else(|| {
-                    InterpretError::UnresolvedVariable { name: name.clone() }
+                    (
+                        expr.range,
+                        InterpretError::UnresolvedVariable {
+                            name: name.clone(),
+                        },
+                    )
                 })
             }
-            hir::Expr::Call { callee, args } => {
+            hir::ExprKind::Call { callee, args } => {
                 let Some(subprog) = self.get_subprogram(callee) else {
-                    return self.builtin_subprog_call(callee, args, db);
+                    return self
+                        .builtin_subprog_call(callee, args, db)
+                        .map_err(|e| (expr.range, e));
                 };
 
                 let args = db
                     .get_range(args.clone())
                     .iter()
                     .map(|e| self.eval(e, db))
-                    .collect::<InterpretResult<Vec<_>>>()?;
+                    .collect::<Result<Vec<_>, (TextRange, InterpretError)>>()?;
 
                 if args.len() != subprog.params.len() {
-                    return Err(InterpretError::InvalidArgumentCount {
-                        expected: subprog.params.len(),
-                        got: args.len(),
-                    });
+                    return Err((
+                        expr.range,
+                        InterpretError::InvalidArgumentCount {
+                            expected: subprog.params.len(),
+                            got: args.len(),
+                        },
+                    ));
                 }
 
                 self.push_env();
@@ -694,10 +740,9 @@ where
                 let result = self.call_subprog(&subprog.body, db);
                 self.pop_env();
 
-                // FIXME: Don't cheat like that do something real
-                result.map_err(|e| e.1)
+                result
             }
-            hir::Expr::Missing => Ok(Value::Unit),
+            hir::ExprKind::Missing => Ok(Value::Unit),
         }
     }
 
@@ -721,10 +766,10 @@ where
                 .get_range(args)
                 .iter()
                 .map(|e| self.eval(e, db))
-                .collect::<InterpretResult<Vec<_>>>()
+                .collect::<Result<Vec<_>, (TextRange, InterpretError)>>()
             {
                 Ok(args) => args,
-                Err(e) => return Some(Err(e)),
+                Err(e) => return Some(Err(e.1)),
             };
             if let Some(a) = args.iter().find(|a| !matches!(a, &&Value::Int(_)))
             {
@@ -826,7 +871,7 @@ where
         let args = match db
             .get_range(args)
             .iter()
-            .map(|a| self.eval(a, db))
+            .map(|a| self.eval(a, db).map_err(|e| e.1))
             .collect::<InterpretResult<Vec<_>>>()
         {
             Ok(args) => args,
@@ -921,7 +966,7 @@ where
         let args = db
             .get_range(args.clone())
             .iter()
-            .map(|e| self.eval(e, db))
+            .map(|e| self.eval(e, db).map_err(|e| e.1))
             .collect::<InterpretResult<Vec<_>>>()?;
         if callee == "random" {
             return if args.len() == 2 {
@@ -1199,7 +1244,7 @@ mod tests {
     use std::fs;
     use std::io::{empty, BufReader};
 
-    use hir::{Expr, Literal, StmtKind};
+    use hir::{Expr, ExprKind, Literal, StmtKind};
     use pretty_assertions::assert_eq;
     use text_size::{TextRange, TextSize};
 
@@ -1542,8 +1587,14 @@ mod tests {
                                 TextSize::new(63),
                             ),
                             kind: StmtKind::ReturnStmt {
-                                value: Expr::Literal {
-                                    value: Literal::Int(0),
+                                value: Expr {
+                                    kind: ExprKind::Literal {
+                                        value: Literal::Int(0),
+                                    },
+                                    range: TextRange::new(
+                                        TextSize::new(49),
+                                        TextSize::new(63),
+                                    ),
                                 },
                             },
                         }],
@@ -1563,7 +1614,7 @@ mod tests {
                         body: vec![Stmt {
                             range: TextRange::default(),
                             kind: StmtKind::ReturnStmt {
-                                value: Expr::Missing,
+                                value: Expr::default(),
                             },
                         }],
                     }),
