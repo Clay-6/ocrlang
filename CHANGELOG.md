@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2023-11-17
+
+### Bug Fixes
+
+- Expand parser recovery set to all statement boundaries
+- Remove potential panics
+- Allow int/float comparisons in `==`
+- Improve error output
+- Change `LexError` display impl
+- Use `try_fold` to not swallow fmt errors
+- Persist expr span info through the HIR
+
+### Features
+
+- Do type-checking in `==` implementation
+- Report line/column info for lex errors
+- Display line/column info for parse errors
+- Display line/column info for all errors
+- Retain span info for both exprs and statements
+
+### Miscellaneous Tasks
+
+- Run all tests regardless of failures
+- Update `actions/checkout` to v4
+
+### Refactor
+
+- Move builtin function impls into separate module
+- Switch to using `clap` for args parsing
+- Change args to `exec_for_loop`
+
+### Styling
+
+- Apply some pedantic lints
+- Set max line width to 80 cols
+
 ## [1.1.0] - 2023-11-01
 
 ### Bug Fixes
