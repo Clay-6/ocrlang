@@ -149,6 +149,11 @@ pub fn lower(ast: &ast::Root) -> (Database, Vec<Stmt>) {
     (db, stmts)
 }
 
+#[must_use]
+pub fn lower_with(db: &mut Database, ast: &ast::Root) -> Vec<Stmt> {
+    ast.stmts().filter_map(|stmt| db.lower_stmt(stmt)).collect()
+}
+
 impl Default for Expr {
     fn default() -> Self {
         Self {

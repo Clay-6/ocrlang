@@ -23,6 +23,7 @@ pub struct Interpreter<I = io::Stdin, O = io::Stdout> {
     output: O,
     input: BufReader<I>,
     call_depth: usize,
+    db: Database,
 }
 
 impl<I, O> Interpreter<I, O>
@@ -36,6 +37,7 @@ where
             output,
             input: BufReader::new(input),
             call_depth: 0,
+            db: Database::default(),
         }
     }
 
@@ -53,10 +55,10 @@ where
             )
         })?;
         if parse_tree.errors().is_empty() {
-            let (db, stmts) = hir::lower(&ast::Root::cast(parse_tree.syntax()).expect(
+            let  stmts = hir::lower_with(&mut self.db,&ast::Root::cast(parse_tree.syntax()).expect(
                 "`parer::parse` tree contains a `Root` so conversion should always succeed",
             ));
-            self.execute(&stmts, &db)
+            self.execute(&stmts)
         } else {
             Err((
                 TextRange::default(),
@@ -70,12 +72,11 @@ where
     fn execute(
         &mut self,
         block: &[Stmt],
-        db: &Database,
     ) -> Result<Value, (TextRange, InterpretError)> {
         let mut res = Value::Unit;
         for stmt in block {
             let prev_depth = self.call_depth;
-            res = self.exec_stmt(stmt, db)?;
+            res = self.exec_stmt(stmt)?;
             if prev_depth > self.call_depth {
                 break;
             }
@@ -120,12 +121,11 @@ where
     fn exec_stmt(
         &mut self,
         stmt: &Stmt,
-        db: &Database,
     ) -> Result<Value, (TextRange, InterpretError)> {
         match &stmt.kind {
-            StmtKind::Expr(e) => self.eval(e, db),
+            StmtKind::Expr(e) => self.eval(e),
             StmtKind::VarDef { name, kind, value } => {
-                self.exec_var_def(value, db, *kind, name, stmt.range)
+                self.exec_var_def(value, *kind, name, stmt.range)
             }
             StmtKind::ArrayDef {
                 name,
@@ -134,14 +134,14 @@ where
                 dimensions,
                 value,
             } => self.exec_array_def(
-                subscript, dimensions, value, db, *kind, name, stmt.range,
+                subscript, dimensions, value, *kind, name, stmt.range,
             ),
             StmtKind::SubprogramDef { name, params, body } => {
                 Ok(self.exec_subprogram_def(name, params, body))
             }
             StmtKind::ReturnStmt { value } => {
                 if self.call_depth > 0 {
-                    let res = self.eval(value, db);
+                    let res = self.eval(value);
                     self.call_depth -= 1;
                     res
                 } else {
@@ -153,14 +153,13 @@ where
                 body,
                 elseifs,
                 else_body,
-            } => self.exec_if_else(db, *condition, body, elseifs, else_body),
+            } => self.exec_if_else(*condition, body, elseifs, else_body),
             StmtKind::SwitchCase {
                 scrutinee,
                 cases,
                 case_bodies,
                 default_body,
             } => self.exec_switch_case(
-                db,
                 *scrutinee,
                 cases,
                 case_bodies,
@@ -174,31 +173,29 @@ where
                 step,
                 body,
             } => self.exec_for_loop(
-                db,
                 loop_var,
                 (*start, *end, *step),
                 body,
                 stmt.range,
             ),
             StmtKind::WhileLoop { condition, body } => {
-                self.exec_while_loop(db, *condition, body)
+                self.exec_while_loop(*condition, body)
             }
             StmtKind::DoUntilLoop { condition, body } => {
-                self.exec_do_until(db, *condition, body)
+                self.exec_do_until(*condition, body)
             }
         }
     }
 
     fn exec_do_until(
         &mut self,
-        db: &Database,
         condition: ExprIdx,
         body: &[Stmt],
     ) -> Result<Value, (TextRange, InterpretError)> {
-        let cond = db.get(condition);
+        let cond = self.db.get(condition).clone();
         loop {
-            self.execute(body, db)?;
-            if self.eval(cond, db)? == Value::Bool(true) {
+            self.execute(body)?;
+            if self.eval(&cond)? == Value::Bool(true) {
                 break;
             }
         }
@@ -207,20 +204,18 @@ where
 
     fn exec_while_loop(
         &mut self,
-        db: &Database,
         condition: ExprIdx,
         body: &[Stmt],
     ) -> Result<Value, (TextRange, InterpretError)> {
-        let cond = db.get(condition);
-        while self.eval(cond, db)? == Value::Bool(true) {
-            self.execute(body, db)?;
+        let cond = self.db.get(condition).clone();
+        while self.eval(&cond)? == Value::Bool(true) {
+            self.execute(body)?;
         }
         Ok(Value::Unit)
     }
 
     fn exec_for_loop(
         &mut self,
-        db: &Database,
         loop_var: &Option<SmolStr>,
         (start, end, step): (ExprIdx, ExprIdx, ExprIdx),
         body: &[Stmt],
@@ -230,9 +225,9 @@ where
             return Err((range, InterpretError::ForLoopWithoutVariable));
         };
 
-        let start = self.eval(db.get(start), db)?;
-        let end = self.eval(db.get(end), db)?;
-        let step = self.eval(db.get(step), db)?;
+        let start = self.eval(&self.db.get(start).clone())?;
+        let end = self.eval(&self.db.get(end).clone())?;
+        let step = self.eval(&self.db.get(step).clone())?;
 
         let Value::Int(start) = start else {
             return Err((
@@ -276,7 +271,7 @@ where
             {
                 break;
             }
-            self.execute(body, db)?;
+            self.execute(body)?;
             loop_idx += step;
             self.env_mut()
                 .insert(loop_var.clone(), Binding::Var(Value::Int(loop_idx)));
@@ -288,18 +283,19 @@ where
 
     fn exec_switch_case(
         &mut self,
-        db: &Database,
         scrutinee: ExprIdx,
         cases: &ExprRange,
         case_bodies: &[Vec<Stmt>],
         default_body: &[Stmt],
         range: TextRange,
     ) -> Result<Value, (TextRange, InterpretError)> {
-        let scrutinee = self.eval(db.get(scrutinee), db)?;
-        let cases = db
+        let scrutinee = self.eval(&self.db.get(scrutinee).clone())?;
+        let cases = self
+            .db
             .get_range(cases.clone())
+            .to_owned()
             .iter()
-            .map(|i| self.eval(i, db))
+            .map(|i| self.eval(i))
             .collect::<Result<Vec<_>, (TextRange, InterpretError)>>()?;
         if let Some(case) = cases.iter().find(|c| !c.same_type(&scrutinee)) {
             return Err((
@@ -312,29 +308,29 @@ where
         }
         for (i, case) in cases.iter().enumerate() {
             if &scrutinee == case {
-                return self.execute(&case_bodies[i], db);
+                return self.execute(&case_bodies[i]);
             }
         }
-        self.execute(default_body, db)
+        self.execute(default_body)
     }
 
     fn exec_if_else(
         &mut self,
-        db: &Database,
         condition: ExprIdx,
         body: &[Stmt],
         elseifs: &[(ExprIdx, Vec<Stmt>)],
         else_body: &[Stmt],
     ) -> Result<Value, (TextRange, InterpretError)> {
-        if self.eval(db.get(condition), db)? == Value::Bool(true) {
-            self.execute(body, db)
+        if self.eval(&self.db.get(condition).clone())? == Value::Bool(true) {
+            self.execute(body)
         } else {
             for (cond, body) in elseifs {
-                if self.eval(db.get(*cond), db)? == Value::Bool(true) {
-                    return self.execute(body, db);
+                if self.eval(&self.db.get(*cond).clone())? == Value::Bool(true)
+                {
+                    return self.execute(body);
                 }
             }
-            self.execute(else_body, db)
+            self.execute(else_body)
         }
     }
 
@@ -360,7 +356,6 @@ where
         subscript: &(hir::Expr, hir::Expr),
         dimensions: &(hir::Expr, hir::Expr),
         value: &hir::Expr,
-        db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
         range: TextRange,
@@ -373,19 +368,18 @@ where
                 (&dimensions.0.kind, &dimensions.1.kind),
                 (&hir::ExprKind::Missing, &hir::ExprKind::Missing)
             ) {
-                self.array_define(value, db, kind, name, range)
+                self.array_define(value, kind, name, range)
             } else {
-                self.array_decl(dimensions, db, kind, name, range)
+                self.array_decl(dimensions, kind, name, range)
             }
         } else {
-            self.array_subscript_assign(kind, subscript, db, name, value, range)
+            self.array_subscript_assign(kind, subscript, name, value, range)
         }
     }
 
     fn array_define(
         &mut self,
         expr: &hir::Expr,
-        db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
         range: TextRange,
@@ -393,7 +387,7 @@ where
         if matches!(expr.kind, hir::ExprKind::Missing) {
             return Err((range, InterpretError::InvalidArrayDeclaration));
         }
-        let value = self.eval(expr, db)?;
+        let value = self.eval(expr)?;
         let Value::Array(arr) = value else {
             return Err((
                 expr.range,
@@ -423,13 +417,11 @@ where
     fn array_decl(
         &mut self,
         dimensions: &(hir::Expr, hir::Expr),
-        db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
         range: TextRange,
     ) -> Result<Value, (TextRange, InterpretError)> {
-        let (i, j) =
-            (self.eval(&dimensions.0, db)?, self.eval(&dimensions.1, db)?);
+        let (i, j) = (self.eval(&dimensions.0)?, self.eval(&dimensions.1)?);
         if !matches!(i, Value::Int(_) | Value::Unit) {
             return Err((
                 range,
@@ -529,7 +521,6 @@ where
         &mut self,
         kind: hir::VarDefKind,
         subscript: &(hir::Expr, hir::Expr),
-        db: &Database,
         name: &SmolStr,
         value: &hir::Expr,
         range: TextRange,
@@ -537,7 +528,7 @@ where
         if !matches!(kind, hir::VarDefKind::Standard) {
             return Err((range, InterpretError::DisallowedVariableQualifier));
         }
-        let i1 = self.eval(&subscript.0, db)?;
+        let i1 = self.eval(&subscript.0)?;
         if !matches!(i1, Value::Int(_)) {
             return Err((
                 range,
@@ -549,7 +540,7 @@ where
         }
         let Value::Int(i1) = i1 else { unreachable!() };
 
-        let i2 = self.eval(&subscript.1, db)?;
+        let i2 = self.eval(&subscript.1)?;
         let Some(arr) = self.get_var(name) else {
             return Err((
                 range,
@@ -565,7 +556,7 @@ where
                 },
             ));
         };
-        let value = self.eval(value, db)?;
+        let value = self.eval(value)?;
         if matches!(i2, Value::Unit) {
             arr[usize::try_from(i1)
                 .map_err(|_| (range, InterpretError::IntegerTooLarge))?] =
@@ -606,12 +597,11 @@ where
     fn exec_var_def(
         &mut self,
         value: &hir::Expr,
-        db: &Database,
         kind: hir::VarDefKind,
         name: &SmolStr,
         range: TextRange,
     ) -> Result<Value, (TextRange, InterpretError)> {
-        let value = self.eval(value, db)?;
+        let value = self.eval(value)?;
         match kind {
             hir::VarDefKind::Constant => self
                 .env_mut()
@@ -632,7 +622,6 @@ where
     fn eval(
         &mut self,
         expr: &hir::Expr,
-        db: &Database,
     ) -> Result<Value, (TextRange, InterpretError)> {
         match &expr.kind {
             hir::ExprKind::Literal { value } => Ok(match value {
@@ -642,10 +631,12 @@ where
                 hir::Literal::String(s) => Value::String(s.clone()),
                 hir::Literal::Bool(b) => Value::Bool(*b),
                 hir::Literal::Array(range) => {
-                    let exprs = db
+                    let exprs = self
+                        .db
                         .get_range(range.clone())
+                        .to_owned()
                         .iter()
-                        .map(|e| self.eval(e, db))
+                        .map(|e| self.eval(e))
                         .collect::<Result<Vec<_>, (TextRange, InterpretError)>>(
                         )?;
 
@@ -657,24 +648,22 @@ where
                 lhs: lhs_idx,
                 rhs: rhs_idx,
             } => {
-                let mut lhs = self.eval(db.get(*lhs_idx), db)?;
-                let rhs = db.get(*rhs_idx);
+                let mut lhs = self.eval(&self.db.get(*lhs_idx).clone())?;
+                let rhs = &self.db.get(*rhs_idx).clone();
                 if let hir::ExprKind::NameRef { name, .. } = &rhs.kind {
                     if let Some(value) = eval_string_attrs(*op, &lhs, name) {
-                        return value.map_err(|e| (db.get(*lhs_idx).range, e));
+                        return value
+                            .map_err(|e| (self.db.get(*lhs_idx).range, e));
                     }
                 } else if let hir::ExprKind::Call { callee, args } = &rhs.kind {
-                    if let Some(value) = self.eval_method(
-                        *op,
-                        &mut lhs,
-                        callee,
-                        args.clone(),
-                        db,
-                    ) {
-                        return value.map_err(|e| (db.get(*lhs_idx).range, e));
+                    if let Some(value) =
+                        self.eval_method(*op, &mut lhs, callee, args.clone())
+                    {
+                        return value
+                            .map_err(|e| (self.db.get(*lhs_idx).range, e));
                     }
                 }
-                let rhs = self.eval(rhs, db)?;
+                let rhs = self.eval(rhs)?;
                 if !lhs.same_type(&rhs)
                     && !matches!(
                         (&lhs, &rhs),
@@ -684,7 +673,7 @@ where
                     )
                 {
                     return Err((
-                        db.get(*rhs_idx).range,
+                        self.db.get(*rhs_idx).range,
                         InterpretError::MismatchedTypes {
                             expected: vec![lhs.type_str()],
                             found: rhs.type_str(),
@@ -693,11 +682,11 @@ where
                 }
 
                 eval_binary_op(*op, &lhs, &rhs)
-                    .map_err(|e| (db.get(*lhs_idx).range, e))
+                    .map_err(|e| (self.db.get(*lhs_idx).range, e))
             }
             hir::ExprKind::Unary { op, opand } => {
-                eval_unary_op(&self.eval(db.get(*opand), db)?, *op)
-                    .map_err(|e| (db.get(*opand).range, e))
+                eval_unary_op(&self.eval(&self.db.get(*opand).clone())?, *op)
+                    .map_err(|e| (self.db.get(*opand).range, e))
             }
             hir::ExprKind::NameRef { name } => {
                 self.get_var(name).ok_or_else(|| {
@@ -712,14 +701,16 @@ where
             hir::ExprKind::Call { callee, args } => {
                 let Some(subprog) = self.get_subprogram(callee) else {
                     return self
-                        .builtin_subprog_call(callee, args, db)
+                        .builtin_subprog_call(callee, args)
                         .map_err(|e| (expr.range, e));
                 };
 
-                let args = db
+                let args = self
+                    .db
                     .get_range(args.clone())
+                    .to_owned()
                     .iter()
-                    .map(|e| self.eval(e, db))
+                    .map(|e| self.eval(e))
                     .collect::<Result<Vec<_>, (TextRange, InterpretError)>>()?;
 
                 if args.len() != subprog.params.len() {
@@ -737,7 +728,7 @@ where
                     self.env_mut().insert(name, Binding::Var(arg.clone()));
                 }
                 self.call_depth += 1;
-                let result = self.call_subprog(&subprog.body, db);
+                let result = self.call_subprog(&subprog.body);
                 self.pop_env();
 
                 result
@@ -752,7 +743,6 @@ where
         lhs: &Value,
         callee: &str,
         args: ExprRange,
-        db: &Database,
     ) -> Option<InterpretResult<Value>> {
         if matches!(op, hir::BinaryOp::Dot) {
             let Value::String(lhs) = lhs else {
@@ -762,10 +752,12 @@ where
                 }));
             };
 
-            let args = match db
+            let args = match self
+                .db
                 .get_range(args)
+                .to_owned()
                 .iter()
-                .map(|e| self.eval(e, db))
+                .map(|e| self.eval(e))
                 .collect::<Result<Vec<_>, (TextRange, InterpretError)>>()
             {
                 Ok(args) => args,
@@ -854,7 +846,6 @@ where
         lhs: &mut Value,
         callee: &str,
         args: ExprRange,
-        db: &Database,
     ) -> Option<InterpretResult<Value>> {
         use io::Read;
 
@@ -868,10 +859,12 @@ where
                 found: lhs.type_str(),
             }));
         };
-        let args = match db
+        let args = match self
+            .db
             .get_range(args)
+            .to_owned()
             .iter()
-            .map(|a| self.eval(a, db).map_err(|e| e.1))
+            .map(|a| self.eval(a).map_err(|e| e.1))
             .collect::<InterpretResult<Vec<_>>>()
         {
             Ok(args) => args,
@@ -952,21 +945,21 @@ where
     fn call_subprog(
         &mut self,
         body: &[Stmt],
-        db: &Database,
     ) -> Result<Value, (TextRange, InterpretError)> {
-        self.execute(body, db)
+        self.execute(body)
     }
 
     fn builtin_subprog_call(
         &mut self,
         callee: &str,
         args: &ExprRange,
-        db: &Database,
     ) -> InterpretResult<Value> {
-        let args = db
+        let args = self
+            .db
             .get_range(args.clone())
+            .to_owned()
             .iter()
-            .map(|e| self.eval(e, db).map_err(|e| e.1))
+            .map(|e| self.eval(e).map_err(|e| e.1))
             .collect::<InterpretResult<Vec<_>>>()?;
         if callee == "random" {
             return if args.len() == 2 {
@@ -1009,13 +1002,10 @@ where
         lhs: &mut Value,
         callee: &str,
         args: ExprRange,
-        db: &Database,
     ) -> Option<Result<Value, InterpretError>> {
         match lhs {
-            Value::String(_) => {
-                self.eval_string_methods(op, lhs, callee, args, db)
-            }
-            Value::File(_) => self.eval_file_methods(op, lhs, callee, args, db),
+            Value::String(_) => self.eval_string_methods(op, lhs, callee, args),
+            Value::File(_) => self.eval_file_methods(op, lhs, callee, args),
             _ => None,
         }
     }
@@ -1028,6 +1018,7 @@ impl Default for Interpreter {
             output: io::stdout(),
             input: BufReader::new(io::stdin()),
             call_depth: 0,
+            db: Database::default(),
         }
     }
 }
@@ -1256,9 +1247,15 @@ mod tests {
 
     fn check_eval(expr: &str, expected: Value) {
         let (db, stmts) = lower(expr);
-        let evaled = Interpreter::new(std::io::empty(), vec![])
-            .exec_stmt(&stmts[0], &db)
-            .unwrap();
+        let evaled = Interpreter {
+            input: BufReader::new(std::io::empty()),
+            output: vec![],
+            db,
+            envs: Default::default(),
+            call_depth: 0,
+        }
+        .exec_stmt(&stmts[0])
+        .unwrap();
         assert_eq!(evaled, expected);
     }
 
@@ -1322,9 +1319,15 @@ mod tests {
     #[test]
     fn eval_name_ref() {
         let (db, stmts) = lower("x = 5\nx");
-        let mut interpreter = Interpreter::new(empty(), empty());
-        interpreter.exec_stmt(&stmts[0], &db).unwrap();
-        let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
+        let mut interpreter = Interpreter {
+            input: BufReader::new(empty()),
+            output: empty(),
+            db,
+            envs: Default::default(),
+            call_depth: 0,
+        };
+        interpreter.exec_stmt(&stmts[0]).unwrap();
+        let evaled = interpreter.exec_stmt(&stmts[1]).unwrap();
         assert_eq!(evaled, Value::Int(5));
     }
 
@@ -1338,8 +1341,9 @@ mod tests {
                 output: vec![],
                 envs: (Env::default(), Vec::default()),
                 call_depth: 1, // Pretend we're actually inside a function
+                db,
             }
-            .exec_stmt(&stmts[0], &db)
+            .exec_stmt(&stmts[0])
             .unwrap();
             assert_eq!(evaled, expected);
         };
@@ -1349,9 +1353,15 @@ mod tests {
     fn eval_func_call() {
         let (db, stmts) =
             lower("function neg(x)\nreturn -x\nendfunction\nneg(3)");
-        let mut interpreter = Interpreter::new(empty(), empty());
-        interpreter.exec_stmt(&stmts[0], &db).unwrap();
-        let evaled = interpreter.exec_stmt(&stmts[1], &db).unwrap();
+        let mut interpreter = Interpreter {
+            db,
+            envs: Default::default(),
+            input: BufReader::new(empty()),
+            output: empty(),
+            call_depth: 0,
+        };
+        interpreter.exec_stmt(&stmts[0]).unwrap();
+        let evaled = interpreter.exec_stmt(&stmts[1]).unwrap();
         assert_eq!(evaled, Value::Int(-3));
     }
 
@@ -1434,9 +1444,10 @@ mod tests {
             output: empty(),
             envs: (env, Vec::default()),
             call_depth: 0,
+            db,
         };
 
-        let evaled = interpreter.exec_stmt(&stmts[0], &db).unwrap();
+        let evaled = interpreter.exec_stmt(&stmts[0]).unwrap();
         assert_eq!(evaled, Value::Int(2));
     }
 
@@ -1467,8 +1478,14 @@ mod tests {
     fn invalid_dot_target_errors() {
         {
             let (db, stmts) = lower(r#""string".ballsack"#);
-            let res = Interpreter::new(std::io::empty(), vec![])
-                .exec_stmt(&stmts[0], &db);
+            let res = Interpreter {
+                input: BufReader::new(std::io::empty()),
+                output: vec![],
+                db,
+                envs: Default::default(),
+                call_depth: 0,
+            }
+            .exec_stmt(&stmts[0]);
 
             let err = res.unwrap_err();
             let InterpretError::InvalidDotTarget { name } = err.1 else {
@@ -1840,5 +1857,14 @@ mod tests {
             "Some line\n\n",
         );
         fs::remove_file("file_write_line.txt").unwrap();
+    }
+
+    #[test]
+    fn multiple_runs() {
+        let mut interpreter = Interpreter::default();
+        interpreter
+            .run("function double(x) return x*2 endfunction")
+            .unwrap();
+        interpreter.run("print(double(2))").unwrap();
     }
 }
