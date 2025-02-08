@@ -63,7 +63,7 @@ impl<'t, 'input> Source<'t, 'input> {
     }
 
     fn at_trivia(&self) -> bool {
-        self.peek_kind_raw().map_or(false, TokenKind::is_trivia)
+        self.peek_kind_raw().is_some_and(TokenKind::is_trivia)
     }
 
     fn peek_kind_raw(&self) -> Option<TokenKind> {

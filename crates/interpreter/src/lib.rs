@@ -888,7 +888,7 @@ where
                 let mut buf = [0];
                 while let Ok(()) = file.read_exact(&mut buf) {
                     line.push(buf[0]);
-                    if line.ends_with(&[b'\n']) {
+                    if line.ends_with(b"\n") {
                         break;
                     }
                     buf = [0];

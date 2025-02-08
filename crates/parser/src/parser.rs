@@ -119,7 +119,7 @@ impl<'t, 'input> Parser<'t, 'input> {
     }
 
     pub(crate) fn at_set(&mut self, set: &[TokenKind]) -> bool {
-        self.peek().map_or(false, |kind| set.contains(&kind))
+        self.peek().is_some_and(|kind| set.contains(&kind))
     }
 
     pub(crate) fn peek_next(&mut self) -> Option<TokenKind> {
