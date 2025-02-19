@@ -6,7 +6,6 @@ use core::fmt;
 use std::{
     fs::File,
     io::{self, BufReader, Seek, SeekFrom, Write},
-    ops::Range,
 };
 
 use env::{Binding, Env, Subprogram};
@@ -61,7 +60,17 @@ where
             self.execute(&stmts)
         } else {
             Err((
-                TextRange::default(),
+                TextRange::new(
+                    parse_tree.errors()[0]
+                        .text_range()
+                        .map(|r| r.start())
+                        .unwrap_or_default(),
+                    parse_tree
+                        .errors()
+                        .last()
+                        .and_then(|e| e.text_range().map(|r| r.start()))
+                        .unwrap_or_default(),
+                ),
                 InterpretError::ParseErrors {
                     errors: parse_tree.errors().to_owned(),
                 },
@@ -1112,7 +1121,7 @@ impl fmt::Display for Value {
 pub enum InterpretError {
     LexError {
         text: SmolStr,
-        range: Range<usize>,
+        // range: Range<usize>,
     },
     ParseErrors {
         errors: Vec<parser::ParseError>,
@@ -1202,8 +1211,8 @@ impl fmt::Display for InterpretError {
             InterpretError::ReturnOutsideFunction => {
                 "return statement outside of function".to_string()
             }
-            InterpretError::LexError { text, range } => {
-                format!("unrecognised token '{text}' at range {range:?}")
+            InterpretError::LexError { text } => {
+                format!("unrecognised token '{text}'")
             }
             InterpretError::InvalidCast { from, to } => {
                 format!("casting {from} to {to} is invalid")
@@ -1222,7 +1231,6 @@ impl From<parser::LexError<'_>> for InterpretError {
     fn from(err: parser::LexError) -> Self {
         Self::LexError {
             text: err.text.into(),
-            range: err.range,
         }
     }
 }

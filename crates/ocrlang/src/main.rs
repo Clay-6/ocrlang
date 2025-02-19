@@ -4,7 +4,7 @@ use interpreter::{InterpretError, Interpreter};
 
 use clap::Parser;
 use color_eyre::Result;
-use line_index::{LineIndex, TextRange, TextSize};
+use line_index::{LineIndex, TextRange};
 use rustyline::{error::ReadlineError, DefaultEditor};
 
 fn main() -> Result<()> {
@@ -14,7 +14,7 @@ fn main() -> Result<()> {
 
     if let Some(path) = args.file {
         if !path.exists() {
-            eprintln!("Error: file {} does not exist", path.display());
+            eprintln!("Error: file `{}` does not exist", path.display());
             std::process::exit(1);
         }
         let text = fs::read_to_string(path)?;
@@ -55,9 +55,8 @@ fn interpret_err(
     line_index: LineIndex,
 ) {
     match e {
-        InterpretError::LexError { text, range } => {
-            let linecol =
-                line_index.line_col(TextSize::new(range.start as u32));
+        InterpretError::LexError { text } => {
+            let linecol = line_index.line_col(range.start());
             eprintln!(
                 "Invalid token '{}' on line {}, column {}",
                 text,
@@ -73,8 +72,8 @@ fn interpret_err(
                 if !last_linecol.is_some_and(|lc| linecol == lc) {
                     eprintln!(
                         "Error on line {} column {}: {}",
-                        linecol.line,
-                        linecol.col,
+                        linecol.line + 1,
+                        linecol.col + 1,
                         err.context()
                     );
                 }
@@ -85,7 +84,9 @@ fn interpret_err(
             let linecol = line_index.line_col(range.start());
             eprintln!(
                 "Error at line {}, column {}: {}",
-                linecol.line, linecol.col, e
+                linecol.line + 1,
+                linecol.col + 1,
+                e
             )
         }
     };
