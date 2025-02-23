@@ -56,28 +56,38 @@ fn interpret_err(
 ) {
     match e {
         InterpretError::LexError { text } => {
-            let linecol = line_index.line_col(range.start());
-            eprintln!(
-                "Invalid token '{}' on line {}, column {}",
-                text,
-                linecol.line + 1,
-                linecol.col + 1
-            );
+            if let Some(linecol) = line_index.try_line_col(range.start()) {
+                eprintln!(
+                    "Invalid token '{}' on line {}, column {}",
+                    text,
+                    linecol.line + 1,
+                    linecol.col + 1
+                );
+            } else {
+                eprintln!("Invalid token '{}' in an imported file", text);
+            }
         }
         InterpretError::ParseErrors { errors } => {
             let mut last_linecol = None;
             for err in errors {
                 let linecol =
-                    line_index.line_col(err.text_range().unwrap().start());
-                if !last_linecol.is_some_and(|lc| linecol == lc) {
+                    line_index.try_line_col(err.text_range().unwrap().start());
+                if match (last_linecol, linecol) {
+                    (Some(ll), Some(lc)) => ll != lc,
+                    (None, Some(_)) => true,
+                    _ => false,
+                } {
+                    // Unwraps are fine since if we got here then `linecol` is *definitely* `Some`
                     eprintln!(
                         "Error on line {} column {}: {}",
-                        linecol.line + 1,
-                        linecol.col + 1,
+                        linecol.unwrap().line + 1,
+                        linecol.unwrap().col + 1,
                         err.context()
                     );
+                } else if linecol.is_none() {
+                    eprintln!("Error in an imported file: {}", err.context())
                 }
-                last_linecol = Some(linecol)
+                last_linecol = linecol
             }
         }
         _ => {
