@@ -64,6 +64,9 @@ pub enum StmtKind {
         condition: ExprIdx,
         body: Vec<Stmt>,
     },
+    ImportStmt {
+        path: SmolStr,
+    },
     Expr(Expr),
 }
 

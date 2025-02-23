@@ -193,6 +193,11 @@ where
             StmtKind::DoUntilLoop { condition, body } => {
                 self.exec_do_until(*condition, body)
             }
+            StmtKind::ImportStmt { path } => {
+                let text = std::fs::read_to_string(path)
+                    .map_err(|e| (stmt.range, e.into()))?;
+                self.run(&text)
+            }
         }
     }
 
@@ -1873,6 +1878,27 @@ mod tests {
             "Some line\n\n",
         );
         fs::remove_file("file_write_line.txt").unwrap();
+    }
+
+    #[test]
+    fn import_runs() {
+        let mut main_file = tempfile::NamedTempFile::new().unwrap();
+        let mut imported_file = tempfile::NamedTempFile::new().unwrap();
+        write!(
+            &mut imported_file,
+            "x = \"success!!! :D\"
+            print(\"Imported file ran!\")"
+        )
+        .unwrap();
+        write!(
+            &mut main_file,
+            "import \"{}\" 
+            print(x)",
+            imported_file.path().display()
+        )
+        .unwrap();
+        let src = fs::read_to_string(main_file.path()).unwrap();
+        check_output(&src, "Imported file ran!\nsuccess!!! :D\n");
     }
 
     #[test]

@@ -30,9 +30,21 @@ pub(crate) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
         Some(do_until(p))
     } else if p.at(TokenKind::Switch) {
         Some(switch_stmt(p))
+    } else if p.at(TokenKind::Import) {
+        Some(import_stmt(p))
     } else {
         expr::expr(p)
     }
+}
+
+fn import_stmt(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::Import));
+    let m = p.start();
+    p.bump(); // `import`
+
+    p.expect(TokenKind::String); // File path
+
+    m.complete(p, SyntaxKind::Import)
 }
 
 fn switch_stmt(p: &mut Parser) -> CompletedMarker {
@@ -1039,6 +1051,37 @@ endswitch"#,
                         RParen@130..131 ")"
                         Newline@131..132 "\n"
                     Endswitch@132..141 "endswitch""#]],
+        );
+    }
+
+    #[test]
+    fn parse_import_stmt() {
+        check(
+            "import \"file.ocr\"",
+            expect![[r#"
+                Root@0..17
+                  Import@0..17
+                    Import@0..6 "import"
+                    Whitespace@6..7 " "
+                    String@7..17 "\"file.ocr\"""#]],
+        );
+    }
+
+    #[test]
+    fn parse_many_import_stmt() {
+        check(
+            r#"import"foo"
+            import"bar""#,
+            expect![[r#"
+                Root@0..35
+                  Import@0..24
+                    Import@0..6 "import"
+                    String@6..11 "\"foo\""
+                    Newline@11..12 "\n"
+                    Whitespace@12..24 "            "
+                  Import@24..35
+                    Import@24..30 "import"
+                    String@30..35 "\"bar\"""#]],
         );
     }
 }

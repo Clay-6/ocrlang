@@ -28,6 +28,7 @@ impl Database {
                 ast::Stmt::ForLoop(ast) => self.lower_for_loop(ast),
                 ast::Stmt::WhileLoop(ast) => self.lower_while_loop(ast),
                 ast::Stmt::DoUntil(ast) => self.lower_do_until(ast),
+                ast::Stmt::Import(ast) => self.lower_import_stmt(ast)?,
                 ast::Stmt::Expr(ast) => {
                     StmtKind::Expr(self.lower_expr(Some(ast)))
                 }
@@ -226,6 +227,12 @@ impl Database {
                 _ => unreachable!(),
             }),
             value: self.lower_expr(ast.value()),
+        })
+    }
+
+    fn lower_import_stmt(&self, ast: ast::Import) -> Option<StmtKind> {
+        Some(StmtKind::ImportStmt {
+            path: ast.path()?.text().trim_matches('"').into(),
         })
     }
 
@@ -1237,5 +1244,15 @@ mod tests {
                 }],
             },
         );
+    }
+
+    #[test]
+    fn lower_import_stmt() {
+        check_stmt(
+            "import \"foo.ocr\"",
+            StmtKind::ImportStmt {
+                path: "foo.ocr".into(),
+            },
+        )
     }
 }

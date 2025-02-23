@@ -22,3 +22,4 @@ text-size.workspace = true
 [dev-dependencies]
 pretty_assertions.workspace = true
 text-size.workspace = true
+tempfile = "3.17.1"

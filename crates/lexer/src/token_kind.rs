@@ -109,6 +109,8 @@ pub enum TokenKind {
     Procedure,
     #[token("endprocedure")]
     Endprocedure,
+    #[token("import")]
+    Import,
 
     #[regex(r#""[^"\\]*(\\.[^"\\]*)*""#)]
     String,
@@ -193,6 +195,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Endfunction => "`endfunction`",
             TokenKind::Procedure => "`procedure`",
             TokenKind::Endprocedure => "`endprocedure`",
+            TokenKind::Import => "`import`",
             TokenKind::String => "string",
             TokenKind::Char => "char",
             TokenKind::Number => "number",
@@ -508,5 +511,10 @@ mod tests {
     fn lex_newline() {
         check("\n", TokenKind::Newline);
         check("\r\n", TokenKind::Newline);
+    }
+
+    #[test]
+    fn lex_import() {
+        check("import", TokenKind::Import)
     }
 }

@@ -14,6 +14,7 @@ pub enum Stmt {
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
     DoUntil(DoUntil),
+    Import(Import),
     Expr(Expr),
 }
 
@@ -56,6 +57,7 @@ impl Stmt {
             SyntaxKind::ForLoop => Self::ForLoop(ForLoop(node)),
             SyntaxKind::WhileLoop => Self::WhileLoop(WhileLoop(node)),
             SyntaxKind::DoUntil => Self::DoUntil(DoUntil(node)),
+            SyntaxKind::Import => Self::Import(Import(node)),
             _ => Self::Expr(Expr::cast(node)?),
         })
     }
@@ -71,6 +73,7 @@ impl Stmt {
             Stmt::ForLoop(fl) => fl.0.text_range(),
             Stmt::WhileLoop(wl) => wl.0.text_range(),
             Stmt::DoUntil(du) => du.0.text_range(),
+            Stmt::Import(im) => im.0.text_range(),
             Stmt::Expr(e) => e.text_range(),
         }
     }
@@ -134,6 +137,9 @@ pub struct WhileLoop(SyntaxNode);
 pub struct DoUntil(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
+pub struct Import(SyntaxNode);
+
+#[derive(Debug, PartialEq)]
 pub struct BinaryExpr(SyntaxNode);
 
 #[derive(Debug, PartialEq)]
@@ -189,6 +195,15 @@ impl VarDef {
 
     pub fn value(&self) -> Option<Expr> {
         self.0.children().find_map(Expr::cast)
+    }
+}
+
+impl Import {
+    pub fn path(&self) -> Option<SyntaxToken> {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .find(|token| matches!(token.kind(), SyntaxKind::String))
     }
 }
 
