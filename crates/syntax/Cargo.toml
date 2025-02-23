@@ -12,6 +12,6 @@ repository.workspace = true
 
 [dependencies]
 lexer = { version = "1.2.0", path = "../lexer", package = "ocrlang_lexer" }
-rowan = "0.15.11"
+rowan.workspace = true
 num-traits = "0.2.16"
 num-derive = "0.4.0"

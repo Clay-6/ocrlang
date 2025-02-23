@@ -4,9 +4,10 @@ resolver = "2"
 
 [workspace.dependencies]
 pretty_assertions = "1.4.0"
-smol_str = "0.2.0"
-thiserror = "1.0.50"
+smol_str = "0.3.2"
+thiserror = "2.0.11"
 text-size = "1.1.1"
+rowan = "0.16.1"
 
 [workspace.package]
 authors = ["Clay66 <clayw@clay66.dev>"]

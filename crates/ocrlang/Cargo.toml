@@ -15,4 +15,4 @@ clap = { version = "4.4.7", features = ["derive", "color"] }
 color-eyre = "0.6.2"
 line-index = "0.1.0"
 interpreter = { version = "1.2.0", path = "../interpreter", package = "ocrlang_interpreter" }
-rustyline = "12.0.0"
+rustyline = "15.0.0"

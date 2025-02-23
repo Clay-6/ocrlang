@@ -14,7 +14,7 @@ repository.workspace = true
 ast = { version = "1.2.0", path = "../ast", package = "ocrlang_ast" }
 hir = { version = "1.2.0", path = "../hir", package = "ocrlang_hir" }
 parser = { version = "1.2.0", path = "../parser", package = "ocrlang_parser" }
-rand = "0.8.5"
+rand = "0.9.0"
 smol_str.workspace = true
 thiserror.workspace = true
 text-size.workspace = true

@@ -116,12 +116,12 @@ pub(crate) fn random(
     lower: &Value,
 ) -> Result<Value, InterpretError> {
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     if let (Value::Int(lower), Value::Int(upper)) = (upper, lower) {
-        Ok(Value::Int(rng.gen_range(*lower..=*upper)))
+        Ok(Value::Int(rng.random_range(*lower..=*upper)))
     } else if let (Value::Float(lower), Value::Float(upper)) = (upper, lower) {
-        Ok(Value::Float(rng.gen_range(*lower..=*upper)))
+        Ok(Value::Float(rng.random_range(*lower..=*upper)))
     } else {
         Err(InterpretError::MismatchedTypes {
             expected: vec!["float", "int"],

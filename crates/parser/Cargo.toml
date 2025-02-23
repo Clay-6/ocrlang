@@ -12,9 +12,9 @@ repository.workspace = true
 
 [dependencies]
 lexer = { version = "1.2.0", path = "../lexer", package = "ocrlang_lexer" }
-rowan = "0.15.11"
 syntax = { version = "1.2.0", path = "../syntax", package = "ocrlang_syntax" }
 thiserror.workspace = true
+rowan.workspace = true
 
 [dev-dependencies]
 expect-test = "1.4.1"
