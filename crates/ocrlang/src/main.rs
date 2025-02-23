@@ -5,7 +5,7 @@ use interpreter::{InterpretError, Interpreter};
 use clap::Parser;
 use color_eyre::Result;
 use line_index::{LineIndex, TextRange};
-use rustyline::{error::ReadlineError, DefaultEditor};
+use rustyline::{DefaultEditor, error::ReadlineError};
 
 fn main() -> Result<()> {
     color_eyre::install()?;

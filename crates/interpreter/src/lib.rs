@@ -256,18 +256,20 @@ where
                 },
             ));
         };
-        let step = if let Value::Int(i) = step {
-            i
-        } else if let Value::Unit = step {
-            1
-        } else {
-            return Err((
-                range,
-                InterpretError::MismatchedTypes {
-                    expected: vec!["int"],
-                    found: step.type_str(),
-                },
-            ));
+        let step = match step {
+            Value::Int(i) => i,
+            _ => match step {
+                Value::Unit => 1,
+                _ => {
+                    return Err((
+                        range,
+                        InterpretError::MismatchedTypes {
+                            expected: vec!["int"],
+                            found: step.type_str(),
+                        },
+                    ));
+                }
+            },
         };
 
         self.push_env();
@@ -455,74 +457,74 @@ where
             unreachable!()
         };
 
-        if let Value::Int(inner_len) = j {
-            let mut arr = Vec::with_capacity(
-                outer_len
-                    .try_into()
-                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
-            );
+        match j {
+            Value::Int(inner_len) => {
+                let mut arr =
+                    Vec::with_capacity(outer_len.try_into().map_err(|_| {
+                        (range, InterpretError::IntegerTooLarge)
+                    })?);
 
-            let mut inner = Vec::with_capacity(
-                inner_len
-                    .try_into()
-                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
-            );
-            inner.resize(
-                inner_len
-                    .try_into()
-                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
-                Value::Unit,
-            );
-            arr.resize(
-                outer_len
-                    .try_into()
-                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
-                Value::Array(inner),
-            );
-            match kind {
-                hir::VarDefKind::Constant => {
-                    self.env_mut()
-                        .insert_constant(name.clone(), Value::Array(arr))
-                        .map_err(|()| {
-                            (range, InterpretError::ReassignedConstant)
-                        })?;
+                let mut inner =
+                    Vec::with_capacity(inner_len.try_into().map_err(|_| {
+                        (range, InterpretError::IntegerTooLarge)
+                    })?);
+                inner.resize(
+                    inner_len.try_into().map_err(|_| {
+                        (range, InterpretError::IntegerTooLarge)
+                    })?,
+                    Value::Unit,
+                );
+                arr.resize(
+                    outer_len.try_into().map_err(|_| {
+                        (range, InterpretError::IntegerTooLarge)
+                    })?,
+                    Value::Array(inner),
+                );
+                match kind {
+                    hir::VarDefKind::Constant => {
+                        self.env_mut()
+                            .insert_constant(name.clone(), Value::Array(arr))
+                            .map_err(|()| {
+                                (range, InterpretError::ReassignedConstant)
+                            })?;
+                    }
+                    hir::VarDefKind::Global => self
+                        .root_env()
+                        .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                    hir::VarDefKind::Standard => self
+                        .env_mut()
+                        .insert(name.clone(), Binding::Var(Value::Array(arr))),
                 }
-                hir::VarDefKind::Global => self
-                    .root_env()
-                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                hir::VarDefKind::Standard => self
-                    .env_mut()
-                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                Ok(Value::Unit)
             }
-            Ok(Value::Unit)
-        } else {
-            let mut arr = Vec::with_capacity(
-                outer_len
-                    .try_into()
-                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
-            );
-            arr.resize(
-                outer_len
-                    .try_into()
-                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
-                Value::Unit,
-            );
-            match kind {
-                hir::VarDefKind::Constant => {
-                    self.env_mut()
-                        .insert_constant(name.clone(), Value::Array(arr))
-                        .map_err(|()| {
-                            (range, InterpretError::ReassignedConstant)
-                        })?;
+            _ => {
+                let mut arr =
+                    Vec::with_capacity(outer_len.try_into().map_err(|_| {
+                        (range, InterpretError::IntegerTooLarge)
+                    })?);
+                arr.resize(
+                    outer_len.try_into().map_err(|_| {
+                        (range, InterpretError::IntegerTooLarge)
+                    })?,
+                    Value::Unit,
+                );
+                match kind {
+                    hir::VarDefKind::Constant => {
+                        self.env_mut()
+                            .insert_constant(name.clone(), Value::Array(arr))
+                            .map_err(|()| {
+                                (range, InterpretError::ReassignedConstant)
+                            })?;
+                    }
+                    hir::VarDefKind::Global => self
+                        .root_env()
+                        .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                    hir::VarDefKind::Standard => self
+                        .env_mut()
+                        .insert(name.clone(), Binding::Var(Value::Array(arr))),
                 }
-                hir::VarDefKind::Global => self
-                    .root_env()
-                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
-                hir::VarDefKind::Standard => self
-                    .env_mut()
-                    .insert(name.clone(), Binding::Var(Value::Array(arr))),
+                Ok(Value::Unit)
             }
-            Ok(Value::Unit)
         }
     }
 
@@ -1177,7 +1179,9 @@ impl fmt::Display for InterpretError {
             }
             InterpretError::ReassignedConstant => "reassigned constant".into(),
             InterpretError::MismatchedTypes { expected, found } => {
-                format!("mismatched types. Expected one of {expected:?}, but found {found}")
+                format!(
+                    "mismatched types. Expected one of {expected:?}, but found {found}"
+                )
             }
             InterpretError::UnresolvedVariable { name } => {
                 format!("unresolved variable '{name}'")
@@ -1186,7 +1190,9 @@ impl fmt::Display for InterpretError {
                 format!("unresolved subprogram '{name}'")
             }
             InterpretError::InvalidArgumentCount { expected, got } => {
-                format!("invalid argument count. Expected {expected}, but found {got}")
+                format!(
+                    "invalid argument count. Expected {expected}, but found {got}"
+                )
             }
             InterpretError::IndexOutOfRange => "index out of range".to_string(),
             InterpretError::ForLoopWithoutVariable => {
@@ -1202,7 +1208,9 @@ impl fmt::Display for InterpretError {
                 "negative value not allowed".to_string()
             }
             InterpretError::IncorrectArrayLength { expected, found } => {
-                format!("incorrect array length; expected {expected}, but found {found}")
+                format!(
+                    "incorrect array length; expected {expected}, but found {found}"
+                )
             }
             InterpretError::IntegerTooLarge => "integer too large".to_string(),
             InterpretError::InvalidDotTarget { name } => {
@@ -1241,7 +1249,7 @@ mod tests {
 
     use std::collections::HashMap;
     use std::fs;
-    use std::io::{empty, BufReader};
+    use std::io::{BufReader, empty};
 
     use hir::{Expr, ExprKind, Literal, StmtKind};
     use pretty_assertions::assert_eq;

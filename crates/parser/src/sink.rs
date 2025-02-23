@@ -4,7 +4,7 @@ use lexer::Token;
 use rowan::{GreenNodeBuilder, Language};
 use syntax::OcrLang;
 
-use crate::{event::Event, parser::ParseError, Parse};
+use crate::{Parse, event::Event, parser::ParseError};
 
 pub(crate) struct Sink<'t, 'input> {
     builder: GreenNodeBuilder<'static>,
@@ -41,17 +41,20 @@ impl<'t, 'input> Sink<'t, 'input> {
                         idx += fp;
 
                         // Traverse along the `forward_parent` chain until we can't anymore
-                        forward_parent = if let Event::StartNode {
-                            kind,
-                            forward_parent,
-                        } = mem::replace(
+                        forward_parent = match mem::replace(
                             &mut self.events[idx],
                             Event::Placeholder,
                         ) {
-                            kinds.push(kind);
-                            forward_parent
-                        } else {
-                            unreachable!();
+                            Event::StartNode {
+                                kind,
+                                forward_parent,
+                            } => {
+                                kinds.push(kind);
+                                forward_parent
+                            }
+                            _ => {
+                                unreachable!();
+                            }
                         };
                     }
 

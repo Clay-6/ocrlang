@@ -1,7 +1,7 @@
 [package]
 name = "ocrlang_hir"
 version = "1.2.0"
-edition = "2021"
+edition = "2024"
 description = "Crate which defines OCRLang's High Level Intermediate Representation, lowered fom the AST"
 readme.workspace = true
 authors.workspace = true

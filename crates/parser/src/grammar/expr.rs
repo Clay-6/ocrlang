@@ -1,4 +1,4 @@
-use super::{expr, stmt, CompletedMarker, Parser, SyntaxKind, TokenKind};
+use super::{CompletedMarker, Parser, SyntaxKind, TokenKind, expr, stmt};
 
 pub(crate) fn expr(p: &mut Parser) -> Option<CompletedMarker> {
     expr_bp(p, 0)

@@ -1,4 +1,4 @@
-use super::{expr, CompletedMarker, Parser, SyntaxKind, TokenKind};
+use super::{CompletedMarker, Parser, SyntaxKind, TokenKind, expr};
 
 const VAR_DEF_START: [TokenKind; 4] = [
     TokenKind::Ident,

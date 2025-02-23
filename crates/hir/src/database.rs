@@ -230,14 +230,13 @@ impl Database {
     }
 
     fn lower_array_def(&mut self, ast: ast::ArrayDef) -> Option<StmtKind> {
-        let subscript = {
-            if let Some(mut subs) = ast.subscript() {
+        let subscript = match ast.subscript() {
+            Some(mut subs) => {
                 let first = self.lower_expr(subs.next());
                 let last = self.lower_expr(subs.next());
                 (first, last)
-            } else {
-                (Expr::default(), Expr::default())
             }
+            _ => (Expr::default(), Expr::default()),
         };
         let dimensions = {
             let mut dims = ast.dimensions();

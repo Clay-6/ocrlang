@@ -99,7 +99,7 @@ pub(crate) fn asc(args: &Value) -> Result<Value, InterpretError> {
 }
 
 pub(crate) fn chr(args: &Value) -> Result<Value, InterpretError> {
-    let Value::Int(ref n) = args else {
+    let Value::Int(n) = args else {
         return Err(InterpretError::MismatchedTypes {
             expected: vec!["int"],
             found: args.type_str(),
@@ -131,7 +131,7 @@ pub(crate) fn random(
 }
 
 pub(crate) fn open(filename: &Value) -> Result<Value, InterpretError> {
-    if let Value::String(ref path) = filename {
+    if let Value::String(path) = filename {
         let file = std::fs::OpenOptions::new()
             .read(true)
             .append(true)
@@ -146,7 +146,7 @@ pub(crate) fn open(filename: &Value) -> Result<Value, InterpretError> {
 }
 
 pub(crate) fn new_file(filename: &Value) -> Result<Value, InterpretError> {
-    if let Value::String(ref path) = filename {
+    if let Value::String(path) = filename {
         std::fs::File::create(path.as_str())?;
         Ok(Value::Unit)
     } else {

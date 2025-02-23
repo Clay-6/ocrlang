@@ -1,4 +1,4 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{HashMap, hash_map::Entry};
 
 use hir::Stmt;
 use smol_str::SmolStr;
@@ -33,11 +33,12 @@ impl Env {
         name: SmolStr,
         value: Value,
     ) -> Result<(), ()> {
-        if let Entry::Vacant(e) = self.bindings.entry(name) {
-            e.insert(Binding::Const(value));
-            Ok(())
-        } else {
-            Err(())
+        match self.bindings.entry(name) {
+            Entry::Vacant(e) => {
+                e.insert(Binding::Const(value));
+                Ok(())
+            }
+            _ => Err(()),
         }
     }
 

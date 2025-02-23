@@ -4,7 +4,7 @@ mod stmt;
 use lexer::TokenKind;
 use syntax::SyntaxKind;
 
-use crate::parser::{marker::CompletedMarker, Parser};
+use crate::parser::{Parser, marker::CompletedMarker};
 
 pub(crate) fn root(p: &mut Parser) -> CompletedMarker {
     let m = p.start();
