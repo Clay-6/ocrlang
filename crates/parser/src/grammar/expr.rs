@@ -43,18 +43,6 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> Option<CompletedMarker> {
         } else if p.at(TokenKind::LBracket) {
             InfixOp::Subscript
         } else {
-            if p.at(TokenKind::LParen) {
-                let m = lhs.precede(p);
-                p.bump();
-                while !p.at(TokenKind::RParen) {
-                    expr(p); // An arg
-                    if p.at(TokenKind::Comma) {
-                        p.bump();
-                    }
-                }
-                p.expect(TokenKind::RParen);
-                lhs = m.complete(p, SyntaxKind::SubprogCall);
-            }
             break;
         };
 
@@ -176,7 +164,24 @@ fn name_ref(p: &mut Parser) -> CompletedMarker {
 
     let m = p.start();
     p.bump();
-    m.complete(p, SyntaxKind::NameRef)
+
+    let mut lhs = m.complete(p, SyntaxKind::NameRef);
+
+    // Handle subprog calls here so that they can be the lhs of a full expression
+    if p.at(TokenKind::LParen) {
+        let m = lhs.precede(p);
+        p.bump();
+        while !p.at(TokenKind::RParen) {
+            expr(p); // An arg
+            if p.at(TokenKind::Comma) {
+                p.bump();
+            }
+        }
+        p.expect(TokenKind::RParen);
+        lhs = m.complete(p, SyntaxKind::SubprogCall);
+    }
+
+    lhs
 }
 
 enum InfixOp {
@@ -645,6 +650,93 @@ mod tests {
                   Literal@12..13
                     Number@12..13 "4"
                   RParen@13..14 ")""#]],
+        );
+    }
+
+    #[test]
+    fn parse_call_in_lhs() {
+        check(
+            "f(x-1) * x",
+            expect![[r#"
+            Root@0..10
+              BinaryExpr@0..10
+                SubprogCall@0..7
+                  NameRef@0..1
+                    Ident@0..1 "f"
+                  LParen@1..2 "("
+                  BinaryExpr@2..5
+                    NameRef@2..3
+                      Ident@2..3 "x"
+                    Minus@3..4 "-"
+                    Literal@4..5
+                      Number@4..5 "1"
+                  RParen@5..6 ")"
+                  Whitespace@6..7 " "
+                Star@7..8 "*"
+                Whitespace@8..9 " "
+                NameRef@9..10
+                  Ident@9..10 "x""#]],
+        );
+    }
+
+    #[test]
+    fn parse_call_in_lhs_in_call() {
+        check("f(f(x) - 1)", expect![[r#"
+            Root@0..11
+              SubprogCall@0..11
+                NameRef@0..1
+                  Ident@0..1 "f"
+                LParen@1..2 "("
+                BinaryExpr@2..10
+                  SubprogCall@2..7
+                    NameRef@2..3
+                      Ident@2..3 "f"
+                    LParen@3..4 "("
+                    NameRef@4..5
+                      Ident@4..5 "x"
+                    RParen@5..6 ")"
+                    Whitespace@6..7 " "
+                  Minus@7..8 "-"
+                  Whitespace@8..9 " "
+                  Literal@9..10
+                    Number@9..10 "1"
+                RParen@10..11 ")""#]]);
+    }
+
+    #[test]
+    fn parse_nested_calls_in_lhs() {
+        check(
+            "f(5*f(x) - 1) * x",
+            expect![[r#"
+                Root@0..17
+                  BinaryExpr@0..17
+                    SubprogCall@0..14
+                      NameRef@0..1
+                        Ident@0..1 "f"
+                      LParen@1..2 "("
+                      BinaryExpr@2..12
+                        BinaryExpr@2..9
+                          Literal@2..3
+                            Number@2..3 "5"
+                          Star@3..4 "*"
+                          SubprogCall@4..9
+                            NameRef@4..5
+                              Ident@4..5 "f"
+                            LParen@5..6 "("
+                            NameRef@6..7
+                              Ident@6..7 "x"
+                            RParen@7..8 ")"
+                            Whitespace@8..9 " "
+                        Minus@9..10 "-"
+                        Whitespace@10..11 " "
+                        Literal@11..12
+                          Number@11..12 "1"
+                      RParen@12..13 ")"
+                      Whitespace@13..14 " "
+                    Star@14..15 "*"
+                    Whitespace@15..16 " "
+                    NameRef@16..17
+                      Ident@16..17 "x""#]],
         );
     }
 }
