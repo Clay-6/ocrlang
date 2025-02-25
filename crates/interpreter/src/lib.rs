@@ -568,9 +568,14 @@ where
         };
         let value = self.eval(value)?;
         if matches!(i2, Value::Unit) {
-            arr[usize::try_from(i1)
-                .map_err(|_| (range, InterpretError::IntegerTooLarge))?] =
-                value;
+            if let Some(x) = arr.get_mut(
+                usize::try_from(i1)
+                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
+            ) {
+                *x = value
+            } else {
+                return Err((range, InterpretError::IndexOutOfRange));
+            }
         } else {
             let Value::Int(i2) = i2 else {
                 return Err((
@@ -581,9 +586,13 @@ where
                     },
                 ));
             };
-            let Value::Array(subarr) = &mut arr[usize::try_from(i1)
-                .map_err(|_| (range, InterpretError::IntegerTooLarge))?]
-            else {
+            let Some(v) = arr.get_mut(
+                usize::try_from(i1)
+                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
+            ) else {
+                return Err((range, InterpretError::IndexOutOfRange));
+            };
+            let Value::Array(subarr) = v else {
                 return Err((
                     range,
                     InterpretError::MismatchedTypes {
@@ -595,9 +604,13 @@ where
                     },
                 ));
             };
-            subarr[usize::try_from(i2)
-                .map_err(|_| (range, InterpretError::IntegerTooLarge))?] =
-                value;
+            let Some(x) = subarr.get_mut(
+                usize::try_from(i2)
+                    .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
+            ) else {
+                return Err((range, InterpretError::IndexOutOfRange));
+            };
+            *x = value;
         }
         self.env_mut()
             .insert(name.clone(), Binding::Var(Value::Array(arr)));
@@ -1906,5 +1919,21 @@ mod tests {
             .run("function double(x) return x*2 endfunction")
             .unwrap();
         interpreter.run("print(double(2))").unwrap();
+    }
+
+    #[test]
+    fn oob_array_assign_doesnt_crash() {
+        let mut interpreter = Interpreter::default();
+        let src = "array xs[0]\nxs[0] = 0";
+        interpreter.run(src).unwrap_err();
+    }
+
+    #[test]
+    fn oob_nested_array_assign_doesnt_crash() {
+        let mut interpreter = Interpreter::default();
+        let src = "array xs[1,1]\nxs[0,2] = 0";
+        interpreter.run(src).unwrap_err();
+        let src = "array xs[1,1]\nxs[2,0] = 0";
+        dbg!(interpreter.run(src).unwrap_err());
     }
 }
