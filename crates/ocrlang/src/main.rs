@@ -27,6 +27,19 @@ fn main() -> Result<()> {
                 std::process::exit(2);
             }
         };
+    } else if let Some(cmd) = args.exec {
+        let res = interpreter
+            .run(&cmd)
+            .map_err(|e| {
+                interpret_err(e, LineIndex::new(&cmd));
+                std::process::exit(2)
+            })
+            .expect("If there was an error, we already exited");
+        match res {
+            interpreter::Value::Unit => {} // Nothing to print
+            val => println!("{}", val),
+        }
+        return Ok(());
     }
 
     let mut rl = DefaultEditor::new()?;
@@ -108,4 +121,9 @@ fn interpret_err(
 pub struct Args {
     /// A file to execute
     file: Option<PathBuf>,
+    /// Execute a single line of Exam Reference Language code.
+    ///
+    /// Will be ignored if a file is provided
+    #[clap(short = 'c', long = "exec")]
+    exec: Option<String>,
 }
