@@ -413,6 +413,27 @@ where
                 },
             ));
         };
+
+        let mut last_type_str = "unit";
+        let mut bad_type_str = "";
+        if arr.iter().any(|v| {
+            if last_type_str != "unit" && v.type_str() != last_type_str {
+                bad_type_str = v.type_str();
+                true
+            } else {
+                last_type_str = v.type_str();
+                false
+            }
+        }) {
+            return Err((
+                range,
+                InterpretError::MismatchedTypes {
+                    expected: vec![last_type_str],
+                    found: bad_type_str,
+                },
+            ));
+        }
+
         match kind {
             hir::VarDefKind::Constant => self
                 .env_mut()
@@ -1639,6 +1660,14 @@ mod tests {
             print(nums[2, 1])",
             "[5, 69]\n",
         );
+    }
+
+    #[test]
+    fn array_assign_enforces_homogeneity() {
+        let mut interpreter = Interpreter::default();
+        interpreter
+            .run("array xs = [1, \"two\", true]")
+            .unwrap_err();
     }
 
     #[test]
