@@ -208,7 +208,9 @@ impl Database {
                         },
                     }))
                     .collect(),
-                _ => unreachable!(),
+                _ => unreachable!(
+                    "A subprogram can only be a `function` or a `procedure`"
+                ),
             }
         };
         Some(StmtKind::SubprogramDef {
@@ -224,7 +226,9 @@ impl Database {
             kind: ast.kind().map_or(VarDefKind::Standard, |k| match k.kind() {
                 SyntaxKind::Const => VarDefKind::Constant,
                 SyntaxKind::Global => VarDefKind::Global,
-                _ => unreachable!(),
+                _ => unreachable!(
+                    "The kind will only ever be `const` or `global`"
+                ),
             }),
             value: self.lower_expr(ast.value()),
         })
@@ -258,7 +262,9 @@ impl Database {
             kind: ast.kind().map_or(VarDefKind::Standard, |k| match k.kind() {
                 SyntaxKind::Const => VarDefKind::Constant,
                 SyntaxKind::Global => VarDefKind::Global,
-                _ => unreachable!(),
+                _ => unreachable!(
+                    "The kind will only ever be `const` or `global`"
+                ),
             }),
             subscript,
             dimensions,
@@ -285,7 +291,7 @@ impl Database {
             SyntaxKind::Less => BinaryOp::LessThan,
             SyntaxKind::LessEqual => BinaryOp::LessEquals,
             SyntaxKind::LBracket => BinaryOp::SubScript,
-            _ => unreachable!(),
+            _ => unreachable!("These are the only binary ops"),
         };
 
         let lhs = {
@@ -304,7 +310,7 @@ impl Database {
         let op = match ast.op().unwrap().kind() {
             SyntaxKind::Not => UnaryOp::Not,
             SyntaxKind::Minus => UnaryOp::Neg,
-            _ => unreachable!(),
+            _ => unreachable!("These are the only unary ops"),
         };
 
         let opand = self.lower_expr(ast.expr());

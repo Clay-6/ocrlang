@@ -147,7 +147,9 @@ fn prefix_expr(p: &mut Parser) -> CompletedMarker {
     } else if p.at(TokenKind::Not) {
         PrefixOp::Not
     } else {
-        unreachable!()
+        unreachable!(
+            "The only 2 prefix operators are `-` and `NOT`, so it must be one of those"
+        )
     };
 
     let ((), bp) = op.bp();
@@ -681,7 +683,9 @@ mod tests {
 
     #[test]
     fn parse_call_in_lhs_in_call() {
-        check("f(f(x) - 1)", expect![[r#"
+        check(
+            "f(f(x) - 1)",
+            expect![[r#"
             Root@0..11
               SubprogCall@0..11
                 NameRef@0..1
@@ -700,7 +704,8 @@ mod tests {
                   Whitespace@8..9 " "
                   Literal@9..10
                     Number@9..10 "1"
-                RParen@10..11 ")""#]]);
+                RParen@10..11 ")""#]],
+        );
     }
 
     #[test]

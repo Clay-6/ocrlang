@@ -437,30 +437,25 @@ where
         name: &SmolStr,
         range: TextRange,
     ) -> Result<Value, (TextRange, InterpretError)> {
-        let (i, j) = (self.eval(&dimensions.0)?, self.eval(&dimensions.1)?);
-        if !matches!(i, Value::Int(_) | Value::Unit) {
+        let (outer_len, j) =
+            (self.eval(&dimensions.0)?, self.eval(&dimensions.1)?);
+        let Value::Int(outer_len) = outer_len else {
             return Err((
                 range,
                 InterpretError::MismatchedTypes {
                     expected: vec!["int"],
-                    found: i.type_str(),
+                    found: outer_len.type_str(),
                 },
             ));
-        }
-        if let Value::Int(i) = i {
-            if i < 0 {
-                return Err((range, InterpretError::IllegalNegative));
-            }
+        };
+        if outer_len < 0 {
+            return Err((range, InterpretError::IllegalNegative));
         }
         if let Value::Int(j) = j {
             if j < 0 {
                 return Err((range, InterpretError::IllegalNegative));
             }
         }
-
-        let Value::Int(outer_len) = i else {
-            unreachable!()
-        };
 
         match j {
             Value::Int(inner_len) => {
@@ -545,7 +540,7 @@ where
             return Err((range, InterpretError::DisallowedVariableQualifier));
         }
         let i1 = self.eval(&subscript.0)?;
-        if !matches!(i1, Value::Int(_)) {
+        let Value::Int(i1) = i1 else {
             return Err((
                 range,
                 InterpretError::MismatchedTypes {
@@ -553,8 +548,7 @@ where
                     found: i1.type_str(),
                 },
             ));
-        }
-        let Value::Int(i1) = i1 else { unreachable!() };
+        };
 
         let i2 = self.eval(&subscript.1)?;
         let Some(arr) = self.get_var(name) else {
@@ -798,7 +792,9 @@ where
                         ));
                     }
                     let Value::Int(n) = args[0] else {
-                        unreachable!();
+                        unreachable!(
+                            "`args` has a length of 1, and that one element is an int"
+                        );
                     };
                     let Ok(n) = n.try_into() else {
                         return Some(Err(InterpretError::IntegerTooLarge));
@@ -832,7 +828,9 @@ where
                     let (Value::Int(skip), Value::Int(len)) =
                         (&args[0], &args[1])
                     else {
-                        unreachable!()
+                        unreachable!(
+                            "`args` has a length of 2, and both elements are ints"
+                        )
                     };
                     if *skip < 0 || *len < 0 {
                         return Some(Err(InterpretError::IllegalNegative));

@@ -53,7 +53,7 @@ impl CompletedMarker {
         {
             *forward_parent = Some(new_m.pos - self.pos);
         } else {
-            unreachable!();
+            unreachable!("The forward parent will only ever be a `StartNode`");
         }
 
         new_m

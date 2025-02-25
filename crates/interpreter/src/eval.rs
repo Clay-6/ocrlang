@@ -18,7 +18,7 @@ pub(crate) fn eval_binary_op(
         hir::BinaryOp::Equals => eval_eq(lhs, rhs),
         hir::BinaryOp::NotEquals => eval_eq(lhs, rhs).map(|res| {
             let Value::Bool(res) = res else {
-                unreachable!()
+                unreachable!("`eval_eq` WILL return a Value::Bool")
             };
             Value::Bool(!res)
         }),
@@ -135,11 +135,9 @@ fn eval_subscript(lhs: &Value, rhs: &Value) -> InterpretResult<Value> {
             found: lhs.type_str(),
         })
     } else {
-        // The only way we don't hit the first
-        // block is if `lhs` isn't an array
-        // and/or `rhs` isn't an int,
-        // which we've already handled
-        unreachable!();
+        unreachable!(
+            "The only way to end up here is if `lhs` isn't an array and/or `rhs` isn't an int, which we handled already"
+        );
     }
 }
 

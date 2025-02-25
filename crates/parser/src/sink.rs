@@ -53,7 +53,9 @@ impl<'t, 'input> Sink<'t, 'input> {
                                 forward_parent
                             }
                             _ => {
-                                unreachable!();
+                                unreachable!(
+                                    "The forward parent will always be a `StartNode`"
+                                );
                             }
                         };
                     }
