@@ -47,6 +47,10 @@ fn main() -> Result<()> {
         let read_line = rl.readline("> ");
         match read_line {
             Ok(line) => {
+                if line == "quit()" || line == "quit" {
+                    break;
+                }
+
                 let lineindex = LineIndex::new(&line);
                 rl.add_history_entry(line.as_str())?;
                 match interpreter.run(&line) {
