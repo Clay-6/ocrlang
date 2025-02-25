@@ -567,7 +567,26 @@ where
             ));
         };
         let value = self.eval(value)?;
+        let mut arr_type_str = "";
+
         if matches!(i2, Value::Unit) {
+            if arr.iter().any(|other| {
+                if !matches!(other, Value::Unit) && !other.same_type(&value) {
+                    arr_type_str = other.type_str();
+                    true
+                } else {
+                    false
+                }
+            }) {
+                return Err((
+                    range,
+                    InterpretError::MismatchedTypes {
+                        expected: vec![arr_type_str],
+                        found: value.type_str(),
+                    },
+                ));
+            }
+
             if let Some(x) = arr.get_mut(
                 usize::try_from(i1)
                     .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
@@ -604,6 +623,23 @@ where
                     },
                 ));
             };
+            if subarr.iter().any(|other| {
+                if !matches!(other, Value::Unit) && !other.same_type(&value) {
+                    arr_type_str = other.type_str();
+                    true
+                } else {
+                    false
+                }
+            }) {
+                return Err((
+                    range,
+                    InterpretError::MismatchedTypes {
+                        expected: vec![arr_type_str],
+                        found: value.type_str(),
+                    },
+                ));
+            }
+
             let Some(x) = subarr.get_mut(
                 usize::try_from(i2)
                     .map_err(|_| (range, InterpretError::IntegerTooLarge))?,
