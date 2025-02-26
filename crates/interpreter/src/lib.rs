@@ -749,7 +749,7 @@ where
                         (&lhs, &rhs),
                         (&Value::Int(_), &Value::Float(_))
                             | (&Value::Float(_), &Value::Int(_))
-                            | (&Value::Array(_), Value::Int(_))
+                            | (&Value::Array(_), &Value::Int(_))
                     )
                 {
                     return Err((
@@ -761,8 +761,7 @@ where
                     ));
                 }
 
-                eval_binary_op(*op, &lhs, &rhs)
-                    .map_err(|e| (self.db.get(*lhs_idx).range, e))
+                eval_binary_op(*op, &lhs, &rhs).map_err(|e| (expr.range, e))
             }
             hir::ExprKind::Unary { op, opand } => {
                 eval_unary_op(&self.eval(&self.db.get(*opand).clone())?, *op)
