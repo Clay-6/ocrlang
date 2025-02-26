@@ -571,6 +571,33 @@ mod tests {
     }
 
     #[test]
+    fn parse_multi_index_array_assign() {
+        check(
+            "xs[1][0] = 42",
+            expect![[r#"
+            Root@0..13
+              ArrayDef@0..13
+                IdentSubscript@0..9
+                  BinaryExpr@0..5
+                    NameRef@0..2
+                      Ident@0..2 "xs"
+                    LBracket@2..3 "["
+                    Literal@3..4
+                      Number@3..4 "1"
+                    RBracket@4..5 "]"
+                  LBracket@5..6 "["
+                  Literal@6..7
+                    Number@6..7 "0"
+                  RBracket@7..8 "]"
+                  Whitespace@8..9 " "
+                Equal@9..10 "="
+                Whitespace@10..11 " "
+                Literal@11..13
+                  Number@11..13 "42""#]],
+        );
+    }
+
+    #[test]
     fn parse_proc_no_body() {
         check(
             "procedure f() endprocedure",
