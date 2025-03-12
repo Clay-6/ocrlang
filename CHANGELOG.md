@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
 - Update deps
 - Update CI testing workflow
 - Update `cargo-dist` things
+- Update artifact actions to v4
 
 ### Refactor
 
@@ -127,3 +128,4 @@ Initial release. Contains support for all fetures mentioned in the spec:
 [1.0.0]: https://github.com/Clay-6/ocrlang/releases/tag/v1.0.0
 [1.1.0]: https://github.com/Clay-6/ocrlang/releases/tag/v1.1.0
 [1.2.0]: https://github.com/Clay-6/ocrlang/releases/tag/v1.2.0
+[1.3.0]: https://github.com/Clay-6/ocrlang/releases/tag/v1.3.0
