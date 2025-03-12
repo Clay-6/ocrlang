@@ -1,6 +1,6 @@
 [package]
 name = "ocrlang_ast"
-version = "1.2.0"
+version = "1.3.0"
 edition = "2024"
 description = "A type-safe interface for OCRLang's AST"
 readme.workspace = true
@@ -11,8 +11,8 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-syntax = { version = "1.2.0", path = "../syntax", package = "ocrlang_syntax" }
+syntax = { version = "1.3.0", path = "../syntax", package = "ocrlang_syntax" }
 text-size.workspace = true
 
 [dev-dependencies]
-parser = { version = "1.2.0", path = "../parser", package = "ocrlang_parser" }
+parser = { version = "1.3.0", path = "../parser", package = "ocrlang_parser" }
