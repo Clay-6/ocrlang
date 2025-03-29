@@ -214,7 +214,6 @@ enum PrefixOp {
 impl InfixOp {
     fn bp(&self) -> (u8, u8) {
         match self {
-            Self::Subscript => (0, 0),
             Self::Or => (1, 2),
             Self::And => (3, 4),
             Self::Equal
@@ -226,7 +225,8 @@ impl InfixOp {
             Self::Add | Self::Sub => (9, 10),
             Self::Mul | Self::Div | Self::Mod | Self::Quot => (11, 12),
             Self::Pow => (16, 15),
-            Self::Dot => (17, 18),
+            Self::Subscript => (17, 18),
+            Self::Dot => (19, 20),
         }
     }
 }
@@ -743,5 +743,27 @@ mod tests {
                     NameRef@16..17
                       Ident@16..17 "x""#]],
         );
+    }
+
+    #[test]
+    fn parse_array_index_in_rhs() {
+        check(
+            "1 + bs[1]",
+            expect![[r#"
+            Root@0..9
+              BinaryExpr@0..9
+                Literal@0..2
+                  Number@0..1 "1"
+                  Whitespace@1..2 " "
+                Plus@2..3 "+"
+                Whitespace@3..4 " "
+                BinaryExpr@4..9
+                  NameRef@4..6
+                    Ident@4..6 "bs"
+                  LBracket@6..7 "["
+                  Literal@7..8
+                    Number@7..8 "1"
+                  RBracket@8..9 "]""#]],
+        )
     }
 }
